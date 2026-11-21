@@ -4,289 +4,372 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Naija Match Desk</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Nunito+Sans:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: fixture board on the left, the selected match on the right. Phone: board on top, match below. */
+/* Warm paper look. Light = cream paper. Dark = near-black with emerald and amber. */
 :root{
-  --bg:#EDF2EC;--surface:#F8FAF6;--ink:#13201A;--muted:#53645A;--line:#C7D3C8;
-  --accent:#00794A;--accent-ink:#FFFFFF;--good-bg:#DDEFE4;--bad:#B3261E;--away:#C28A00;--warn-bg:#F6EBC8;--live:#C0392B;
+  --bg:#F3EAD8;--surface:#FBF5E6;--ink:#2A2118;--muted:#6B5C4A;--line:#D8C9AD;
+  --accent:#0E7C57;--accent-ink:#FFFFFF;--good-bg:#E3EFD9;--bad:#B3361E;--away:#B7791F;--warn-bg:#F6E7BD;--live:#C0392B;
+  --shadow:0 1px 0 rgba(70,45,10,.10),0 8px 16px -10px rgba(70,45,10,.40);
+  --grain:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .10 0 0 0 .08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   --f-display:"Archivo","Arial Narrow",Arial,sans-serif;
-  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-body:"Nunito Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0C1712;--surface:#13231B;--ink:#E6EFE8;--muted:#9BB0A2;--line:#264235;
-    --accent:#3FBF86;--accent-ink:#06150D;--good-bg:#17382A;--bad:#F0897F;--away:#E8B923;--warn-bg:#3A3217;--live:#FF8A7A;color-scheme:dark;
+    --bg:#100E0C;--surface:#1A1713;--ink:#F2E9D8;--muted:#B3A58F;--line:#352E26;
+    --accent:#3DD598;--accent-ink:#0A1A12;--good-bg:#16291F;--bad:#FF8A73;--away:#F2B544;--warn-bg:#352A10;--live:#FF8A7A;
+    --shadow:0 1px 0 rgba(0,0,0,.5);--grain:none;color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0C1712;--surface:#13231B;--ink:#E6EFE8;--muted:#9BB0A2;--line:#264235;
-  --accent:#3FBF86;--accent-ink:#06150D;--good-bg:#17382A;--bad:#F0897F;--away:#E8B923;--warn-bg:#3A3217;--live:#FF8A7A;color-scheme:dark;
+  --bg:#100E0C;--surface:#1A1713;--ink:#F2E9D8;--muted:#B3A58F;--line:#352E26;
+  --accent:#3DD598;--accent-ink:#0A1A12;--good-bg:#16291F;--bad:#FF8A73;--away:#F2B544;--warn-bg:#352A10;--live:#FF8A7A;
+  --shadow:0 1px 0 rgba(0,0,0,.5);--grain:none;color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;
-  padding-block:20px 32px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
-.wrap{max-width:1380px;margin:0 auto;display:grid;gap:18px}
+body{background:var(--bg) var(--grain);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;
+  padding-block:18px 36px;padding-left:max(14px, env(safe-area-inset-left, 0px));padding-right:max(14px, env(safe-area-inset-right, 0px))}
+.wrap{max-width:1380px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
 h1,h2,h3,legend{font-family:var(--f-display);text-wrap:balance}
 button,input,select{font:inherit;color:inherit}
 .mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
-.head{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:18px 20px;display:grid;gap:12px;position:relative;overflow:hidden}
-.head svg{position:absolute;right:-30px;top:-24px;width:280px;height:auto;opacity:.6;pointer-events:none}
-.head svg *{fill:none;stroke:var(--line);stroke-width:2}
+.paper{border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:var(--shadow)}
+.head{padding:18px 18px 16px;display:grid;gap:10px;position:relative}
 .eyebrow{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
-h1{margin:0;font-weight:800;font-size:clamp(28px,5vw,40px);line-height:1.02}
-.stamp{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);position:relative}
-.stamp b{color:var(--ink);font-weight:600}
-.banner{margin:0;border-left:3px solid var(--away);background:var(--warn-bg);padding:8px 12px;font-size:13.5px;position:relative}
+h1{margin:0;font-weight:800;font-size:clamp(32px,7vw,48px);line-height:1}
+.lead{margin:0;font-size:17px;max-width:46ch}
+.stamp{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13.5px;color:var(--muted);align-items:center}
+.stamp b{color:var(--ink);font-weight:700}
+.sdot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--accent);margin-right:6px;vertical-align:0}
+.sdot.old{background:var(--away)}
+.themeBtn{position:absolute;right:14px;top:14px}
+.banner{margin:0;border-left:4px solid var(--away);background:var(--warn-bg);padding:8px 12px;font-size:14px;border-radius:0 6px 6px 0}
 .banner.bad{border-color:var(--bad)}
-.src{position:relative;font-size:13px;color:var(--muted)}
-.src summary{cursor:pointer;width:max-content;color:var(--ink);font-weight:500}
-.src ul{margin:8px 0 0;padding-left:18px;display:grid;gap:6px;max-width:95ch}
-.chips{display:flex;flex-wrap:wrap;gap:6px;position:relative}
-.chip-b{border:1px solid var(--line);background:var(--bg);padding:6px 11px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500}
-.chip-b[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
-.chip-b small{font-family:var(--f-mono);opacity:.75;margin-left:4px}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
+.src{font-size:14px;color:var(--muted)}
+.src summary{cursor:pointer;width:max-content;color:var(--ink);font-weight:600;padding:4px 0}
+.src ul{margin:8px 0 0;padding-left:18px;display:grid;gap:6px;max-width:80ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip-b{border:1.5px solid var(--line);background:var(--bg);padding:9px 14px;min-height:44px;border-radius:999px;cursor:pointer;font-size:14px;font-weight:700}
+.chip-b[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip-b small{font-family:var(--f-mono);opacity:.8;margin-left:5px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
 @media (min-width:900px){
-  .layout{grid-template-columns:330px minmax(0,1fr)}
-  #board{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto}
+  .layout{grid-template-columns:340px minmax(0,1fr)}
+  #board{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto}
 }
-@media (max-width:899px){#board{max-height:420px;overflow-y:auto}}
-.panel{border:1px solid var(--line);border-radius:8px;background:var(--surface);min-width:0}
-#board{padding:6px 0}
-.day{font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 14px 6px;position:sticky;top:0;background:var(--surface);z-index:1}
-.fx{display:grid;grid-template-columns:48px minmax(0,1fr);gap:2px 10px;width:100%;text-align:left;border:0;border-top:1px solid var(--line);background:transparent;padding:10px 14px;cursor:pointer}
-.fx:hover{background:var(--bg)}
-.fx[aria-pressed="true"]{background:var(--good-bg);box-shadow:inset 3px 0 0 var(--accent)}
-.fx-time{font-family:var(--f-mono);font-size:13px;color:var(--muted);grid-row:span 3;padding-top:1px}
-.fx-teams{font-weight:600;font-size:14px;overflow-wrap:anywhere}
-.fx-teams i{font-style:normal;color:var(--muted);font-weight:400;padding:0 .25em}
-.pbar{display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--line);margin-top:3px}
+@media (max-width:899px){#board{max-height:440px;overflow-y:auto}}
+#board{padding:4px 0 8px;scroll-margin-top:12px}
+.day{font-family:var(--f-display);font-weight:800;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:12px 14px 4px;position:sticky;top:0;background:var(--surface);z-index:1}
+.fx{display:grid;grid-template-columns:50px minmax(0,1fr);gap:2px 10px;width:calc(100% - 20px);margin:6px 10px;text-align:left;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);padding:10px 12px;cursor:pointer;min-height:44px;transition:transform .08s}
+.fx:hover{border-color:var(--accent)}
+.fx:active{transform:scale(.985)}
+.fx[aria-pressed="true"]{background:var(--good-bg);border-color:var(--accent);box-shadow:inset 4px 0 0 var(--accent)}
+.fx-time{font-family:var(--f-mono);font-size:14px;color:var(--muted);grid-row:span 3;padding-top:1px;font-weight:500}
+.fx-teams{font-weight:700;font-size:15px;overflow-wrap:anywhere}
+.fx-teams i{font-style:normal;color:var(--muted);font-weight:400;padding:0 .3em}
+.pbar{display:flex;height:7px;border-radius:4px;overflow:hidden;background:var(--line);margin-top:4px}
 .pbar i{display:block;height:100%}
 .pbar .ph{background:var(--accent)}.pbar .pd{background:var(--muted);opacity:.45}.pbar .pa{background:var(--away)}
-.fx-meta{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:12px;color:var(--muted);align-items:center}
-.tag{border:1px solid var(--line);border-radius:4px;padding:0 6px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.fx-meta{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:12.5px;color:var(--muted);align-items:center}
+.tag{border:1px solid var(--line);border-radius:4px;padding:0 6px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);white-space:nowrap;font-weight:700}
 .tag.rot{border-color:var(--away);color:var(--ink);background:var(--warn-bg)}
 .tag.live{border-color:var(--live);color:var(--live)}
 .desk{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
-.mh{padding:16px 18px;display:grid;gap:4px}
-.mh .tagline{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13px;color:var(--muted)}
-.fixture{font-family:var(--f-display);font-weight:800;font-size:clamp(22px,3.6vw,32px);line-height:1.1;overflow-wrap:anywhere}
-.fixture em{font-style:normal;color:var(--muted);font-weight:500;padding:0 .3em}
-.sec{padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}
-.sec h2{margin:0;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
-.sec h2 span{font-family:var(--f-body);font-weight:400;letter-spacing:0;color:var(--muted);text-transform:none;font-size:12.5px}
-.hint{margin:0;font-size:12.5px;color:var(--muted)}
+/* ticket stub */
+.mh{position:relative;overflow:hidden;padding:14px 18px 14px;display:grid;gap:8px;scroll-margin-top:12px}
+.mh-top{display:flex;justify-content:space-between;gap:8px;align-items:center;font-family:var(--f-display);font-weight:700;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.fixture{font-family:var(--f-display);font-weight:800;font-size:clamp(24px,5vw,36px);line-height:1.08;overflow-wrap:anywhere}
+.fixture em{font-style:normal;color:var(--accent);font-weight:700;padding:0 .3em;font-size:.7em}
+.perf{position:relative;margin:6px -18px 2px;border-top:2px dashed var(--line)}
+.perf::before,.perf::after{content:"";position:absolute;top:0;width:20px;height:20px;border-radius:50%;background:var(--bg);border:1px solid var(--line);transform:translateY(-50%)}
+.perf::before{left:-10px}.perf::after{right:-10px}
+.tagline{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;font-size:14px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){
+  .mh.stamp-on{animation:stampIn .32s cubic-bezier(.2,.9,.3,1.2)}
+  @keyframes stampIn{0%{transform:scale(1.05) rotate(-.7deg);opacity:.5}60%{transform:scale(.99)}100%{transform:none;opacity:1}}
+}
+.sec{padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;scroll-margin-top:12px}
+.sec h2{margin:0;font-size:20px;font-weight:800;display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline}
+.sec h2 span{font-family:var(--f-body);font-weight:400;color:var(--muted);font-size:13.5px}
+.hint{margin:0;font-size:14px;color:var(--muted)}
+/* quick read */
+.q-main{margin:0;font-family:var(--f-display);font-weight:800;font-size:clamp(20px,4.4vw,26px);line-height:1.2}
+.q-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.q-tile{border:1.5px solid var(--line);border-radius:10px;background:var(--bg);padding:10px 8px;text-align:center;display:grid;gap:2px;min-width:0}
+.q-tile b{font-family:var(--f-display);font-weight:800;font-size:clamp(24px,6vw,32px);line-height:1}
+.q-tile span{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.q-tile.top{border-color:var(--accent);background:var(--good-bg)}
+.q-tile.top b{color:var(--accent)}
+.q-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
 .twocol{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
-.tcard{border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:12px 14px;display:grid;gap:5px;min-width:0}
-.tn{font-family:var(--f-display);font-weight:700;font-size:17px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
-.tn span{font-family:var(--f-body);font-weight:400;font-size:12px;color:var(--muted)}
-.tl{font-size:13px;color:var(--muted)}.tl b{color:var(--ink);font-weight:600}
-.form5{display:flex;gap:4px}
-.pill{width:22px;height:22px;border-radius:4px;display:inline-grid;place-items:center;font-family:var(--f-mono);font-size:11px;font-weight:600;border:1px solid var(--line)}
-.pill.W{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.pill.L{color:var(--bad);border-color:var(--bad)}
+.tcard{border:1.5px solid var(--line);border-radius:10px;background:var(--bg);padding:12px 14px;display:grid;gap:6px;min-width:0}
+.tn{font-family:var(--f-display);font-weight:800;font-size:18px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+.tn span{font-family:var(--f-body);font-weight:600;font-size:12.5px;color:var(--muted)}
+.tl{font-size:14px;color:var(--muted)}.tl b{color:var(--ink);font-weight:700}
+.form5{display:flex;gap:5px}
+.pill{width:26px;height:26px;border-radius:5px;display:inline-grid;place-items:center;font-family:var(--f-mono);font-size:12px;font-weight:700;border:1.5px solid var(--line)}
+.pill.W{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);transform:rotate(-3deg)}
+.pill.L{color:var(--bad);border-color:var(--bad);transform:rotate(2deg)}
 .pill.D{color:var(--muted)}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:6px 12px}
-.st{display:grid}.st b{font-family:var(--f-mono);font-weight:500;font-size:15px}.st span{font-size:11.5px;color:var(--muted)}
-.gap{margin:0;font-size:13px}
-.warn{margin:0;border-left:3px solid var(--away);background:var(--warn-bg);padding:6px 12px;font-size:13.5px}
-.prov{list-style:none;margin:0;padding:0;display:grid;gap:5px;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px 12px}
+.st{display:grid}.st b{font-family:var(--f-mono);font-weight:500;font-size:16px}.st span{font-size:12.5px;color:var(--muted)}
+.gap{margin:0;font-size:14.5px}
+.warn{margin:0;border-left:4px solid var(--away);background:var(--warn-bg);padding:8px 12px;font-size:14px;border-radius:0 6px 6px 0}
+.prov{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:14px}
 .prov li{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
-.prov .k{font-weight:600;min-width:112px}
-.src-t{font-size:11px;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:0 6px;border:1px solid var(--line);color:var(--muted)}
+.prov .k{font-weight:700;min-width:120px}
+.src-t{font-size:11px;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:0 6px;border:1px solid var(--line);color:var(--muted);font-weight:700}
 .src-t.data{border-color:var(--accent);color:var(--accent)}
-.btn{border:1px solid var(--line);background:var(--bg);padding:7px 12px;border-radius:6px;cursor:pointer;font-weight:500;font-size:13px}
+.btn{border:1.5px solid var(--line);background:var(--bg);padding:9px 14px;min-height:44px;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px;box-shadow:0 2px 0 var(--line);transition:transform .06s,box-shadow .06s}
 .btn:hover{border-color:var(--accent)}
-.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.status{font-size:12.5px;color:var(--muted)}
-/* live */
+.btn:active{transform:translateY(2px);box-shadow:none}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.btn.small{min-height:36px;padding:5px 10px;font-size:13px}
+.actions{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.status{font-size:13.5px;color:var(--muted)}
 .live-top{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
-.score{font-family:var(--f-display);font-weight:800;font-size:28px}
-.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--live);margin-right:6px}
-@media (prefers-reduced-motion:no-preference){.dot.on{animation:pulse 1.6s ease-in-out infinite}@keyframes pulse{50%{opacity:.35}}}
+.score{font-family:var(--f-display);font-weight:800;font-size:34px;line-height:1}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--live);margin-right:6px}
+@media (prefers-reduced-motion:no-preference){.dot.on{animation:pulse 1.6s ease-in-out infinite}@keyframes pulse{50%{opacity:.3}}}
 .lineups{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
-.lu{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--bg);display:grid;gap:3px;min-width:0}
-.lu h3{margin:0 0 4px;font-size:14px}
-.lu ol,.lu ul{margin:0;padding:0;list-style:none;display:grid;gap:2px;font-size:13px}
-.lu li{display:flex;gap:8px}.lu li .pos{width:30px;color:var(--muted);font-family:var(--f-mono);font-size:11.5px;flex:none;padding-top:2px}
+.lu{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg);display:grid;gap:3px;min-width:0}
+.lu h3{margin:0 0 4px;font-size:15px}
+.lu ol,.lu ul{margin:0;padding:0;list-style:none;display:grid;gap:2px;font-size:14px}
+.lu li{display:flex;gap:8px}.lu li .pos{width:30px;color:var(--muted);font-family:var(--f-mono);font-size:12px;flex:none;padding-top:2px}
 .lu li.off{color:var(--muted);text-decoration:line-through}
-.events{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px;max-height:230px;overflow-y:auto}
+.events{list-style:none;margin:0;padding:0;display:grid;gap:5px;font-size:14px;max-height:240px;overflow-y:auto}
 .events li{display:flex;gap:10px}.events .min{width:42px;font-family:var(--f-mono);color:var(--muted);flex:none}
 .tbl-wrap{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th{font-size:12px;text-align:left;font-weight:600;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th{font-size:12.5px;text-align:left;font-weight:700;color:var(--muted);padding:6px 8px;border-bottom:1.5px solid var(--line);white-space:nowrap}
+td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
 tr:last-child td{border-bottom:0}
 td.num,th.num{text-align:right}
-/* markets */
 .mk-tools{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
-.mk-tools input[type=search]{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 10px;min-width:200px}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.seg button{border:0;background:var(--bg);padding:6px 11px;cursor:pointer;font-size:13px}
-.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
-details.grp{border:1px solid var(--line);border-radius:6px;background:var(--bg)}
-details.grp>summary{cursor:pointer;padding:9px 12px;font-weight:600;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
-details.grp>summary small{font-weight:400;color:var(--muted)}
+.mk-tools input[type=search]{background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:9px 12px;min-height:44px;min-width:220px;flex:1 1 220px}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--bg);padding:9px 12px;min-height:44px;cursor:pointer;font-size:14px;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:700}
+details.grp{border:1.5px solid var(--line);border-radius:10px;background:var(--bg)}
+details.grp>summary{cursor:pointer;padding:12px 14px;font-weight:800;font-family:var(--f-display);font-size:16px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;min-height:44px}
+details.grp>summary small{font-family:var(--f-body);font-weight:400;color:var(--muted);font-size:13px}
 details.grp .tbl-wrap{padding:0 6px 8px}
-.mk td input{width:78px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:5px 7px}
+.mk td input{width:84px;background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:7px 9px;min-height:40px}
 .mk td.name{min-width:190px}
 .fair{font-family:var(--f-mono);color:var(--muted)}
-.cons{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+.cons{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
 .val{font-family:var(--f-mono);font-weight:500;white-space:nowrap}
-.val.pos{color:var(--accent)}.val.neg{color:var(--bad)}
+.val.pos{color:var(--accent);font-weight:700}.val.neg{color:var(--bad)}
 .board{display:flex;flex-wrap:wrap;gap:6px}
-.vchip{border:1px solid var(--accent);background:var(--good-bg);border-radius:6px;padding:5px 10px;font-size:13px}
+.vchip{border:1.5px solid var(--accent);background:var(--good-bg);border-radius:8px;padding:6px 10px;font-size:14px}
 .vchip b{font-family:var(--f-mono);font-weight:500;margin-left:6px;color:var(--accent)}
-/* form + read (rules) */
 .split{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
 @media (min-width:1240px){.split{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr)}}
-form{display:grid;gap:14px;min-width:0}
-.grpf{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:14px 16px;display:grid;gap:12px;min-width:0}
-.grpf h2{margin:0;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
-.fld{border:0;margin:0;padding:0;min-width:0;display:grid;gap:6px}
-legend{font-size:13px;font-weight:600;padding:0}
-.opts{display:flex;flex-wrap:wrap;gap:6px}
+form{display:grid;gap:14px;min-width:0;scroll-margin-top:12px}
+.grpf{padding:16px 18px;display:grid;gap:14px;min-width:0}
+.grpf h2{margin:0;font-size:18px;font-weight:800}
+.fld{border:0;margin:0;padding:0;min-width:0;display:grid;gap:7px}
+legend{font-size:15px;font-weight:800;padding:0}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
 .opt,.chk{position:relative}
 .opt input,.chk input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
-.opt span{display:block;border:1px solid var(--line);background:var(--bg);padding:7px 11px;border-radius:6px;font-size:13px;cursor:pointer}
-.opt input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
-.opt input:focus-visible+span,.chk input:focus-visible+.box{outline:2px solid var(--accent);outline-offset:2px}
-.chk{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
-.chk .box{flex:none;width:19px;height:19px;margin-top:1px;border:1.5px solid var(--muted);border-radius:4px;background:var(--bg);position:relative}
+.opt span{display:block;border:1.5px solid var(--line);background:var(--bg);padding:10px 13px;min-height:44px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .06s}
+.opt input:active+span{transform:scale(.97)}
+.opt input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:800}
+.opt input:focus-visible+span,.chk input:focus-visible+.box{outline:3px solid var(--accent);outline-offset:2px}
+.chk{display:flex;gap:12px;align-items:flex-start;cursor:pointer;min-height:44px}
+.chk .box{flex:none;width:24px;height:24px;margin-top:1px;border:2px solid var(--muted);border-radius:6px;background:var(--bg);position:relative}
 .chk input:checked+.box{background:var(--accent);border-color:var(--accent)}
-.chk input:checked+.box::after{content:"";position:absolute;left:5px;top:1px;width:5px;height:10px;border:solid var(--accent-ink);border-width:0 2px 2px 0;transform:rotate(45deg)}
-.chk-t{font-size:14px;min-width:0}.chk-t small{display:block;color:var(--muted);font-size:12px}
-.checks{display:grid;gap:12px}
-.res-sec{padding:16px 18px;border-bottom:1px solid var(--line);display:grid;gap:12px;min-width:0}
+.chk input:checked+.box::after{content:"";position:absolute;left:7px;top:2px;width:6px;height:12px;border:solid var(--accent-ink);border-width:0 3px 3px 0;transform:rotate(45deg)}
+.chk-t{font-size:15px;min-width:0}.chk-t small{display:block;color:var(--muted);font-size:13px}
+.checks{display:grid;gap:10px}
+.res-sec{padding:16px 18px;border-bottom:1.5px dashed var(--line);display:grid;gap:12px;min-width:0}
 .res-sec:last-child{border-bottom:0}
-.res-sec h3{margin:0;font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
-.res-sec h3 span{font-family:var(--f-mono);font-weight:400;letter-spacing:0;color:var(--muted);margin-left:6px}
-.stack{border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:grid;gap:8px;background:var(--bg)}
+.res-sec h3{margin:0;font-size:18px;font-weight:800}
+.res-sec h3 span{font-family:var(--f-mono);font-weight:400;color:var(--muted);margin-left:6px;font-size:14px}
+.stack{border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:8px;background:var(--bg)}
 .stack.full{border-color:var(--accent);background:var(--good-bg)}
 .stack-top{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;justify-content:space-between}
-.stack-name{font-family:var(--f-display);font-weight:700;font-size:17px}
-.stack-n{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.stack-name{font-family:var(--f-display);font-weight:800;font-size:18px}
+.stack-n{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
 .stack.full .stack-n{color:var(--accent);font-weight:500}
-.conds{list-style:none;margin:0;padding:0;display:grid;gap:3px;font-size:13px}
-.conds li{display:flex;gap:8px;align-items:baseline;color:var(--muted)}
-.conds li.on{color:var(--ink)}
-.conds li::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--muted)}
+.conds{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:14px}
+.conds li{display:flex;gap:9px;align-items:baseline;color:var(--muted)}
+.conds li.on{color:var(--ink);font-weight:600}
+.conds li::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;border:2px solid var(--muted)}
 .conds li.on::before{background:var(--accent);border-color:var(--accent)}
-.stack-bets{margin:0;font-size:13px}.stack-bets b{font-weight:600}
+.stack-bets{margin:0;font-size:14px}.stack-bets b{font-weight:800}
 .list{list-style:none;margin:0;padding:0;display:grid;gap:14px}
 .mkr{display:grid;gap:5px;min-width:0}
 .mk-top{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.mk-name{font-weight:600;flex:1 1 180px;min-width:0}
-.chip{font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--muted)}
-.scr{font-family:var(--f-mono);font-weight:500;font-size:15px;color:var(--accent);min-width:3.2ch;text-align:right}
+.mk-name{font-weight:800;flex:1 1 180px;min-width:0}
+.chip{font-size:11px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--muted);font-weight:700}
+.scr{font-family:var(--f-mono);font-weight:500;font-size:16px;color:var(--accent);min-width:3.2ch;text-align:right}
 .mkr.neg .scr{color:var(--bad)}
-.bar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;border:1px solid var(--line)}
+.bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
 .bar i{display:block;height:100%;background:var(--accent)}
 .mkr.neg .bar i{background:var(--bad)}
-.why{margin:0;font-size:12.5px;color:var(--muted)}.why b{color:var(--ink);font-weight:600}.mkr.neg .why b{color:var(--bad)}
-.empty{margin:0;color:var(--muted);font-size:14px}
-.note{border-left:3px solid var(--away);padding:6px 12px;font-size:13.5px;background:var(--bg);margin:0}
-#fallback{width:100%;min-height:120px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;font-family:var(--f-mono);font-size:12px}
+.why{margin:0;font-size:13.5px;color:var(--muted)}.why b{color:var(--ink);font-weight:800}.mkr.neg .why b{color:var(--bad)}
+.empty{margin:0;color:var(--muted);font-size:14.5px}
+.note{border-left:4px solid var(--away);padding:6px 12px;font-size:14.5px;background:var(--bg);margin:0}
+#fallback{width:100%;min-height:120px;background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:8px;font-family:var(--f-mono);font-size:12.5px}
 .cov{display:grid}
-.cov-r{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:4px 16px;padding:9px 0;border-top:1px solid var(--line);font-size:13.5px}
-.cov-r:first-child{border-top:0}.cov-r b{font-weight:600}
-.lvl{font-size:11px;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:0 6px;border:1px solid var(--line);margin-right:8px;white-space:nowrap}
+.cov-r{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:4px 16px;padding:10px 0;border-top:1px solid var(--line);font-size:14.5px}
+.cov-r:first-child{border-top:0}.cov-r b{font-weight:800}
+.lvl{font-size:11px;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:0 6px;border:1px solid var(--line);margin-right:8px;white-space:nowrap;font-weight:700}
 .lvl.d{border-color:var(--accent);color:var(--accent)}.lvl.r{border-color:var(--away);background:var(--warn-bg)}.lvl.n{color:var(--muted)}
 @media (max-width:600px){.cov-r{grid-template-columns:1fr}}
-.foot{border:1px solid var(--line);border-radius:8px;padding:14px 18px;font-size:13px;color:var(--muted);display:grid;gap:6px}
-.foot p{margin:0;max-width:90ch}.foot b{color:var(--ink)}
-.loading{padding:40px 18px;text-align:center;color:var(--muted)}
+dl.gloss{margin:0;display:grid;gap:12px}
+dl.gloss dt{font-family:var(--f-display);font-weight:800;font-size:16px}
+dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
+.foot{padding:14px 18px;font-size:14px;color:var(--muted);display:grid;gap:8px}
+.foot p{margin:0;max-width:80ch}.foot b{color:var(--ink)}
+.loading{padding:36px 18px;text-align:center;color:var(--muted)}
+/* bottom navigation (phones) */
+#bnav{display:none}
+@media (max-width:899px){
+  body{padding-bottom:calc(86px + env(safe-area-inset-bottom, 0px))}
+  #bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1.5px solid var(--line);
+    padding:6px max(6px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-right, 0px));gap:2px}
+  #bnav button{flex:1;border:0;background:transparent;display:grid;justify-items:center;gap:1px;padding:6px 2px;min-height:48px;border-radius:8px;cursor:pointer;font-size:11.5px;font-weight:700;color:var(--muted)}
+  #bnav button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  #bnav button[aria-current="true"]{color:var(--accent);background:var(--good-bg)}
+  #bnav button:active{transform:scale(.95)}
+}
+
+/* phones: each bet becomes a small card, so the odds box is never off-screen */
+@media (max-width:640px){
+  .mk table,.mk tbody,.mk tr,.mk td{display:block}
+  .mk thead{display:none}
+  .mk tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;padding:10px 8px;border-bottom:1.5px solid var(--line)}
+  .mk tr:last-child{border-bottom:0}
+  .mk td{padding:2px 0;border:0;text-align:left!important}
+  .mk td.name{grid-column:1 / -1;font-weight:800;min-width:0}
+  .mk td[data-l]::before{content:attr(data-l);display:block;font-family:var(--f-body);font-size:11.5px;color:var(--muted);font-weight:600}
+  .mk td.cons:empty{display:none}
+  .mk td input{width:100%}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="head">
-    <svg viewBox="0 0 300 200" aria-hidden="true"><rect x="4" y="4" width="292" height="192"/><line x1="150" y1="4" x2="150" y2="196"/><circle cx="150" cy="100" r="34"/><rect x="4" y="52" width="48" height="96"/><rect x="248" y="52" width="48" height="96"/></svg>
-    <div class="eyebrow">NPFL, five European leagues and the Champions League</div>
+  <header class="head paper">
+    <button type="button" class="btn small themeBtn" id="themeBtn">Dark mode</button>
+    <div class="eyebrow">Free football tips tool</div>
     <h1>Naija Match Desk</h1>
-    <div class="stamp" id="stamp">Loading fixtures...</div>
+    <p class="lead">Know the game before you bet. See the chances, goals, corners and cards for each match.</p>
+    <div class="stamp" id="stamp">Loading matches...</div>
     <div id="banners"></div>
-    <details class="src"><summary>Where the data comes from and what it leaves out</summary><ul id="sources"></ul></details>
-    <div class="chips" id="leagueChips" role="group" aria-label="Filter by league"></div>
+    <div class="chips" id="leagueChips" role="group" aria-label="Pick a league"></div>
+    <details class="src"><summary>Where does the data come from?</summary><ul id="sources"></ul></details>
   </header>
 
   <div class="layout">
-    <aside class="panel" id="board" aria-label="Fixtures"><div class="loading">Loading fixtures...</div></aside>
+    <aside class="paper" id="board" aria-label="Matches"><div class="loading">Loading matches...</div></aside>
     <main class="desk" id="desk" hidden>
-      <section class="panel mh"><div class="tagline" id="tagline"></div><div class="fixture" id="fixture"></div></section>
+      <section class="paper mh" id="mhCard">
+        <div class="mh-top"><span>Match ticket</span><span id="ticketLg"></span></div>
+        <div class="fixture" id="fixture"></div>
+        <div class="perf" aria-hidden="true"></div>
+        <div class="tagline" id="tagline"></div>
+      </section>
 
-      <section class="panel sec" id="liveSec" hidden>
-        <h2>Live desk <span id="liveSub"></span></h2>
+      <section class="paper sec" id="quick"><h2>Quick read <span id="quickSrc"></span></h2><div id="quickBody"></div></section>
+
+      <section class="paper sec" id="liveSec" hidden>
+        <h2>Live now <span id="liveSub"></span></h2>
         <div class="live-top" id="liveTop"></div>
         <div class="actions"><button type="button" class="btn" id="liveNow">Refresh now</button>
-          <label class="chk" style="gap:8px"><input type="checkbox" id="liveAuto" checked><span class="box" aria-hidden="true"></span><span class="chk-t">Refresh every 45 seconds while this match is on</span></label>
+          <label class="chk" style="gap:8px;min-height:0"><input type="checkbox" id="liveAuto" checked><span class="box" aria-hidden="true"></span><span class="chk-t">Update by itself every 45 seconds</span></label>
           <span class="status" id="liveStamp"></span></div>
         <div id="liveBody"></div>
       </section>
 
-      <section class="panel sec"><h2>Table, form and match rates <span id="confNote"></span></h2>
+      <section class="paper sec"><h2>The two teams <span id="confNote"></span></h2>
         <div class="twocol" id="teams"></div><p class="gap" id="gapNote"></p></section>
 
-      <section class="panel sec" id="mkSec">
-        <h2>Markets <span id="mkSub"></span></h2>
+      <section class="paper sec" id="mkSec">
+        <h2>Odds checker <span id="mkSub"></span></h2>
         <p class="hint" id="mkHint"></p>
         <div class="mk-tools">
-          <input type="search" id="mkFilter" placeholder="Find a market, e.g. corners, GG, HT/FT" aria-label="Find a market">
-          <span class="seg" role="group" aria-label="Compare your odds with"><button type="button" id="cmpModel" aria-pressed="true">Edge vs model</button><button type="button" id="cmpMkt" aria-pressed="false">Edge vs market</button></span>
+          <input type="search" id="mkFilter" placeholder="Search a bet: corners, GG, HT/FT" aria-label="Search a bet">
+          <span class="seg" role="group" aria-label="Compare your odds with"><button type="button" id="cmpModel" aria-pressed="true">Our chance</button><button type="button" id="cmpMkt" aria-pressed="false">Bookmaker view</button></span>
         </div>
         <div class="board" id="vboard" aria-live="polite"></div>
         <div id="groups"></div>
       </section>
 
-      <section class="panel sec"><h2>Pre-filled for the rules below</h2><ul class="prov" id="prov"></ul>
-        <p class="hint">Not in the data, so set these yourself: weather, pitch surface, club welfare news, and anything the lineup tells you.</p>
-        <div class="actions"><button type="button" class="btn" id="reset">Reset to data</button><span class="status" id="saved"></span></div></section>
+      <section class="paper sec"><h2>What we filled in for you</h2><ul class="prov" id="prov"></ul>
+        <p class="hint">These are not in any data, so you set them: weather, pitch, club money problems, and what the lineup tells you.</p>
+        <div class="actions"><button type="button" class="btn" id="reset">Start again</button><span class="status" id="saved"></span></div></section>
 
-      <div class="split">
-        <form id="form" autocomplete="off" onsubmit="return false" aria-label="Match conditions"></form>
-        <div class="panel" id="results" aria-live="polite">
-          <section class="res-sec"><h3>Stack check</h3><div class="list" id="stacks"></div></section>
-          <section class="res-sec"><h3>Conditions favour <span id="favN"></span></h3><ul class="list" id="favored"></ul></section>
-          <section class="res-sec"><h3>Conditions work against <span id="againstN"></span></h3><ul class="list" id="against"></ul></section>
-          <section class="res-sec" id="notesSec"><h3>Match-day notes</h3><div class="list" id="notes"></div></section>
+      <div class="split" id="checklist">
+        <form id="form" autocomplete="off" onsubmit="return false" aria-label="Match checklist"></form>
+        <div class="paper" id="results" aria-live="polite">
+          <section class="res-sec"><h3>Combo check</h3><div class="list" id="stacks"></div></section>
+          <section class="res-sec"><h3>Good for these bets <span id="favN"></span></h3><ul class="list" id="favored"></ul></section>
+          <section class="res-sec"><h3>Bad for these bets <span id="againstN"></span></h3><ul class="list" id="against"></ul></section>
+          <section class="res-sec" id="notesSec"><h3>Match-day tip</h3><div class="list" id="notes"></div></section>
           <section class="res-sec"><h3>Share</h3>
             <div class="actions"><button type="button" class="btn primary" id="copy">Copy summary</button><span class="status" id="copyStatus"></span></div>
             <textarea id="fallback" hidden readonly aria-label="Summary text"></textarea></section>
         </div>
       </div>
 
-      <section class="panel sec"><h2>Which Nigerian-book markets this covers</h2><div class="cov" id="cov"></div></section>
+      <section class="paper sec"><h2>What this app covers</h2><div class="cov" id="cov"></div></section>
+
+      <section class="paper sec"><h2>Betting words in plain English</h2>
+        <dl class="gloss">
+          <div><dt>1X2</dt><dd>1 = home team wins. X = draw. 2 = away team wins.</dd></div>
+          <div><dt>Double chance (1X, X2, 12)</dt><dd>Two results in one bet. 1X means the home team wins or draws.</dd></div>
+          <div><dt>Draw no bet</dt><dd>You pick a team. If the game is a draw, you get your money back.</dd></div>
+          <div><dt>Over / Under 2.5 goals</dt><dd>Over 2.5 means 3 or more goals in the game. Under 2.5 means 0, 1 or 2 goals.</dd></div>
+          <div><dt>GG / NG</dt><dd>GG means both teams score. NG means at least one team scores nothing.</dd></div>
+          <div><dt>Handicap</dt><dd>One team starts with a head start. "Home -1" means the home team must win by 2 or more goals.</dd></div>
+          <div><dt>HT/FT</dt><dd>The result at half-time and the result at full time. 1/1 means home leads at half-time and wins.</dd></div>
+          <div><dt>Multigoal 2-3</dt><dd>The total goals in the game will be 2 or 3.</dd></div>
+          <div><dt>Clean sheet / Win to nil</dt><dd>A team lets in no goals. Win to nil means they win and let in none.</dd></div>
+          <div><dt>Fair odds</dt><dd>What a bet should pay if our chance is right. Fair odds = 1 divided by the chance. If your bookmaker pays more than fair odds, that is a good price.</dd></div>
+          <div><dt>Value</dt><dd>On average, how much you win or lose for every 1 you stake. +5% is good. -5% is bad. It is only as good as our chance, so check the team news.</dd></div>
+        </dl></section>
     </main>
   </div>
 
-  <footer class="foot">
-    <p><b>Model prices are estimates.</b> They come from recent results, shrunk toward the league average, with a simple goals model. They are not bookmaker prices and ignore injuries, lineups and motivation until you add them. Bookmaker prices already absorb that news, so a big gap is more often missing information than free value.</p>
-    <p><b>Rule scores are rough weights</b> from the match-day guide. They rank how well conditions line up behind a market and are not probabilities.</p>
-    <p><b>Bet responsibly.</b> 18 and over only. Staking can lose money, and nothing here guarantees a result. Only stake what you can afford to lose.</p>
+  <footer class="foot paper">
+    <p><b>Our numbers are estimates.</b> They come from recent results and a simple goals formula. They are not bookmaker prices, and they do not know about injuries or lineups. If our number is very different from the bookmaker's, we are probably missing news.</p>
+    <p><b>Checklist scores are rough weights</b> from your match-day guide. They show which bets the conditions point to. They are not chances.</p>
+    <p><b>Bet responsibly.</b> 18+ only. You can lose money. Never stake what you cannot afford to lose.</p>
   </footer>
 </div>
+
+<nav id="bnav" aria-label="Jump to a part of the page">
+  <button type="button" data-to="board" aria-current="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Matches</button>
+  <button type="button" data-to="quick"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>Quick read</button>
+  <button type="button" data-to="liveSec" id="navLive" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M6 6a8 8 0 000 12M18 6a8 8 0 010 12"/></svg>Live</button>
+  <button type="button" data-to="mkSec"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg>Odds</button>
+  <button type="button" data-to="checklist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Checklist</button>
+</nav>
 
 <script>
 // ENGINE START
 const M = {
   home_win:['Home Win (1)','Result'], home_win_u35:['Home Win & Under 3.5 Goals','Result'], home_win_u25:['Home Win & Under 2.5 Goals','Result'],
-  home_win_nil:['Home Win to Nil','Result'], home_cs:['Home Clean Sheet','Result'], away_u05:['Away Team Under 0.5 Goals','Result'],
-  home_dnb:['Home Draw No Bet','Result'], away_dnb:['Away Draw No Bet','Result'], underdog_ah:['Underdog Asian Handicap +1.5','Result'],
-  ht_draw_ft_home:['1st Half Draw / Full Time Home','Halves'], over25:['Over 2.5 Goals','Goals'], under25:['Under 2.5 Goals','Goals'],
-  gg:['Both Teams to Score (GG)','Goals'], under15:['Under 1.5 Goals','Goals'], cs_draw:['Correct Score 0-0 or 1-1','Goals'],
-  o15_1h:['Over 1.5 First-Half Goals','Halves'], h1_draw:['1st Half Draw','Halves'], h2_most:['2nd Half Most Goals','Halves'],
-  home_2h:['Home Team to Score in 2nd Half','Halves'], team_corners:['Favorite Team Corners Over 6.5 / 7.5','Props'],
-  over_corners:['Total Corners Over 9.5','Props'], under_corners:['Total Corners Under 9.5','Props'], offsides:['Offsides Over (against the high line)','Props'],
-  opp_cards:['Low-Block Side Cards / Bookings','Props'], over_cards:['Over 3.5 Cards','Props'], under_cards:['Under 3.5 Cards','Props'],
-  sot:['Player Shots on Target (wingers, box-to-box mids)','Props'], penalty:['Penalty Awarded: Yes','Props'],
-  next_chaser:['Next Team to Score: chasing side','In-play'], late_goal:['Late Goal (75:00 to full time)','In-play'],
-  late_corners:['Late Corners','In-play'], live_home_tied:['Live Home Win (if level at half-time)','In-play'], next_away:['Next Goal: Away Team','In-play']
+  home_win_nil:['Home Win to Nil (wins, lets in none)','Result'], home_cs:['Home Clean Sheet','Result'], away_u05:['Away Team Under 0.5 Goals (scores nothing)','Result'],
+  home_dnb:['Home Draw No Bet','Result'], away_dnb:['Away Draw No Bet','Result'], underdog_ah:['Weaker team +1.5 Handicap','Result'],
+  ht_draw_ft_home:['HT/FT: Draw / Home','Halves'], over25:['Over 2.5 Goals','Goals'], under25:['Under 2.5 Goals','Goals'],
+  gg:['GG (both teams score)','Goals'], under15:['Under 1.5 Goals','Goals'], cs_draw:['Correct Score 0-0 or 1-1','Goals'],
+  o15_1h:['Over 1.5 Goals in 1st Half','Halves'], h1_draw:['1st Half Draw','Halves'], h2_most:['2nd Half has the most goals','Halves'],
+  home_2h:['Home team scores in 2nd Half','Halves'], team_corners:['Favourite Team Corners Over 6.5 / 7.5','Props'],
+  over_corners:['Total Corners Over 9.5','Props'], under_corners:['Total Corners Under 9.5','Props'], offsides:['Offsides Over','Props'],
+  opp_cards:['Cards for the team that defends deep','Props'], over_cards:['Over 3.5 Cards','Props'], under_cards:['Under 3.5 Cards','Props'],
+  sot:['Player shots on target (wingers, midfielders)','Props'], penalty:['Penalty in the match: Yes','Props'],
+  next_chaser:['Next goal: the team that is losing','In-play'], late_goal:['Late goal (after minute 75)','In-play'],
+  late_corners:['Late corners','In-play'], live_home_tied:['Live: Home win (if level at half-time)','In-play'], next_away:['Next goal: Away team','In-play']
 };
 const STACK_BONUS = 25;
 
@@ -300,113 +383,113 @@ function analyze(s){
   const notes = [];
 
   if (s.style === 'press_block'){
-    const w = 'Pressing favorite against a compact low block';
-    add('team_corners', 25, w + ': constant blocked crosses'); add('offsides', 15, w + ': counters sprung behind a high line');
-    add('opp_cards', 20, w + ': tactical fouls to stop transitions'); add('over25', -14, w + ': goals are overpriced, central space is scarce'); add('under25', 6, w);
+    const w = 'Strong favourite against a team that defends deep';
+    add('team_corners', 25, w + ': many crosses get blocked, so corners come'); add('offsides', 15, w + ': counter-attacks run behind a high line');
+    add('opp_cards', 20, w + ': the deep team fouls to stop counters'); add('over25', -14, w + ': goals are rare when the middle is crowded'); add('under25', 6, w);
   }
   if (s.style === 'open'){
-    const w = 'Two direct, vertical sides with weak rest-defense';
+    const w = 'Both teams attack and leave space behind';
     add('gg', 25, w); add('o15_1h', 20, w); add('sot', 20, w); add('over25', 15, w); add('under25', -18, w);
   }
   if (s.rotKey){
-    const w = 'Lineup dropped without a primary defensive midfielder or starting goalkeeper';
-    if (hasFav) add('underdog_ah', 15, w + ': the favorite is weaker than the early line assumed');
-    add('h2_most', 12, w + ': legs fade late'); add('gg', 6, w);
+    const w = 'A key defensive midfielder or the goalkeeper is out';
+    if (hasFav) add('underdog_ah', 15, w + ': the favourite is weaker than the odds think');
+    add('h2_most', 12, w + ': tired legs late'); add('gg', 6, w);
   }
   if (s.contAhead){
-    const w = 'Favorite has a continental tie within 4 days: rotation risk';
+    const w = 'Favourite plays a big European game within 4 days: may rest players';
     add('underdog_ah', 10, w); add('h2_most', 5, w + ', so starters may come off early');
   }
   if (s.natDuty){
-    const w = 'Starters pulled for national or youth camps';
+    const w = 'Main players are away with national or youth teams';
     if (hasFav) add('underdog_ah', 8, w); add('h2_most', 5, w);
   }
   if (s.midweek){
-    const w = 'Midweek continental or away travel';
-    add('h2_most', 10, w + ': fatigue builds'); add('late_goal', 10, w + ': tired legs late');
+    const w = 'A team just played or travelled in midweek';
+    add('h2_most', 10, w + ': tiredness builds up'); add('late_goal', 10, w + ': tired legs late');
   }
   if (s.stakes === 'draw'){
-    const w = 'A draw suits both sides, so play turns risk-averse';
+    const w = 'A draw is fine for both teams, so they play safe';
     add('cs_draw', 25, w); add('under15', 20, w); add('under25', 15, w); add('gg', -15, w); add('over25', -14, w); add('o15_1h', -12, w);
   }
   if (s.live === 'trailing'){
-    const w = 'Trailing side abandons structure after the 70th minute';
-    add('next_chaser', 25, w); add('late_goal', 25, w + ': space opens behind pushed-up fullbacks'); add('late_corners', 25, w);
+    const w = 'The losing team throws everyone forward after minute 70';
+    add('next_chaser', 25, w); add('late_goal', 25, w + ': space opens behind their full-backs'); add('late_corners', 25, w);
   }
   if (s.live === 'home_lead_ht'){
-    if (s.midweek) add('next_away', 12, 'Home side leads at half-time after midweek travel');
+    if (s.midweek) add('next_away', 12, 'Home team is 1-0 up at half-time after a midweek trip');
     if (heat) add('next_away', 10, 'Heat slows the second-half press');
-    if (s.midweek && heat) notes.push('Home side leads 1-0 at half-time after midweek travel, in the heat. The guide suggests cashing out pre-match accumulators around the 60th minute, or backing the next goal for the away side.');
+    if (s.midweek && heat) notes.push('Home team is 1-0 up at half-time after a midweek trip, in the heat. Your guide says: cash out early bets around minute 60, or back the next goal for the away team.');
   }
   if (s.gpg != null && s.gpgLg){
-    const r = s.gpg / s.gpgLg, w = 'Recent results point to ' + s.gpg.toFixed(2) + ' goals in this match against a league average of ' + s.gpgLg.toFixed(2);
+    const r = s.gpg / s.gpgLg, w = 'Recent games point to ' + s.gpg.toFixed(2) + ' goals here. League average is ' + s.gpgLg.toFixed(2);
     if (r <= 0.82){ add('under25', 14, w); add('over25', -10, w); add('gg', -6, w); }
     else if (r >= 1.18){ add('over25', 14, w); add('gg', 8, w); add('under25', -10, w); }
   }
   if (s.corn != null && s.cornLg){
-    const r = s.corn / s.cornLg, w = 'Recent matches point to ' + s.corn.toFixed(1) + ' corners against a league average of ' + s.cornLg.toFixed(1);
+    const r = s.corn / s.cornLg, w = 'Recent games point to ' + s.corn.toFixed(1) + ' corners. League average is ' + s.cornLg.toFixed(1);
     if (r >= 1.1) add('over_corners', 12, w); else if (r <= 0.9){ add('under_corners', 10, w); add('over_corners', -8, w); }
   }
   if (s.cardsExp != null && s.cardsLg){
-    const r = s.cardsExp / s.cardsLg, w = 'Teams and referee point to ' + s.cardsExp.toFixed(1) + ' cards against a league average of ' + s.cardsLg.toFixed(1);
+    const r = s.cardsExp / s.cardsLg, w = 'Teams and referee point to ' + s.cardsExp.toFixed(1) + ' cards. League average is ' + s.cardsLg.toFixed(1);
     if (r >= 1.12) add('over_cards', 12, w); else if (r <= 0.88){ add('under_cards', 10, w); add('over_cards', -8, w); }
   }
   if (s.pitch === 'smooth'){
-    const w = 'Smooth, fast surface suits technical passing sides';
+    const w = 'Smooth, fast pitch helps passing teams';
     add('over25', 14, w); add('gg', 10, w); add('under25', -10, w);
   }
   if (roughPitch){
-    const w = (s.pitch === 'worn' ? 'Worn synthetic' : 'Bumpy natural') + ' surface slows tempo and forces long balls';
+    const w = (s.pitch === 'worn' ? 'Worn artificial pitch' : 'Bumpy grass pitch') + ' slows the game and forces long balls';
     add('under25', 20, w); add('h1_draw', 14, w); add('over25', -14, w); add('gg', -8, w);
-    if (s.physical) add('home_win', 8, w + ', and the home side is physically dominant');
+    if (s.physical) add('home_win', 8, w + ', and the home team is strong and rough');
   }
   if (rain){
-    const w = 'Heavy rain levels the technical gap';
-    add('underdog_ah', 20, w); add('over_cards', 20, w + ': mistimed tackles'); add('over_corners', 8, w + ': keeper handling errors and deflections');
+    const w = 'Heavy rain brings the two teams closer';
+    add('underdog_ah', 20, w); add('over_cards', 20, w + ': slippery tackles'); add('over_corners', 8, w + ': keepers drop the ball and shots get deflected');
   }
   if (heat){
-    const w = 'Extreme heat and humidity suppress pressing';
-    add('under25', 12, w); add('h2_most', 15, w + ': hydration fatigue shows late'); add('o15_1h', -10, w + ': slower start');
+    const w = 'Very hot and humid: teams cannot press hard';
+    add('under25', 12, w); add('h2_most', 15, w + ': tiredness shows late'); add('o15_1h', -10, w + ': slow start');
   }
-  if (s.wind) add('over_corners', 10, 'Strong crosswinds cause deflections and extra clearances');
+  if (s.wind) add('over_corners', 10, 'Strong wind: balls get deflected and cleared');
   if (np){
-    add('home_win', 10, 'NPFL baseline: home wins historically near 55 to 64 percent');
+    add('home_win', 10, 'NPFL home teams win about 55 to 64 out of 100 games');
     if (s.travel === 'long'){
-      const w = 'Away side on a 10+ hour road trip';
-      add('home_win', 25, w + ': steepest home skew in world football'); add('home_win_u35', 20, w); add('away_u05', 20, w);
+      const w = 'Away team on a 10+ hour road trip';
+      add('home_win', 25, w + ': the biggest home advantage in world football'); add('home_win_u35', 20, w); add('away_u05', 20, w);
     } else if (s.travel === 'mid'){
-      const w = 'Away side on a 3 to 9 hour road trip';
+      const w = 'Away team on a 3 to 9 hour road trip';
       add('home_win', 10, w); add('home_win_u35', 8, w); add('away_u05', 8, w);
     }
     if (s.altitude){
-      const w = 'Visitors from sea level to the Jos plateau fade after the 60th minute';
+      const w = 'Away team comes from sea level to the high ground in Jos and tires after minute 60';
       add('home_2h', 20, w); add('home_win', 8, w);
-      add('live_home_tied', s.live === 'tied_ht' ? 25 : 10, s.live === 'tied_ht' ? w + ', and the match is level at half-time' : w + '. Becomes a live angle if level at half-time');
+      add('live_home_tied', s.live === 'tied_ht' ? 25 : 10, s.live === 'tied_ht' ? w + '. The game is level at half-time' : w + '. A live bet if level at half-time');
     }
     if (s.novar){
-      const w = 'No VAR in a packed, enclosed ground: crowd pressure on the referee';
+      const w = 'No VAR and a packed, closed ground: the crowd pressures the referee';
       add('home_cs', 12, w); add('penalty', 20, w + ': soft penalties'); add('home_win_nil', 15, w); add('home_win', 8, w);
     }
     if (s.welfare === 'away'){
-      const w = 'Away club reported with unpaid bonuses or salary delays';
-      add('home_dnb', 25, w + ': fade before the wider market reacts'); add('home_win', 10, w); add('away_u05', 8, w);
+      const w = 'Away club has unpaid bonuses or salary problems';
+      add('home_dnb', 25, w + ': bet against them before the odds move'); add('home_win', 10, w); add('away_u05', 8, w);
     } else if (s.welfare === 'home'){
-      const w = 'Home club reported with unpaid bonuses or salary delays (the same rule applied to the home side)';
+      const w = 'Home club has unpaid bonuses or salary problems (same rule, home side)';
       add('away_dnb', 15, w); add('home_win', -10, w);
     }
   }
   const stacks = [
     {id:'fortress', name:'NPFL Fortress',
-      conds:[['Competition is the NPFL', np],['Away side on a 10+ hour road trip', np && s.travel === 'long'],['Worn or bumpy, heavy pitch', roughPitch],['Humid, hot or wet conditions', heat || rain],['Home side is physically dominant', !!s.physical]],
+      conds:[['It is an NPFL game', np],['Away team on a 10+ hour road trip', np && s.travel === 'long'],['Bad pitch (worn or bumpy)', roughPitch],['Hot, humid or wet', heat || rain],['Home team is strong and rough', !!s.physical]],
       markets:['home_win_u25','ht_draw_ft_home']},
     {id:'storm', name:'European Storm',
-      conds:[['Competition is a European league', s.comp === 'europe'],['High-pressing technical favorite is the away side', s.fav === 'away' && s.style === 'press_block'],['Heavy rain', rain],['Strong crosswinds', !!s.wind],['Physical home opponent', !!s.physical]],
+      conds:[['It is a European league game', s.comp === 'europe'],['Away team is the strong pressing favourite', s.fav === 'away' && s.style === 'press_block'],['Heavy rain', rain],['Strong wind', !!s.wind],['Home team is strong and rough', !!s.physical]],
       markets:['underdog_ah','over_corners','over_cards']},
     {id:'pivot', name:'In-Play Fatigue Pivot',
-      conds:[['Home side leads 1-0 at half-time', s.live === 'home_lead_ht'],['Home side is back from midweek CAF or UEFA away travel', !!s.midweek],['Heat or humidity is slowing the second-half press', heat]],
+      conds:[['Home team is 1-0 up at half-time', s.live === 'home_lead_ht'],['Home team just back from a midweek CAF or UEFA away trip', !!s.midweek],['Heat or humidity slows the second half', heat]],
       markets:['next_away']}
   ].map(k => { const met = k.conds.filter(c => c[1]).length; return Object.assign(k, {met, total:k.conds.length, full: met === k.conds.length}); });
-  stacks.forEach(k => { if (k.full) k.markets.forEach(m => add(m, STACK_BONUS, 'Stack bonus: every ' + k.name + ' condition lines up')); });
+  stacks.forEach(k => { if (k.full) k.markets.forEach(m => add(m, STACK_BONUS, 'Bonus: every ' + k.name + ' tick is met')); });
   const agg = {};
   hits.forEach(h => { const a = agg[h.m] || (agg[h.m] = {score:0, reasons:[]}); a.score += h.d; if (a.reasons.indexOf(h.why) < 0) a.reasons.push(h.why); });
   const rows = Object.keys(agg).map(k => ({key:k, label:M[k][0], group:M[k][1], score:Math.round(agg[k].score), reasons:agg[k].reasons}));
@@ -449,7 +532,7 @@ function buildMarkets(model, share, mkt, ou, ah){
   const W = gsum(G, (i, j) => i > j), D = gsum(G, (i, j) => i === j), A = gsum(G, (i, j) => i < j);
   const fair = mkt ? mkt.fair : null;
   const groups = [];
-  groups.push({id:'result', title:'Match result', rows:[
+  groups.push({id:'result', title:'Who wins (1X2)', rows:[
     R('1', 'Home win (1)', W, {cons: fair && fair[0]}), R('X', 'Draw (X)', D, {cons: fair && fair[1]}), R('2', 'Away win (2)', A, {cons: fair && fair[2]}),
     R('1X', 'Double chance 1X', W + D, {cons: fair && fair[0] + fair[1]}), R('12', 'Double chance 12', W + A, {cons: fair && fair[0] + fair[2]}), R('X2', 'Double chance X2', D + A, {cons: fair && fair[1] + fair[2]}),
     R('dnb1', 'Draw no bet: home', W / (W + A), {cons: fair && fair[0] / (fair[0] + fair[2])}), R('dnb2', 'Draw no bet: away', A / (W + A), {cons: fair && fair[2] / (fair[0] + fair[2])})]});
@@ -462,18 +545,18 @@ function buildMarkets(model, share, mkt, ou, ah){
   const gg = (1 - ph[0]) * (1 - pa[0]);
   g.push(R('gg', 'GG (both teams score)', gg), R('ng', 'NG (a team fails to score)', 1 - gg));
   g.push(R('odd', 'Total goals odd', sumIf(tot, i => i % 2 === 1)), R('even', 'Total goals even', sumIf(tot, i => i % 2 === 0)));
-  groups.push({id:'goals', title:'Goals', rows:g});
+  groups.push({id:'goals', title:'Goals (Over/Under, GG)', rows:g});
   const tt = [];
   [['Home', ph, 'h'], ['Away', pa, 'a']].forEach(t => [0.5, 1.5, 2.5].forEach(l => {
     const o = 1 - sumIf(t[1], i => i <= Math.floor(l));
     tt.push(R('t' + t[2] + 'o' + l, t[0] + ' team over ' + l, o), R('t' + t[2] + 'u' + l, t[0] + ' team under ' + l, 1 - o));
   }));
   tt.push(R('hcs', 'Home clean sheet', pa[0]), R('acs', 'Away clean sheet', ph[0]), R('hwn', 'Home win to nil', gsum(G, (i, j) => j === 0 && i > 0)), R('awn', 'Away win to nil', gsum(G, (i, j) => i === 0 && j > 0)));
-  groups.push({id:'team', title:'Team totals and clean sheets', rows:tt});
+  groups.push({id:'team', title:'Goals by each team', rows:tt});
   const mg = [[1, 2], [1, 3], [2, 3], [2, 4], [2, 5], [3, 5], [4, 6]].map(r => R('mg' + r[0] + r[1], 'Multigoal ' + r[0] + '-' + r[1], sumIf(tot, i => i >= r[0] && i <= r[1])));
   const ex = [0, 1, 2, 3, 4].map(n => R('ex' + n, 'Exact total goals ' + n, tot[n]));
   ex.push(R('ex5', 'Exact total goals 5 or more', sumIf(tot, i => i >= 5)));
-  groups.push({id:'multi', title:'Multigoal and exact goals', rows:mg.concat(ex)});
+  groups.push({id:'multi', title:'How many goals', rows:mg.concat(ex)});
   const c = [];
   [['1', 'Home win', (i, j) => i > j], ['X', 'Draw', (i, j) => i === j], ['2', 'Away win', (i, j) => i < j]].forEach(r => {
     c.push(R(r[0] + 'gg', r[1] + ' & GG', gsum(G, (i, j) => r[2](i, j) && i > 0 && j > 0)));
@@ -481,7 +564,7 @@ function buildMarkets(model, share, mkt, ou, ah){
     c.push(R(r[0] + 'u25', r[1] + ' & under 2.5', gsum(G, (i, j) => r[2](i, j) && i + j <= 2)));
   });
   c.push(R('ggo25', 'GG & over 2.5', gsum(G, (i, j) => i > 0 && j > 0 && i + j >= 3)), R('ngu25', 'NG & under 2.5', gsum(G, (i, j) => (i === 0 || j === 0) && i + j <= 2)));
-  groups.push({id:'combo', title:'Combos', rows:c});
+  groups.push({id:'combo', title:'Two bets in one', rows:c});
   const h = [];
   const H1 = [gsum(G1, (i, j) => i > j), gsum(G1, (i, j) => i === j), gsum(G1, (i, j) => i < j)];
   h.push(R('h1', '1st half: home', H1[0]), R('hx', '1st half: draw', H1[1]), R('h2', '1st half: away', H1[2]));
@@ -490,23 +573,23 @@ function buildMarkets(model, share, mkt, ou, ah){
   let m1 = 0, me = 0, m2 = 0;
   T1.forEach((x, i) => T2.forEach((y, j) => { if (i > j) m1 += x * y; else if (i === j) me += x * y; else m2 += x * y; }));
   h.push(R('hs1', 'Highest scoring half: 1st', m1), R('hse', 'Highest scoring half: equal', me), R('hs2', 'Highest scoring half: 2nd', m2));
-  groups.push({id:'halves', title:'Halves', rows:h});
+  groups.push({id:'halves', title:'First half and second half', rows:h});
   const hf = {};
   G1.forEach((row, i) => row.forEach((p1, j) => G2.forEach((r2, a) => r2.forEach((p2, b) => {
     const ht = i > j ? '1' : i === j ? 'X' : '2', ft = (i + a) > (j + b) ? '1' : (i + a) === (j + b) ? 'X' : '2';
     hf[ht + '/' + ft] = (hf[ht + '/' + ft] || 0) + p1 * p2;
   }))));
-  groups.push({id:'htft', title:'HT/FT', rows:['1/1','1/X','1/2','X/1','X/X','X/2','2/1','2/X','2/2'].map(k => R('hf' + k, 'HT/FT ' + k, hf[k]))});
+  groups.push({id:'htft', title:'Half-time / Full-time (HT/FT)', rows:['1/1','1/X','1/2','X/1','X/X','X/2','2/1','2/X','2/2'].map(k => R('hf' + k, 'HT/FT ' + k, hf[k]))});
   const cs = [];
   for (let i = 0; i <= 6; i++) for (let j = 0; j <= 6; j++) cs.push([i, j, G[i][j]]);
   cs.sort((a, b) => b[2] - a[2]);
-  groups.push({id:'cs', title:'Correct score (ten likeliest)', rows:cs.slice(0, 10).map(x => R('cs' + x[0] + '-' + x[1], 'Correct score ' + x[0] + '-' + x[1], x[2]))});
+  groups.push({id:'cs', title:'Correct score (top 10)', rows:cs.slice(0, 10).map(x => R('cs' + x[0] + '-' + x[1], 'Correct score ' + x[0] + '-' + x[1], x[2]))});
   const hc = [
     R('eh-1', 'Handicap home -1: home wins by 2+', gsum(G, (i, j) => i - j >= 2)), R('eh-1x', 'Handicap home -1: draw (wins by exactly 1)', gsum(G, (i, j) => i - j === 1)), R('eh-1a', 'Handicap home -1: away or draw', gsum(G, (i, j) => i - j <= 0)),
     R('eh+1', 'Handicap home +1: home or draw', gsum(G, (i, j) => i - j >= 0)), R('eh+1x', 'Handicap home +1: draw (loses by exactly 1)', gsum(G, (i, j) => i - j === -1)), R('eh+1a', 'Handicap home +1: away wins by 2+', gsum(G, (i, j) => i - j <= -2))];
   [-1.5, -1, -0.5, 0, 0.5, 1, 1.5].forEach(L => { const r = ahProb(G, L); hc.push(R('ah' + L, 'Asian handicap home ' + (L > 0 ? '+' : '') + L, r[0], {push: r[1]})); });
-  if (ah && ah.line != null && ![-1.5, -1, -0.5, 0, 0.5, 1, 1.5].includes(ah.line)){ const r = ahProb(G, ah.line); hc.push(R('ahf', 'Asian handicap home ' + (ah.line > 0 ? '+' : '') + ah.line + ' (market line)', r[0], {push: r[1]})); }
-  groups.push({id:'handicap', title:'Handicap', rows:hc});
+  if (ah && ah.line != null && ![-1.5, -1, -0.5, 0, 0.5, 1, 1.5].includes(ah.line)){ const r = ahProb(G, ah.line); hc.push(R('ahf', 'Asian handicap home ' + (ah.line > 0 ? '+' : '') + ah.line + ' (bookmaker line)', r[0], {push: r[1]})); }
+  groups.push({id:'handicap', title:'Handicap (head start)', rows:hc});
   if (model.corners){
     const cm = model.corners, K2 = 40, pt = nbPmf(cm.exp, 1.15, K2), ch = nbPmf(cm.home, 1.2, K2), ca = nbPmf(cm.away, 1.2, K2);
     const r = [];
@@ -514,12 +597,12 @@ function buildMarkets(model, share, mkt, ou, ah){
     [['Home', ch, 'h'], ['Away', ca, 'a']].forEach(t => [3.5, 4.5, 5.5, 6.5].forEach(l => { const o = 1 - sumIf(t[1], i => i <= Math.floor(l)); r.push(R('c' + t[2] + 'o' + l, t[0] + ' corners over ' + l, o)); }));
     const GC = grid(ch, ca);
     r.push(R('cm1', 'Most corners: home', gsum(GC, (i, j) => i > j)), R('cmx', 'Most corners: tie', gsum(GC, (i, j) => i === j)), R('cm2', 'Most corners: away', gsum(GC, (i, j) => i < j)));
-    groups.push({id:'corners', title:'Corners (expected ' + cm.exp.toFixed(1) + ')', rows:r});
+    groups.push({id:'corners', title:'Corners (we expect ' + cm.exp.toFixed(1) + ')', rows:r});
   }
   if (model.cards){
     const cd = model.cards, pc = nbPmf(cd.exp, 1.15, 25), r = [];
     [2.5, 3.5, 4.5, 5.5, 6.5].forEach(l => { const o = 1 - sumIf(pc, i => i <= Math.floor(l)); r.push(R('ko' + l, 'Total cards over ' + l, o), R('ku' + l, 'Total cards under ' + l, 1 - o)); });
-    groups.push({id:'cards', title:'Cards (expected ' + cd.exp.toFixed(1) + ')', rows:r, note:'Cards are yellow plus red. Bookmaker "bookings" points usually count 10 per yellow and 25 per red, so check how your book counts.'});
+    groups.push({id:'cards', title:'Cards (we expect ' + cd.exp.toFixed(1) + ')', rows:r, note:'Cards = yellow + red. "Bookings" points are different: usually 10 per yellow and 25 per red. Check how your bookmaker counts.'});
   }
   return groups;
 }
@@ -537,7 +620,7 @@ function buildLive(model, minute, gh, ga){
   [0, 1, 2].forEach(n => { const line = cur + n + 0.5, o = 1 - sumIf(conv(ph, pa), i => i <= n); rows.push(R('o' + line, 'Final total over ' + line, o), R('u' + line, 'Final total under ' + line, 1 - o)); });
   if (gh === 0 || ga === 0) rows.push(R('gg', 'GG still to come', (gh > 0 ? 1 : 1 - ph[0]) * (ga > 0 ? 1 : 1 - pa[0])));
   if (minute < 75) rows.push(R('late', 'Goal between 75:00 and full time', 1 - Math.exp(-(model.lam[0] + model.lam[1]) * 20 / 95)));
-  return {id:'live', title:'In-play from ' + minute + "' at " + gh + '-' + ga, rows, note:'Re-priced from the pre-match model and the time left. It does not know about red cards, injuries or a team chasing the game.'};
+  return {id:'live', title:'Live bets from minute ' + minute + ' (score ' + gh + '-' + ga + ')', rows, note:'These numbers come from our pre-match numbers and the time left. They do not know about red cards, injuries or a team pushing forward.'};
 }
 // MARKETS END
 
@@ -546,26 +629,26 @@ const DEFAULTS = {comp:'europe',fav:'none',style:'balanced',pitch:'unknown',weat
   contAhead:false,stakes:'normal',live:'pre',gpg:null,gpgLg:null,corn:null,cornLg:null,cardsExp:null,cardsLg:null};
 
 const GROUPS = [
-  {id:'tactics', title:'Matchup', fields:[
-    {t:'seg', key:'fav', label:'Favorite', opts:[['home','Home'],['away','Away'],['none','No clear favorite']]},
-    {t:'seg', key:'style', label:'Matchup style', opts:[['press_block','Pressing favorite vs low block'],['open','Two direct, open sides'],['balanced','Balanced or unclear']]},
+  {id:'tactics', title:'The match-up', fields:[
+    {t:'seg', key:'fav', label:'Who is the favourite?', opts:[['home','Home'],['away','Away'],['none','Nobody clear']]},
+    {t:'seg', key:'style', label:'How will the game be played?', opts:[['press_block','Strong team attacks, other team defends deep'],['open','Both teams attack, lots of space'],['balanced','Normal or not sure']]},
     {t:'checks', items:[
-      {key:'physical', label:'Home side is physically dominant', hint:'Wins duels, plays long, thrives on rough pitches'},
-      {key:'rotKey', label:'Lineup is missing a key defensive midfielder or goalkeeper', hint:'Check the live desk lineup about an hour before kickoff'},
-      {key:'contAhead', label:'Favorite has a continental tie within 4 days', hint:'Rotation risk. Pre-filled from the fixture list.'},
-      {key:'natDuty', label:'Starters pulled for CHAN, Super Eagles B or youth camps'},
-      {key:'midweek', label:'A side is back from midweek continental or away travel'}]}]},
-  {id:'env', title:'Environment', fields:[
-    {t:'seg', key:'pitch', label:'Pitch surface', opts:[['unknown','Not known'],['smooth','Smooth, lush grass'],['worn','Worn synthetic'],['bumpy','Bumpy natural']]},
-    {t:'seg', key:'weather', label:'Weather at kickoff', opts:[['clear','Clear or mild'],['rain','Heavy rain'],['heat','Extreme heat and humidity']], hint:'Afternoon kickoffs (3 or 4 PM WAT) in Lagos, Port Harcourt or Uyo are the heat case.'},
-    {t:'checks', items:[{key:'wind', label:'Strong crosswinds'}]}]},
-  {id:'npfl', only:'npfl', title:'NPFL ground and club welfare', fields:[
-    {t:'seg', key:'travel', label:'Away side travel', opts:[['short','Under 3 hours'],['mid','3 to 9 hours'],['long','10+ hours by road']]},
-    {t:'seg', key:'welfare', label:'Unpaid bonuses or salary delays reported', opts:[['none','None reported'],['away','Away club'],['home','Home club']], hint:'Often surfaces on X and WhatsApp channels hours before odds move.'},
-    {t:'checks', items:[{key:'altitude', label:'Away side moves from sea level to the Jos plateau', hint:'Plateau United home games'}, {key:'novar', label:'No VAR, packed enclosed municipal stadium'}]}]},
-  {id:'state', title:'Game state', fields:[
-    {t:'seg', key:'stakes', label:'Stakes', opts:[['normal','Normal'],['draw','A draw suits both sides']], hint:'One point to advance or avoid relegation.'},
-    {t:'seg', key:'live', label:'Situation now', opts:[['pre','Pre-match or nothing special'],['tied_ht','Level at half-time'],['home_lead_ht','Home leads 1-0 at half-time'],['trailing','A side trailing after 70 minutes']], hint:'Filled in automatically while the live feed is on. Change it to override.'}]}
+      {key:'physical', label:'Home team is strong and rough', hint:'Wins duels, plays long balls, likes bad pitches'},
+      {key:'rotKey', label:'A key defensive midfielder or the goalkeeper is out', hint:'Check the Live section for the lineup, about 1 hour before kick-off'},
+      {key:'contAhead', label:'Favourite plays a big European game within 4 days', hint:'Filled in for you from the match list. They may rest players.'},
+      {key:'natDuty', label:'Players are away with the national team (CHAN, Super Eagles B, youth teams)'},
+      {key:'midweek', label:'A team just came back from a midweek European or away trip'}]}]},
+  {id:'env', title:'Pitch and weather', fields:[
+    {t:'seg', key:'pitch', label:'Pitch', opts:[['unknown','Not known'],['smooth','Smooth, good grass'],['worn','Worn artificial'],['bumpy','Bumpy grass']]},
+    {t:'seg', key:'weather', label:'Weather at kick-off', opts:[['clear','Clear or mild'],['rain','Heavy rain'],['heat','Very hot and humid']], hint:'Afternoon games (3 or 4 PM) in Lagos, Port Harcourt or Uyo are the hot case.'},
+    {t:'checks', items:[{key:'wind', label:'Strong wind'}]}]},
+  {id:'npfl', only:'npfl', title:'NPFL only: travel and club money', fields:[
+    {t:'seg', key:'travel', label:'Away team travel', opts:[['short','Under 3 hours'],['mid','3 to 9 hours'],['long','10+ hours by road']]},
+    {t:'seg', key:'welfare', label:'Players not paid on time? (bonuses or salary)', opts:[['none','Nothing heard'],['away','Away club'],['home','Home club']], hint:'This often shows on X and WhatsApp before the odds move.'},
+    {t:'checks', items:[{key:'altitude', label:'Away team comes from sea level to Jos (high ground)', hint:'Plateau United home games'}, {key:'novar', label:'No VAR, packed and closed ground'}]}]},
+  {id:'state', title:'The game now', fields:[
+    {t:'seg', key:'stakes', label:'Is a draw good for both teams?', opts:[['normal','No, normal game'],['draw','Yes, a draw suits both']], hint:'For example, one point is enough to go through or stay up.'},
+    {t:'seg', key:'live', label:'Game situation now', opts:[['pre','Before the game, or nothing special'],['tied_ht','Level at half-time'],['home_lead_ht','Home team 1-0 up at half-time'],['trailing','A team is losing after minute 70']], hint:'This fills itself while the live feed is on. Tap to change it.'}]}
 ];
 
 const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -576,7 +659,7 @@ function ctl(f){
     '</div>' + (f.hint ? '<p class="hint">' + f.hint + '</p>' : '') + '</fieldset>';
   return '<div class="checks">' + f.items.map(c => '<label class="chk"><input type="checkbox" id="f-' + c.key + '" name="' + c.key + '"><span class="box" aria-hidden="true"></span><span class="chk-t">' + c.label + (c.hint ? '<small>' + c.hint + '</small>' : '') + '</span></label>').join('') + '</div>';
 }
-$('form').innerHTML = GROUPS.map(g => '<section class="grpf" id="grp-' + g.id + '"><h2>' + g.title + '</h2>' + g.fields.map(ctl).join('') + '</section>').join('');
+$('form').innerHTML = GROUPS.map(g => '<section class="paper grpf" id="grp-' + g.id + '"><h2>' + g.title + '</h2>' + g.fields.map(ctl).join('') + '</section>').join('');
 
 /* ---------- state ---------- */
 let DATA = null, FX = null, S = null, PROV = [], filter = 'all', ODDS = {}, CMP = 'model', ROWS = [], LIVE = null, liveTimer = null, liveManual = false;
@@ -594,45 +677,45 @@ function autoSetup(fx){
   const H = T(fx.home), A = T(fx.away), lg = DATA.leagues[fx.league] || {};
   const avg = lg.avg || {}, s = Object.assign({}, DEFAULTS, {comp: lg.comp || 'europe'}), prov = [];
   const probs = fx.mkt ? fx.mkt.fair : (fx.model ? fx.model.p1x2 : null);
-  const srcName = fx.mkt ? 'bookmaker consensus' : 'model';
+  const srcName = fx.mkt ? 'bookmakers' : 'our numbers';
   if (probs){
     const ph = probs[0], pa = probs[2];
     s.fav = (ph >= 0.45 && ph - pa >= 0.15) ? 'home' : (pa >= 0.45 && pa - ph >= 0.15) ? 'away' : 'none';
-    prov.push(['Favorite', s.fav === 'none' ? 'No clear favorite (' + srcName + ': home ' + pc(ph) + '%, away ' + pc(pa) + '%)' : (s.fav === 'home' ? H.name : A.name) + ' at ' + pc(s.fav === 'home' ? ph : pa) + '% (' + srcName + ')', 'data']);
+    prov.push(['Favourite', s.fav === 'none' ? 'Nobody clear (' + srcName + ': home ' + pc(ph) + '%, away ' + pc(pa) + '%)' : (s.fav === 'home' ? H.name : A.name) + ', ' + pc(s.fav === 'home' ? ph : pa) + '% (' + srcName + ')', 'data']);
     if (s.fav !== 'none' && Math.max(ph, pa) >= 0.60){
       const dog = s.fav === 'home' ? A : H;
-      if (dog.rank && dog.of && dog.rank > dog.of / 2){ s.style = 'press_block'; prov.push(['Matchup style', 'Pressing favorite vs low block: favorite at 60%+ and the other side sits ' + dog.rank + ' of ' + dog.of, 'assumed']); }
+      if (dog.rank && dog.of && dog.rank > dog.of / 2){ s.style = 'press_block'; prov.push(['Match style', 'Strong team against a team that defends deep. The favourite is 60%+ and the other team is ' + dog.rank + ' of ' + dog.of + ' in the table.', 'assumed']); }
     }
   } else if (H.p && A.p){
     const d = H.pts / H.p - A.pts / A.p;
     s.fav = d >= 0.4 ? 'home' : d <= -0.4 ? 'away' : 'none';
-    prov.push(['Favorite', (s.fav === 'none' ? 'No clear favorite' : (s.fav === 'home' ? H.name : A.name)) + ': ' + f2(H.pts / H.p) + ' vs ' + f2(A.pts / A.p) + ' points per game', 'data']);
+    prov.push(['Favourite', (s.fav === 'none' ? 'Nobody clear' : (s.fav === 'home' ? H.name : A.name)) + ': ' + f2(H.pts / H.p) + ' vs ' + f2(A.pts / A.p) + ' points a game', 'data']);
   }
   if (fx.ahead){
     const who = []; if (fx.ahead.home) who.push(H.name); if (fx.ahead.away) who.push(A.name);
     s.contAhead = (s.fav === 'home' && !!fx.ahead.home) || (s.fav === 'away' && !!fx.ahead.away);
-    prov.push(['Continental tie ahead', who.join(' and ') + ' play in the Champions League within 4 days' + (s.contAhead ? ': counted as rotation risk for the favorite' : ''), 'data']);
+    prov.push(['Champions League soon', who.join(' and ') + ' play in the Champions League within 4 days' + (s.contAhead ? '. The favourite may rest players.' : '.'), 'data']);
   }
   const m = fx.model;
   if (m){
     s.gpg = m.exp_total; s.gpgLg = avg.g_team ? avg.g_team * 2 : null;
-    prov.push(['Expected goals', f2(m.exp_total) + ' in this match (league average ' + f2(s.gpgLg) + '), from each side\'s last ' + Math.min(m.n[0], m.n[1]) + '+ matches', 'data']);
-    if (m.corners && avg.tc){ s.corn = m.corners.exp; s.cornLg = avg.tc; prov.push(['Expected corners', f1(m.corners.exp) + ' (league average ' + f1(avg.tc) + ')', 'data']); }
-    if (m.cards && avg.tk){ s.cardsExp = m.cards.exp; s.cardsLg = avg.tk; prov.push(['Expected cards', f1(m.cards.exp) + ' (league average ' + f1(avg.tk) + ')' + (m.cards.ref_factor ? ', referee factor ' + f2(m.cards.ref_factor) : ''), 'data']); }
+    prov.push(['Goals we expect', f2(m.exp_total) + ' in this game (league average ' + f2(s.gpgLg) + '). From each team\'s last ' + Math.min(m.n[0], m.n[1]) + '+ games.', 'data']);
+    if (m.corners && avg.tc){ s.corn = m.corners.exp; s.cornLg = avg.tc; prov.push(['Corners we expect', f1(m.corners.exp) + ' (league average ' + f1(avg.tc) + ')', 'data']); }
+    if (m.cards && avg.tk){ s.cardsExp = m.cards.exp; s.cardsLg = avg.tk; prov.push(['Cards we expect', f1(m.cards.exp) + ' (league average ' + f1(avg.tk) + ')' + (m.cards.ref_factor ? '. Referee factor ' + f2(m.cards.ref_factor) + '.' : ''), 'data']); }
   }
-  if (fx.ref && fx.ref.name) prov.push(['Referee', fx.ref.name + (fx.ref.avg_cards ? ' averages ' + f2(fx.ref.avg_cards) + ' cards in ' + fx.ref.n + ' recent matches' : ''), fx.ref.avg_cards ? 'data' : 'assumed']);
+  if (fx.ref && fx.ref.name) prov.push(['Referee', fx.ref.name + (fx.ref.avg_cards ? ' gives ' + f2(fx.ref.avg_cards) + ' cards a game (last ' + fx.ref.n + ' games)' : ''), fx.ref.avg_cards ? 'data' : 'assumed']);
   if (s.comp === 'npfl'){
     s.travel = fx.travel || 'short';
-    prov.push(['Away travel', fx.travelNote || 'Unknown', 'estimate']);
-    s.novar = true; prov.push(['No VAR', 'Assumed for NPFL grounds, as in the guide', 'assumed']);
-    if (fx.altitude){ s.altitude = true; prov.push(['Altitude', 'Home ground is on the Jos plateau', 'data']); }
+    prov.push(['Away trip', fx.travelNote || 'Not known', 'estimate']);
+    s.novar = true; prov.push(['No VAR', 'Most NPFL grounds have no VAR, as in your guide', 'assumed']);
+    if (fx.altitude){ s.altitude = true; prov.push(['High ground', 'The home ground is in Jos, on high ground', 'data']); }
   }
   return {s, prov};
 }
 function persist(){
   if (!FX) return;
   const all = lsRead(); all[FX.id] = {s:S, odds:ODDS}; all._cmp = CMP;
-  $('saved').textContent = lsWrite(all) ? 'Your changes to this match are remembered in this browser.' : '';
+  $('saved').innerHTML = lsWrite(all) ? '<span class="sdot"></span>Saved on this phone' : '';
 }
 function selectFixture(id, scroll){
   stopLive();
@@ -644,10 +727,11 @@ function selectFixture(id, scroll){
   LIVE = null; liveManual = false;
   $('desk').hidden = false;
   renderBoard(); syncForm(); renderAll(); startLive();
-  if (scroll && window.matchMedia('(max-width: 899px)').matches) $('desk').scrollIntoView({behavior:'smooth', block:'start'});
+  const mh = $('mhCard'); mh.classList.remove('stamp-on'); void mh.offsetWidth; mh.classList.add('stamp-on');
+  if (scroll && window.matchMedia('(max-width: 899px)').matches) mh.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
-/* ---------- board ---------- */
+/* ---------- match list ---------- */
 function renderChips(){
   const counts = {all: DATA.fixtures.length}; DATA.fixtures.forEach(f => counts[f.league] = (counts[f.league] || 0) + 1);
   const order = ['all','E0','SP1','I1','D1','F1','CL','NPFL'].filter(k => counts[k]);
@@ -661,43 +745,65 @@ function renderBoard(){
     if (day !== dk){ day = dk; html += '<div class="day">' + dk + '</div>'; }
     const probs = f.mkt ? f.mkt.fair : (f.model ? f.model.p1x2 : null);
     if (filter === 'all') tags.push('<span class="tag">' + esc((DATA.leagues[f.league] || {}).short || f.league) + '</span>');
-    if (f.ahead){ const fv = probs && probs[0] >= probs[2] ? f.ahead.home : f.ahead.away; if (fv) tags.push('<span class="tag rot">UCL ahead</span>'); }
-    if (f.koKnown && now > d.getTime() && now < d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag live">On now</span>');
-    else if (f.koKnown && now >= d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag">Likely finished</span>');
-    if (!f.koKnown) tags.push('<span class="tag">Time unconfirmed</span>');
+    if (f.ahead){ const fv = probs && probs[0] >= probs[2] ? f.ahead.home : f.ahead.away; if (fv) tags.push('<span class="tag rot">UCL soon</span>'); }
+    if (f.koKnown && now > d.getTime() && now < d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag live">Live</span>');
+    else if (f.koKnown && now >= d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag">Finished?</span>');
+    if (!f.koKnown) tags.push('<span class="tag">Time not set</span>');
     const bar = probs ? '<span class="pbar" aria-hidden="true"><i class="ph" style="width:' + (probs[0] * 100) + '%"></i><i class="pd" style="width:' + (probs[1] * 100) + '%"></i><i class="pa" style="width:' + (probs[2] * 100) + '%"></i></span><span class="fx-meta mono">' + pc(probs[0]) + ' &middot; ' + pc(probs[1]) + ' &middot; ' + pc(probs[2]) + tags.join('') + '</span>' : '<span class="fx-meta">' + tags.join('') + '</span>';
     html += '<button type="button" class="fx" data-id="' + esc(f.id) + '" aria-pressed="' + (FX && FX.id === f.id) + '"><span class="fx-time">' + (f.koKnown ? fmtTime.format(d) : '--:--') + '</span><span class="fx-teams">' + esc(H.name) + '<i>v</i>' + esc(A.name) + '</span>' + bar + '</button>';
   });
-  $('board').innerHTML = html || '<div class="loading">No fixtures for this filter.</div>';
+  $('board').innerHTML = html || '<div class="loading">No matches for this league.</div>';
 }
 
-/* ---------- team cards ---------- */
+/* ---------- quick read + teams ---------- */
+function renderQuick(){
+  const H = T(FX.home), A = T(FX.away), m = FX.model;
+  const probs = FX.mkt ? FX.mkt.fair : (m ? m.p1x2 : null);
+  $('quickSrc').textContent = probs ? (FX.mkt ? '(from bookmaker odds' + (m ? ' and recent results)' : ')') : '(from recent results)') : '';
+  if (!probs){
+    $('quickBody').innerHTML = '<p class="empty">' + (FX.league === 'NPFL' ? 'No numbers for this NPFL match yet. Add the free API key from the setup guide to get them. The checklist below still works.' : FX.league === 'CL' ? 'No numbers for Champions League matches. The two teams come from different leagues, so we cannot compare them. The checklist below still works.' : 'No numbers for this match yet. The checklist below still works.') + '</p>';
+    return;
+  }
+  const ph = probs[0], pd = probs[1], pa = probs[2], top = Math.max(ph, pd, pa);
+  let line;
+  if (ph >= 0.45 && ph - pa >= 0.15) line = H.name + ' are the favourites. ' + pc(ph) + ' out of 100 to win.';
+  else if (pa >= 0.45 && pa - ph >= 0.15) line = A.name + ' are the favourites. ' + pc(pa) + ' out of 100 to win.';
+  else line = 'A close one. It can go any way.';
+  const tile = (v, name) => '<div class="q-tile' + (v === top ? ' top' : '') + '"><b>' + pc(v) + '%</b><span>' + esc(name) + '</span></div>';
+  let h = '<p class="q-main">' + esc(line) + '</p><div class="q-3">' + tile(ph, H.name + ' win') + tile(pd, 'Draw') + tile(pa, A.name + ' win') + '</div>';
+  if (m){
+    const t4 = (b, s) => '<div class="q-tile"><b>' + b + '</b><span>' + s + '</span></div>';
+    h += '<div class="q-4">' + t4(pc(m.goals.o25) + '%', '3 or more goals (Over 2.5)') + t4(pc(m.goals.btts) + '%', 'Both teams score (GG)') + (m.corners ? t4(f1(m.corners.exp), 'corners we expect') : '') + (m.cards ? t4(f1(m.cards.exp), 'cards we expect') : '') + '</div>';
+  }
+  h += '<p class="hint">These are chances, not promises. Tap "Odds checker" to compare with your bookmaker.</p>';
+  $('quickBody').innerHTML = h;
+}
 function teamCard(k, side){
   const t = T(k), st = t.stats;
-  if (t.rank == null && !st) return '<div class="tcard"><div class="tn">' + esc(t.name) + '<span>' + side + '</span></div><div class="tl">No league table or match stats in the data for this club.</div></div>';
+  if (t.rank == null && !st) return '<div class="tcard"><div class="tn">' + esc(t.name) + '<span>' + side + '</span></div><div class="tl">No table or match numbers for this club yet.</div></div>';
   let h = '<div class="tcard"><div class="tn">' + esc(t.name) + '<span>' + side + '</span></div>';
-  if (t.rank != null) h += '<div class="tl"><b>' + t.rank + ' of ' + t.of + '</b> &middot; ' + t.w + 'W ' + t.d + 'D ' + t.l + 'L &middot; ' + t.pts + ' pts &middot; GD ' + (t.gf - t.ga >= 0 ? '+' : '') + (t.gf - t.ga) + '</div>';
+  if (t.rank != null) h += '<div class="tl"><b>' + t.rank + ' of ' + t.of + '</b> &middot; ' + t.w + 'W ' + t.d + 'D ' + t.l + 'L &middot; ' + t.pts + ' pts &middot; goal difference ' + (t.gf - t.ga >= 0 ? '+' : '') + (t.gf - t.ga) + '</div>';
   if (st){
     h += '<div class="form5" aria-label="Last five results">' + st.form.map(x => '<span class="pill ' + x.res + '" title="' + esc(x.score + (x.venue === 'H' ? ' v ' : ' at ') + x.opp) + '">' + x.res + '</span>').join('') + '</div>';
     h += '<div class="stats">' +
-      '<div class="st"><b>' + f2(st.gf) + ' / ' + f2(st.ga) + '</b><span>goals for / against</span></div>' +
-      '<div class="st"><b>' + Math.round(st.o25) + '%</b><span>over 2.5</span></div><div class="st"><b>' + Math.round(st.btts) + '%</b><span>both score</span></div>' +
+      '<div class="st"><b>' + f2(st.gf) + ' / ' + f2(st.ga) + '</b><span>goals scored / let in</span></div>' +
+      '<div class="st"><b>' + Math.round(st.o25) + '%</b><span>games with 3+ goals</span></div><div class="st"><b>' + Math.round(st.btts) + '%</b><span>games both teams scored</span></div>' +
       '<div class="st"><b>' + Math.round(st.cs) + '%</b><span>clean sheets</span></div>' +
-      (st.n_c >= 3 ? '<div class="st"><b>' + f1(st.cf) + ' / ' + f1(st.ca) + '</b><span>corners for / against</span></div>' : '') +
-      (st.n_k >= 3 ? '<div class="st"><b>' + f1(st.kf) + '</b><span>cards per match</span></div>' : '') + '</div>';
-    h += '<div class="tl">Based on the last ' + st.n + ' matches' + (st.n < 8 ? ' <b>(thin sample)</b>' : '') + (st.n_c && st.n_c < st.n ? '; corners and cards from ' + st.n_c : '') + '.</div>';
+      (st.n_c >= 3 ? '<div class="st"><b>' + f1(st.cf) + ' / ' + f1(st.ca) + '</b><span>corners won / given</span></div>' : '') +
+      (st.n_k >= 3 ? '<div class="st"><b>' + f1(st.kf) + '</b><span>cards a game</span></div>' : '') + '</div>';
+    h += '<div class="tl">From the last ' + st.n + ' games' + (st.n < 8 ? ' <b>(few games, so be careful)</b>' : '') + (st.n_c && st.n_c < st.n ? '. Corners and cards from ' + st.n_c + ' games' : '') + '.</div>';
   }
   return h + '</div>';
 }
 
-/* ---------- markets table ---------- */
+/* ---------- odds checker ---------- */
 function allGroups(){
   const gs = [], m = FX.model;
   if (LIVE && LIVE.live && m) gs.push(buildLive(m, LIVE.minute, LIVE.gh, LIVE.ga));
   if (m){ const share = (DATA.leagues[FX.league].avg || {}).h1share || 0.44; buildMarkets(m, share, FX.mkt, FX.ou, FX.ah).forEach(g => gs.push(g)); }
   else if (FX.mkt){
     const f = FX.mkt.fair, R = (k, name, p) => ({k, name, p, cons: p});
-    gs.push({id:'result', title:'Match result (bookmaker consensus only)', rows:[R('1', 'Home win (1)', f[0]), R('X', 'Draw (X)', f[1]), R('2', 'Away win (2)', f[2])]});
+    gs.push({id:'result', title:'Who wins (bookmaker view only)', rows:[R('1', 'Home win (1)', f[0]), R('X', 'Draw (X)', f[1]), R('2', 'Away win (2)', f[2])]});
   }
   return gs;
 }
@@ -708,23 +814,22 @@ function edgeOf(odds, row){
 function renderMarkets(){
   const gs = allGroups(); ROWS = []; const q = ($('mkFilter').value || '').trim().toLowerCase();
   const m = FX.model;
-  $('mkSub').textContent = m ? '(model from recent results' + (FX.mkt ? ', with the market consensus beside it' : '') + ')' : (FX.mkt ? '(market consensus only)' : '');
-  $('mkHint').innerHTML = gs.length ? 'Type the odds your bookmaker shows (Bet9ja, SportyBet, BetKing and the like use these market names). <b>Edge</b> is the expected return per 1 staked if the chance is right. Fair odds are 1 divided by the chance.' : 'No prices are available for this fixture: there is no bookmaker consensus and too little match data for the model.';
+  $('mkSub').textContent = m ? '(our chances come from recent results' + (FX.mkt ? '; bookmaker view shown too)' : ')') : (FX.mkt ? '(bookmaker view only)' : '');
+  $('mkHint').innerHTML = gs.length ? 'Type the odds you see on Bet9ja, SportyBet, BetKing or any other site. We show the <b>value</b>: what you win or lose on average for every 1 you stake, if our chance is right. A plus is good. <b>Fair odds</b> are what the bet should pay.' : 'No prices for this match: there are no bookmaker odds and too few past results.';
   $('groups').innerHTML = gs.map((g, gi) => {
     const rows = g.rows.filter(r => !q || (g.title + ' ' + r.name).toLowerCase().includes(q));
     if (!rows.length) return '';
-    return '<details class="grp mk"' + (q || gi < 2 || g.id === 'live' ? ' open' : '') + '><summary>' + esc(g.title) + ' <small>' + rows.length + ' markets</small></summary><div class="tbl-wrap">' +
+    return '<details class="grp mk"' + (q || gi < 2 || g.id === 'live' ? ' open' : '') + '><summary>' + esc(g.title) + ' <small>' + rows.length + ' bets</small></summary><div class="tbl-wrap">' +
       (g.note ? '<p class="hint" style="padding:0 8px">' + esc(g.note) + '</p>' : '') +
-      '<table><thead><tr><th>Market</th><th class="num">Model</th><th class="num">Fair odds</th><th class="num">Market fair odds</th><th>Your odds</th><th class="num">Edge</th></tr></thead><tbody>' +
+      '<table><thead><tr><th>Bet</th><th class="num">Our chance</th><th class="num">Fair odds</th><th class="num">Bookies\' fair odds</th><th>Your odds</th><th class="num">Value</th></tr></thead><tbody>' +
       rows.map(r => {
         const idx = ROWS.push(r) - 1, key = g.id + ':' + r.k, cur = ODDS[key] || '';
         const fair = r.p > 0 ? (1 - (r.push || 0)) / r.p : null;
-        return '<tr data-i="' + idx + '"><td class="name">' + esc(r.name) + (r.push ? ' <span class="cons">(push ' + pc(r.push) + '%)</span>' : '') + '</td><td class="num mono">' + (r.p * 100).toFixed(1) + '%</td><td class="num fair">' + (fair && fair < 200 ? fair.toFixed(2) : '-') + '</td>' +
-          '<td class="num cons">' + (r.cons != null ? (100 / (r.cons * 100) ).toFixed(2) : '') + '</td>' +
-          '<td><input type="text" inputmode="decimal" data-key="' + esc(key) + '" aria-label="Your odds for ' + esc(r.name) + '" placeholder="odds" value="' + esc(cur) + '"></td><td class="num val" id="ev-' + idx + '">-</td></tr>';
+        return '<tr data-i="' + idx + '"><td class="name">' + esc(r.name) + (r.push ? ' <span class="cons">(money back: ' + pc(r.push) + '%)</span>' : '') + '</td><td class="num mono" data-l="Our chance">' + (r.p * 100).toFixed(1) + '%</td><td class="num fair" data-l="Fair odds">' + (fair && fair < 200 ? fair.toFixed(2) : '-') + '</td>' +
+          '<td class="num cons" data-l="Bookies\' fair odds">' + (r.cons != null && r.cons > 0 ? (1 / r.cons).toFixed(2) : '') + '</td>' +
+          '<td class="inp" data-l="Your odds"><input type="text" inputmode="decimal" data-key="' + esc(key) + '" aria-label="Your odds for ' + esc(r.name) + '" placeholder="odds" value="' + esc(cur) + '"></td><td class="num val" data-l="Value" id="ev-' + idx + '">-</td></tr>';
       }).join('') + '</tbody></table></div></details>';
   }).join('');
-  ROWS.forEach((r, i) => { r._key = null; });
   updateEdges();
 }
 function updateEdges(){
@@ -738,10 +843,10 @@ function updateEdges(){
     } else { cell.textContent = '-'; cell.className = 'num val'; }
   });
   best.sort((a, b) => b[0] - a[0]);
-  $('vboard').innerHTML = best.length ? best.slice(0, 6).map(b => '<span class="vchip">' + esc(b[1]) + ' @ ' + b[2] + '<b>+' + (b[0] * 100).toFixed(1) + '%</b></span>').join('') + (best[0][0] > 0.12 ? '<p class="warn" style="flex-basis:100%">An edge this big usually means the model is missing news such as lineups or injuries. Check the live desk and team news before staking.</p>' : '') : '';
+  $('vboard').innerHTML = best.length ? '<span class="hint" style="flex-basis:100%">Your best values so far:</span>' + best.slice(0, 6).map(b => '<span class="vchip">' + esc(b[1]) + ' @ ' + b[2] + '<b>+' + (b[0] * 100).toFixed(1) + '%</b></span>').join('') + (best[0][0] > 0.12 ? '<p class="warn" style="flex-basis:100%">Value this big usually means we are missing news, like lineups or injuries. Check the Live section and the team news before you stake.</p>' : '') : '';
 }
 
-/* ---------- live desk (ESPN, keyless) ---------- */
+/* ---------- live ---------- */
 function liveWindowOpen(){
   if (!FX || !FX.espn || !FX.koKnown) return false;
   const t = new Date(FX.ko).getTime(), now = Date.now();
@@ -751,6 +856,7 @@ function stopLive(){ if (liveTimer){ clearInterval(liveTimer); liveTimer = null;
 function startLive(){
   const sec = $('liveSec');
   sec.hidden = !(FX && FX.espn);
+  $('navLive').hidden = sec.hidden;
   if (sec.hidden) return;
   renderLive();
   if (liveWindowOpen()) pollLive();
@@ -768,7 +874,7 @@ async function pollLive(){
     LIVE = parseSummary(j, fx); LIVE.at = new Date(); LIVE.err = null;
   } catch (e) {
     if (FX !== fx) return;
-    LIVE = Object.assign(LIVE || {}, {err: 'The live feed could not be read from this browser (' + (e.message || e) + '). Everything else on the page still works.'});
+    LIVE = Object.assign(LIVE || {}, {err: 'Could not load live info on this phone (' + (e.message || e) + '). The rest of the page still works.'});
   }
   applyLiveToSetup(); renderLive(); renderMarkets(); renderResults();
 }
@@ -809,16 +915,16 @@ function applyLiveToSetup(){
 function renderLive(){
   const top = $('liveTop'), body = $('liveBody');
   const open = liveWindowOpen();
-  $('liveSub').textContent = open ? '(refreshing from ESPN every 45 seconds)' : '(opens two hours before kickoff)';
+  $('liveSub').textContent = open ? '(updates every 45 seconds)' : '(starts 2 hours before kick-off)';
   if (!LIVE){
-    top.innerHTML = '<span class="status">' + (open ? 'Reading the live feed...' : 'Lineups usually appear about an hour before kickoff. This desk fills in automatically and shows substitutions, cards, corners and shots once the match starts.') + '</span>';
+    top.innerHTML = '<span class="status">' + (open ? 'Loading live info...' : 'Lineups usually show about 1 hour before kick-off. Goals, cards, subs, corners and shots appear here once the game starts.') + '</span>';
     body.innerHTML = ''; return;
   }
   const L = LIVE, H = T(FX.home), A = T(FX.away);
   top.innerHTML = '<span><span class="dot ' + (L.live ? 'on' : '') + '"></span><b>' + (L.live ? L.minute + "'" : (L.state === 'post' ? 'Full time' : 'Not started')) + '</b></span><span class="score mono">' + L.gh + ' - ' + L.ga + '</span><span class="status">' + esc(L.detail) + '</span>';
   $('liveStamp').textContent = L.err ? '' : 'Updated ' + L.at.toLocaleTimeString('en-GB', {timeZone:'Africa/Lagos'}) + ' WAT';
   let h = L.err ? '<p class="warn">' + esc(L.err) + '</p>' : '';
-  if (L.live && FX.model) h += '<p class="gap">Markets below are re-priced for the score and the time left (group at the top of the Markets list).</p>';
+  if (L.live && FX.model) h += '<p class="gap">The odds in "Odds checker" now change with the score and the time left (see the first group).</p>';
   const lu = L.lineups;
   if (lu.length && lu.some(x => x.players.length)){
     h += '<div class="lineups">' + ['home', 'away'].map(sd => {
@@ -826,18 +932,18 @@ function renderLive(){
       const st = x.players.filter(p => p.starter), bench = x.players.filter(p => !p.starter);
       return '<div class="lu"><h3>' + esc(sd === 'home' ? H.name : A.name) + (x.formation ? ' &middot; ' + esc(x.formation) : '') + '</h3><ol>' +
         st.map(p => '<li class="' + (p.off ? 'off' : '') + '"><span class="pos">' + esc(p.pos) + '</span><span>' + esc(p.name) + (p.off ? ' (off)' : '') + '</span></li>').join('') + '</ol>' +
-        (bench.length ? '<h3 style="margin-top:8px;font-size:12.5px;color:var(--muted)">Bench</h3><ul>' + bench.map(p => '<li class="' + (p.on ? '' : '') + '"><span class="pos">' + esc(p.pos) + '</span><span>' + esc(p.name) + (p.on ? ' (on)' : '') + '</span></li>').join('') + '</ul>' : '') + '</div>';
-    }).join('') + '</div><p class="hint">Check the lineup for a missing key defensive midfielder or goalkeeper, then tick it in the rules below. The page does not guess who is a key player.</p>';
-  } else h += '<p class="gap">No lineup published yet.</p>';
+        (bench.length ? '<h3 style="margin-top:8px;font-size:13px;color:var(--muted)">Bench</h3><ul>' + bench.map(p => '<li><span class="pos">' + esc(p.pos) + '</span><span>' + esc(p.name) + (p.on ? ' (came on)' : '') + '</span></li>').join('') + '</ul>' : '') + '</div>';
+    }).join('') + '</div><p class="hint">Is the main defensive midfielder or the goalkeeper missing? If yes, tick it in the checklist. The page cannot tell who your key players are.</p>';
+  } else h += '<p class="gap">Lineup not out yet.</p>';
   const s = L.stats;
   if (s.home || s.away){
     const g = (side, k) => (s[side] && s[side][k] != null && !isNaN(s[side][k])) ? s[side][k] : '-';
-    const rows = [['Corners','corners'],['Yellow cards','yellow'],['Red cards','red'],['Shots','shots'],['Shots on target','sot'],['Fouls','fouls'],['Possession %','poss'],['Offsides','offsides']];
+    const rows = [['Corners','corners'],['Yellow cards','yellow'],['Red cards','red'],['Shots','shots'],['Shots on target','sot'],['Fouls','fouls'],['Ball %','poss'],['Offsides','offsides']];
     h += '<div class="tbl-wrap"><table><thead><tr><th>' + esc(H.name) + '</th><th></th><th class="num">' + esc(A.name) + '</th></tr></thead><tbody>' + rows.map(r => '<tr><td class="mono">' + g('home', r[1]) + '</td><td style="text-align:center;color:var(--muted)">' + r[0] + '</td><td class="num mono">' + g('away', r[1]) + '</td></tr>').join('') + '</tbody></table></div>';
     const ch = s.home && s.home.corners, ca = s.away && s.away.corners;
     if (L.live && L.minute >= 10 && !isNaN(ch) && !isNaN(ca) && FX.model && FX.model.corners){
       const pace = (ch + ca) * 90 / L.minute;
-      h += '<p class="gap">Corner pace: <b>' + (ch + ca) + '</b> in ' + L.minute + " minutes projects to about <b>" + pace.toFixed(1) + '</b> at full time, against a pre-match expectation of ' + f1(FX.model.corners.exp) + '.</p>';
+      h += '<p class="gap">Corners so far: <b>' + (ch + ca) + '</b> in ' + L.minute + ' minutes. At this speed: about <b>' + pace.toFixed(1) + '</b> by full time. Before the game we expected ' + f1(FX.model.corners.exp) + '.</p>';
     }
   }
   const ev = L.events.filter(e => /goal|card|substitut|penalt|var/i.test(e.type + ' ' + e.text));
@@ -845,67 +951,68 @@ function renderLive(){
   body.innerHTML = h;
 }
 
-/* ---------- context, rules, coverage ---------- */
+/* ---------- context, checklist results, coverage ---------- */
 function renderContext(){
   const H = T(FX.home), A = T(FX.away), d = new Date(FX.ko), m = FX.model;
   $('fixture').innerHTML = esc(H.name) + '<em>v</em>' + esc(A.name);
-  $('tagline').innerHTML = '<span class="tag">' + esc((DATA.leagues[FX.league] || {}).name || FX.league) + '</span><span>' + fmtDay.format(d) + (FX.koKnown ? ', ' + fmtTime.format(d) + ' WAT' : ', kickoff time unconfirmed') + '</span>' +
-    (FX.ref && FX.ref.name ? '<span>Referee ' + esc(FX.ref.name) + '</span>' : '') + (FX.league === 'NPFL' ? '<span class="tag rot">Check fixture and home side before use</span>' : '');
+  $('ticketLg').textContent = (DATA.leagues[FX.league] || {}).name || FX.league;
+  $('tagline').innerHTML = '<span>' + fmtDay.format(d) + (FX.koKnown ? ', ' + fmtTime.format(d) + ' WAT' : ', time not confirmed') + '</span>' +
+    (FX.ref && FX.ref.name ? '<span>Referee: ' + esc(FX.ref.name) + '</span>' : '') + (FX.league === 'NPFL' ? '<span class="tag rot">Check the match details first</span>' : '');
   $('teams').innerHTML = teamCard(FX.home, 'home') + teamCard(FX.away, 'away');
-  $('confNote').textContent = m ? (m.conf === 'thin' ? '(thin sample: treat the model with care)' : '(model uses each side\'s last ' + Math.min(m.n[0], m.n[1]) + '+ matches)') : '';
+  $('confNote').textContent = m ? (m.conf === 'thin' ? '(few games, so be careful)' : '(based on the last ' + Math.min(m.n[0], m.n[1]) + '+ games)') : '';
   let g = '';
   if (m && FX.mkt){
     const mp = FX.mkt.fair, md = m.p1x2, gapv = Math.max(Math.abs(mp[0] - md[0]), Math.abs(mp[2] - md[2]));
-    g = 'Home / draw / away: market consensus <b>' + pc(mp[0]) + ' / ' + pc(mp[1]) + ' / ' + pc(mp[2]) + '</b>, model <b>' + pc(md[0]) + ' / ' + pc(md[1]) + ' / ' + pc(md[2]) + '</b>.' + (gapv > 0.12 ? ' The gap is large. The market usually knows about injuries and form the model cannot see.' : '');
-  } else if (m) g = 'Home / draw / away from the model: <b>' + pc(m.p1x2[0]) + ' / ' + pc(m.p1x2[1]) + ' / ' + pc(m.p1x2[2]) + '</b>. No bookmaker odds were in the odds file for this fixture yet.';
-  else if (FX.league === 'CL') g = 'No model for Champions League ties: the sides come from different leagues, so their league stats are not comparable.';
-  else if (FX.league === 'NPFL') g = 'NPFL fixtures come without results or stats unless an API-Football key is added to the updater, so there is no model for this match.';
+    g = 'Chance of home / draw / away. Bookmakers: <b>' + pc(mp[0]) + ' / ' + pc(mp[1]) + ' / ' + pc(mp[2]) + '</b>. Our numbers: <b>' + pc(md[0]) + ' / ' + pc(md[1]) + ' / ' + pc(md[2]) + '</b>.' + (gapv > 0.12 ? ' Big difference. Bookmakers often know about injuries and team news that we cannot see.' : '');
+  } else if (m) g = 'Chance of home / draw / away from our numbers: <b>' + pc(m.p1x2[0]) + ' / ' + pc(m.p1x2[1]) + ' / ' + pc(m.p1x2[2]) + '</b>. No bookmaker odds for this match yet.';
+  else if (FX.league === 'CL') g = 'No numbers for Champions League matches. The two teams come from different leagues, so we cannot compare them.';
+  else if (FX.league === 'NPFL') g = 'No numbers for NPFL matches yet. Add the free API key from the setup guide to get them.';
   $('gapNote').innerHTML = g;
 }
 function renderProv(){
-  const label = {data:'Data', assumed:'Assumed', estimate:'Estimate'};
+  const label = {data:'From data', assumed:'Guess', estimate:'Estimate'};
   $('prov').innerHTML = PROV.map(p => '<li><span class="k">' + esc(p[0]) + '</span><span class="src-t ' + (p[2] === 'data' ? 'data' : '') + '">' + label[p[2]] + '</span><span>' + esc(p[1]) + '</span></li>').join('');
 }
-const strength = n => n >= 40 ? 'Strong' : n >= 25 ? 'Clear' : 'Slight';
+const strength = n => n >= 40 ? 'Strong' : n >= 25 ? 'Good' : 'Small';
 function row(r, neg){
   const w = Math.min(Math.abs(r.score), 70) / 70 * 100;
-  return '<li class="mkr' + (neg ? ' neg' : '') + '"><div class="mk-top"><div class="mk-name">' + esc(r.label) + '</div><span class="chip">' + r.group + '</span><span class="scr">' + (r.score > 0 ? '+' : '') + r.score + '</span></div><div class="bar" aria-hidden="true"><i style="width:' + w.toFixed(0) + '%"></i></div><p class="why"><b>' + (neg ? 'Against' : strength(r.score)) + '.</b> ' + r.reasons.map(esc).join(' &middot; ') + '</p></li>';
+  return '<li class="mkr' + (neg ? ' neg' : '') + '"><div class="mk-top"><div class="mk-name">' + esc(r.label) + '</div><span class="chip">' + r.group + '</span><span class="scr">' + (r.score > 0 ? '+' : '') + r.score + '</span></div><div class="bar" aria-hidden="true"><i style="width:' + w.toFixed(0) + '%"></i></div><p class="why"><b>' + (neg ? 'Against.' : strength(r.score) + ' sign.') + '</b> ' + r.reasons.map(esc).join(' &middot; ') + '</p></li>';
 }
 let lastText = '';
 function renderResults(){
   const R = analyze(S);
-  $('stacks').innerHTML = R.stacks.map(k => '<div class="stack' + (k.full ? ' full' : '') + '"><div class="stack-top"><span class="stack-name">' + k.name + '</span><span class="stack-n">' + (k.full ? 'All ' + k.total + ' conditions met' : k.met + ' of ' + k.total + ' conditions met') + '</span></div><ul class="conds">' + k.conds.map(c => '<li class="' + (c[1] ? 'on' : '') + '">' + c[0] + '</li>').join('') + '</ul><p class="stack-bets"><b>' + (k.full ? 'Play:' : 'If it completes:') + '</b> ' + k.markets.map(m => esc(M[m][0])).join(' &middot; ') + '</p></div>').join('');
-  $('favored').innerHTML = R.pos.length ? R.pos.map(r => row(r, false)).join('') : '<li class="empty">No market stands out yet. Add weather, pitch and lineup information.</li>';
+  $('stacks').innerHTML = R.stacks.map(k => '<div class="stack' + (k.full ? ' full' : '') + '"><div class="stack-top"><span class="stack-name">' + k.name + '</span><span class="stack-n">' + (k.full ? 'All ' + k.total + ' ticks done' : k.met + ' of ' + k.total + ' ticks') + '</span></div><ul class="conds">' + k.conds.map(c => '<li class="' + (c[1] ? 'on' : '') + '">' + c[0] + '</li>').join('') + '</ul><p class="stack-bets"><b>' + (k.full ? 'Bets for this combo:' : 'If all ticks are done:') + '</b> ' + k.markets.map(m => esc(M[m][0])).join(' &middot; ') + '</p></div>').join('');
+  $('favored').innerHTML = R.pos.length ? R.pos.map(r => row(r, false)).join('') : '<li class="empty">Nothing stands out yet. Add the weather, pitch and lineup news.</li>';
   $('favN').textContent = R.pos.length ? '(' + R.pos.length + ')' : '';
-  $('against').innerHTML = R.neg.length ? R.neg.map(r => row(r, true)).join('') : '<li class="empty">Nothing is clearly marked down by these conditions.</li>';
+  $('against').innerHTML = R.neg.length ? R.neg.map(r => row(r, true)).join('') : '<li class="empty">Nothing is clearly against a bet.</li>';
   $('againstN').textContent = R.neg.length ? '(' + R.neg.length + ')' : '';
   $('notesSec').hidden = !R.notes.length; $('notes').innerHTML = R.notes.map(n => '<p class="note">' + esc(n) + '</p>').join('');
   const H = T(FX.home), A = T(FX.away), full = R.stacks.filter(k => k.full).map(k => k.name);
   lastText = ['Naija Match Desk: ' + H.name + ' v ' + A.name + ' (' + ((DATA.leagues[FX.league] || {}).name || FX.league) + ', ' + fmtDay.format(new Date(FX.ko)) + ')']
-    .concat(FX.model ? ['Model: ' + pc(FX.model.p1x2[0]) + '% home, ' + pc(FX.model.p1x2[1]) + '% draw, ' + pc(FX.model.p1x2[2]) + '% away; expected goals ' + f2(FX.model.exp_total)] : [])
-    .concat(['', 'Conditions favour:']).concat(R.pos.length ? R.pos.map(r => '+' + r.score + ' ' + r.label) : ['(nothing stands out)'])
-    .concat(['', 'Conditions work against:']).concat(R.neg.length ? R.neg.map(r => r.score + ' ' + r.label) : ['(nothing marked down)'])
-    .concat(full.length ? ['', 'Stacks in play: ' + full.join(', ')] : [])
-    .concat(['', 'Rule scores are rough weights, not probabilities. Data as of ' + $('asof').textContent + '. 18+ only. Bet responsibly.']).join('\n');
+    .concat(FX.model ? ['Our chances: home ' + pc(FX.model.p1x2[0]) + '%, draw ' + pc(FX.model.p1x2[1]) + '%, away ' + pc(FX.model.p1x2[2]) + '%. Goals we expect: ' + f2(FX.model.exp_total)] : [])
+    .concat(['', 'Good for these bets:']).concat(R.pos.length ? R.pos.map(r => '+' + r.score + ' ' + r.label) : ['(nothing stands out)'])
+    .concat(['', 'Bad for these bets:']).concat(R.neg.length ? R.neg.map(r => r.score + ' ' + r.label) : ['(nothing)'])
+    .concat(full.length ? ['', 'Combos ready: ' + full.join(', ')] : [])
+    .concat(['', 'Scores are rough weights, not chances. Data as of ' + $('asof').textContent + '. 18+ only. Bet responsibly.']).join('\n');
 }
 function renderCoverage(){
   const model = !!FX.model, np = FX.league === 'NPFL';
   const L = (c, t) => '<span class="lvl ' + c + '">' + t + '</span>';
   const rows = [
-    ['1X2, double chance, draw no bet', model ? L('d', 'Modelled') + 'From recent results' + (FX.mkt ? ', next to the bookmaker consensus.' : '.') : (FX.mkt ? L('d', 'Consensus') + 'Bookmaker consensus only.' : L('r', 'No data') + 'No prices for this fixture.')],
-    ['Over/under goals, GG/NG, odd/even, multigoal, exact goals, team totals, win to nil, clean sheet, combos', model ? L('d', 'Modelled') + 'All come from one goals model, so they agree with each other.' : L('r', 'No data') + 'Needs match results for both sides.'],
-    ['Half-time and second-half markets, highest scoring half, HT/FT', model ? L('d', 'Modelled') + 'Uses the league\'s share of goals scored before half-time.' : L('r', 'No data') + 'Needs the model.'],
-    ['Correct score, handicap (European and Asian)', model ? L('d', 'Modelled') + 'Likeliest scorelines and handicap lines with push handling.' : L('r', 'No data') + 'Needs the model.'],
-    ['Total corners, team corners, most corners', FX.model && FX.model.corners ? L('d', 'Modelled') + 'From corners in each side\'s recent matches.' : L('r', 'No data') + (np ? 'No corner data for the NPFL.' : 'Not enough corner data for this fixture.')],
-    ['Total cards and bookings', FX.model && FX.model.cards ? L('d', 'Modelled') + 'From each side\'s cards' + (FX.ref && FX.ref.avg_cards ? ' and the referee\'s record.' : '.') : L('r', 'No data') + 'Not enough card data for this fixture.'],
-    ['In-play: next goal, goals from now, late goal', FX.model ? L('d', 'Modelled') + 'Switches on while the live desk reads a match in play.' : L('r', 'No data') + 'Needs the model.'],
-    ['Lineups, substitutions, cards, corners and shots during play', FX.espn ? L('d', 'Live feed') + 'ESPN, read in your browser every 45 seconds. Lineups usually appear about an hour before kickoff.' : L('r', 'No feed') + 'This fixture has no live feed link.'],
-    ['Anytime goalscorer, first scorer, player shots, player cards', L('n', 'Not covered') + 'Needs player-level data that no free source supplies. The lineup on the live desk is the starting point.'],
-    ['Minute-of-goal, VAR, bet builder, Chance Mix', L('n', 'Not covered') + 'Not modelled.']
+    ['Win, draw, double chance, draw no bet', model ? L('d', 'Our numbers') + 'From recent results' + (FX.mkt ? ', next to the bookmaker view.' : '.') : (FX.mkt ? L('d', 'Bookies only') + 'Bookmaker view only.' : L('r', 'No data') + 'No prices for this match.')],
+    ['Over/under goals, GG/NG, odd/even, multigoal, exact goals, team goals, win to nil, clean sheet, two-in-one bets', model ? L('d', 'Our numbers') + 'All from one goals formula, so they agree with each other.' : L('r', 'No data') + 'Needs past results for both teams.'],
+    ['First half, second half, highest scoring half, HT/FT', model ? L('d', 'Our numbers') + 'Uses how many goals this league scores before half-time.' : L('r', 'No data') + 'Needs our numbers.'],
+    ['Correct score, handicap', model ? L('d', 'Our numbers') + 'Top scorelines and handicap lines, with money-back handled.' : L('r', 'No data') + 'Needs our numbers.'],
+    ['Total corners, team corners, most corners', FX.model && FX.model.corners ? L('d', 'Our numbers') + 'From corners in each team\'s recent games.' : L('r', 'No data') + (np ? 'No corner data for NPFL.' : 'Not enough corner data for this match.')],
+    ['Total cards and bookings', FX.model && FX.model.cards ? L('d', 'Our numbers') + 'From each team\'s cards' + (FX.ref && FX.ref.avg_cards ? ' and the referee\'s record.' : '.') : L('r', 'No data') + 'Not enough card data for this match.'],
+    ['Live bets: next goal, goals from now, late goal', FX.model ? L('d', 'Our numbers') + 'Turns on while the Live section sees a game in play.' : L('r', 'No data') + 'Needs our numbers.'],
+    ['Lineups, subs, cards, corners and shots during the game', FX.espn ? L('d', 'Live') + 'From ESPN, every 45 seconds. Lineups usually show about 1 hour before kick-off.' : L('r', 'No feed') + 'This match has no live link.'],
+    ['Anytime goalscorer, first scorer, player shots, player cards', L('n', 'Not here') + 'This needs player data that no free source gives. Use the lineup in the Live section as a start.'],
+    ['Minute of goal, VAR, bet builder', L('n', 'Not here') + 'Not covered.']
   ];
   $('cov').innerHTML = rows.map(r => '<div class="cov-r"><b>' + r[0] + '</b><span>' + r[1] + '</span></div>').join('');
 }
-function renderAll(){ renderContext(); renderProv(); renderMarkets(); renderCoverage(); renderResults(); renderLive(); $('grp-npfl').hidden = S.comp !== 'npfl'; }
+function renderAll(){ renderContext(); renderQuick(); renderProv(); renderMarkets(); renderCoverage(); renderResults(); renderLive(); $('grp-npfl').hidden = S.comp !== 'npfl'; }
 function syncForm(){
   $('form').querySelectorAll('input').forEach(el => { if (el.type === 'radio') el.checked = S[el.name] === el.value; else if (el.type === 'checkbox') el.checked = !!S[el.name]; });
   $('grp-npfl').hidden = S.comp !== 'npfl';
@@ -923,39 +1030,55 @@ $('cmpModel').addEventListener('click', () => { CMP = 'model'; $('cmpModel').set
 $('cmpMkt').addEventListener('click', () => { CMP = 'market'; $('cmpModel').setAttribute('aria-pressed', 'false'); $('cmpMkt').setAttribute('aria-pressed', 'true'); updateEdges(); persist(); });
 $('board').addEventListener('click', e => { const b = e.target.closest('.fx'); if (b) selectFixture(b.dataset.id, true); });
 $('leagueChips').addEventListener('click', e => { const b = e.target.closest('.chip-b'); if (!b) return; filter = b.dataset.lg; renderChips(); renderBoard(); });
-$('reset').addEventListener('click', () => { const all = lsRead(); delete all[FX.id]; lsWrite(all); const id = FX.id; selectFixture(id, false); $('saved').textContent = 'Reset to the data.'; });
+$('reset').addEventListener('click', () => { const all = lsRead(); delete all[FX.id]; lsWrite(all); const id = FX.id; selectFixture(id, false); $('saved').textContent = 'Started again from the data.'; });
 $('liveNow').addEventListener('click', () => pollLive());
 $('copy').addEventListener('click', () => {
   const st = $('copyStatus'), fb = $('fallback');
-  const show = () => { fb.hidden = false; fb.value = lastText; fb.focus(); fb.select(); st.textContent = 'Select and copy the text below.'; };
+  const show = () => { fb.hidden = false; fb.value = lastText; fb.focus(); fb.select(); st.textContent = 'Select the text below and copy it.'; };
   try { navigator.clipboard.writeText(lastText).then(() => { fb.hidden = true; st.textContent = 'Copied.'; }, show); } catch (err) { show(); }
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && FX && liveWindowOpen()) pollLive(); });
+$('bnav').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  let t = $(b.dataset.to); if (!t || t.hidden || $('desk').hidden && b.dataset.to !== 'board') t = $('board');
+  t.scrollIntoView({behavior:'smooth', block:'start'});
+  $('bnav').querySelectorAll('button').forEach(x => x.setAttribute('aria-current', x === b ? 'true' : 'false'));
+});
+/* light / dark switch */
+function effectiveDark(){ const t = document.documentElement.dataset.theme; return t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches; }
+function paintThemeBtn(){ $('themeBtn').textContent = effectiveDark() ? 'Light mode' : 'Dark mode'; }
+try { const t = localStorage.getItem('naija-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+paintThemeBtn();
+$('themeBtn').addEventListener('click', () => {
+  const next = effectiveDark() ? 'light' : 'dark'; document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('naija-theme', next); } catch (e) {}
+  paintThemeBtn();
+});
 
-/* ---------- boot ---------- */
+/* ---------- start ---------- */
 fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new Error('status ' + r.status); return r.json(); }).then(d => {
   DATA = d;
   const asof = new Date(d.asOf), ageH = (Date.now() - asof.getTime()) / 3600e3;
-  $('stamp').innerHTML = '<span>Stats and odds updated <b id="asof">' + fmtDay.format(asof) + ', ' + fmtTime.format(asof) + ' WAT</b></span><span><b>' + d.fixtures.length + '</b> fixtures</span><span>Lineups and live events: read live from ESPN</span>';
+  $('stamp').innerHTML = '<span><span class="sdot' + (ageH > 30 ? ' old' : '') + '"></span>Updated <b id="asof">' + fmtDay.format(asof) + ', ' + fmtTime.format(asof) + ' WAT</b></span><span><b>' + d.fixtures.length + '</b> matches</span><span>Lineups come live from ESPN</span>';
   let ban = '';
-  if (ageH > 30) ban += '<p class="banner bad">The stats are ' + Math.round(ageH) + ' hours old. The daily update may have failed: open the Actions tab of your GitHub repository and check the latest run.</p>';
+  if (ageH > 30) ban += '<p class="banner bad">This data is ' + Math.round(ageH) + ' hours old. The daily update may have failed. Open your GitHub repository, click Actions and look at the last run.</p>';
   const bad = Object.keys(d.status || {}).filter(k => /FAILED/.test(d.status[k]));
-  if (bad.length) ban += '<p class="banner">Some sources failed in the last update: ' + bad.map(k => esc(k + ' (' + d.status[k].replace(/^FAILED: /, '').slice(0, 90) + ')')).join('; ') + '. The rest of the page still works.</p>';
+  if (bad.length) ban += '<p class="banner">Some data could not load in the last update: ' + bad.map(k => esc(k + ' (' + d.status[k].replace(/^FAILED: /, '').slice(0, 90) + ')')).join('; ') + '. The rest still works.</p>';
   $('banners').innerHTML = ban;
   $('sources').innerHTML = [
-    '<li><b>football-data.co.uk.</b> Free results files for the five leagues: scores, half-time scores, corners, cards, shots, referees, and bookmaker odds when published. Refreshed twice a day. Its odds file is uploaded weekly, so some fixtures have no odds.</li>',
-    '<li><b>ESPN.</b> Fixtures for the five leagues, the Champions League and the NPFL, and the live lineups, substitutions, cards and corners read in your browser. It is an unofficial feed and can change without notice.</li>',
-    '<li><b>Update status.</b> ' + Object.keys(d.status || {}).map(k => esc(k + ': ' + d.status[k])).join('. ') + '</li>',
-    '<li><b>Not included.</b> Player-level data, injuries, weather, and Nigerian bookmaker prices. Type your bookmaker\'s odds into the Markets table to compare.</li>'].join('');
+    '<li><b>Past results, corners, cards, referees and odds:</b> football-data.co.uk (free). Updated twice a day. Their odds file is uploaded once a week, so some matches have no odds.</li>',
+    '<li><b>Match list and live lineups:</b> ESPN. This is an unofficial feed and can change without notice.</li>',
+    '<li><b>Update status:</b> ' + Object.keys(d.status || {}).map(k => esc(k + ': ' + d.status[k])).join('. ') + '</li>',
+    '<li><b>Not here:</b> player stats, injuries, weather and Nigerian bookmaker odds. Type your own odds in the Odds checker.</li>'].join('');
   try { const sv = lsRead(); if (sv._cmp === 'market'){ CMP = 'market'; $('cmpModel').setAttribute('aria-pressed', 'false'); $('cmpMkt').setAttribute('aria-pressed', 'true'); } } catch (e) {}
   renderChips();
   const now = Date.now();
   const first = d.fixtures.find(f => f.koKnown && new Date(f.ko).getTime() + 3 * 3600e3 > now) || d.fixtures[0];
-  if (!first){ $('board').innerHTML = '<div class="loading">The data file has no fixtures yet.</div>'; return; }
+  if (!first){ $('board').innerHTML = '<div class="loading">No matches in the data file yet.</div>'; return; }
   selectFixture(first.id, false);
 }).catch(err => {
-  $('stamp').textContent = 'Could not load the fixture data.';
-  $('board').innerHTML = '<div class="loading">The data file did not load (' + esc(err.message) + '). If this is a new setup, open the Actions tab in your GitHub repository and run the Daily update once.</div>';
+  $('stamp').textContent = 'Could not load the match data.';
+  $('board').innerHTML = '<div class="loading">The data file did not load (' + esc(err.message) + '). If this is a new setup, open GitHub, click Actions, and run "Daily update" once.</div>';
 });
 </script>
 </body>
