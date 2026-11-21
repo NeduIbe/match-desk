@@ -267,6 +267,51 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
   .head{padding:20px 16px 18px}
   .wrap,.layout,.desk,.split,form{gap:18px}
 }
+
+#qo{display:grid;gap:18px}
+.qo-g{display:grid;gap:8px}
+.qo-g h4{margin:0;font-family:var(--f-display);font-weight:800;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.qo-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.qo-i{display:grid;gap:4px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);padding:10px 12px;min-width:0}
+.qo-i span{font-size:13px;font-weight:700;overflow-wrap:anywhere}
+.qo-i input{width:100%;background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;min-height:44px;font-size:18px;font-family:var(--f-mono)}
+.qo-i .qo-ch{font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.qo-i .qo-val{font-family:var(--f-mono);font-size:14px;font-weight:700;min-height:1.4em}
+.qo-val.pos{color:var(--accent)}.qo-val.neg{color:var(--bad)}
+.paste{padding:0 14px 14px;display:grid;gap:12px}
+.paste textarea{width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:10px 12px;font-family:var(--f-mono);font-size:14px;min-height:120px}
+
+/* picks */
+#picks{scroll-margin-top:12px}
+#slip,#picksBody{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.slip{border:1.5px solid var(--accent);background:var(--good-bg);border-radius:10px;padding:16px;display:grid;gap:10px}
+.slip h3{margin:0;font-size:18px;font-weight:800}
+.slip ul{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:14.5px}
+.slip li b{font-weight:800}
+.pk-m{border:1.5px solid var(--line);border-radius:10px;background:var(--bg);overflow:hidden}
+.pk-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1.5px dashed var(--line)}
+.pk-h b{font-family:var(--f-display);font-weight:800;font-size:17px;overflow-wrap:anywhere}
+.pk-h span{font-size:13px;color:var(--muted)}
+.pk-l{list-style:none;margin:0;padding:0}
+.pk{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;gap:10px 16px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.pk:last-child{border-bottom:0}
+.pk-b b{font-weight:800;display:block}
+.pk-b small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.pk-t{display:grid;gap:0;text-align:left}
+.pk-t small{font-size:12.5px;color:var(--muted)}
+.pk-t big{font-family:var(--f-display);font-weight:800;font-size:22px;line-height:1.15;color:var(--accent)}
+.pk-a{display:flex;gap:8px}
+.pk-a button{border:1.5px solid var(--line);background:var(--surface);border-radius:8px;min-height:44px;min-width:84px;padding:6px 10px;font-weight:800;font-size:14px;cursor:pointer}
+.pk-a button[aria-pressed="true"][data-v="ok"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.pk-a button[aria-pressed="true"][data-v="low"]{background:var(--warn-bg);border-color:var(--away);color:var(--ink);text-decoration:line-through}
+.pk-a button:active{transform:scale(.96)}
+.pk.done-low{opacity:.55}
+@media (max-width:700px){
+  .pk{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+  .pk-b,.pk-t{grid-column:1 / -1}
+  .pk-a{grid-column:1 / -1}
+  .pk-a button{flex:1}
+}
 </style>
 </head>
 <body>
@@ -281,6 +326,14 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
     <div class="chips" id="leagueChips" role="group" aria-label="Pick a league"></div>
     <details class="src"><summary>Where does the data come from?</summary><ul id="sources"></ul></details>
   </header>
+
+  <section class="paper sec" id="picks">
+    <h2>Today's picks <span>no typing needed</span></h2>
+    <p class="hint">These are the bets your guide's signals point to. Next to each bet is the <b>lowest odds worth taking</b>. Open your bookmaker, look at the price, then come back and tap. If the bookmaker pays less than the number shown, skip it.</p>
+    <div class="chips" id="pickDays" role="group" aria-label="Pick a day"></div>
+    <div id="slip"></div>
+    <div id="picksBody"></div>
+  </section>
 
   <div class="layout">
     <aside class="paper" id="board" aria-label="Matches"><div class="loading">Loading matches...</div></aside>
@@ -317,6 +370,12 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
       <section class="paper sec" id="mkSec">
         <h2>Odds checker <span id="mkSub"></span></h2>
         <p class="hint" id="mkHint"></p>
+        <div class="tcard" id="qoCard"><div class="tn">Quick odds entry <span>type the odds from your bookmaker</span></div><div id="qo"></div></div>
+        <details class="grp" id="pasteBox"><summary>Or paste odds from your bookmaker</summary><div class="paste">
+          <textarea id="pasteTxt" rows="5" aria-label="Paste odds here" placeholder="Paste or type lines like this:&#10;1 1.50   X 4.20   2 6.00&#10;Over 2.5 1.85   Under 2.5 1.95&#10;GG 1.72   NG 2.05&#10;1X 1.15   X2 2.40"></textarea>
+          <div class="actions"><button type="button" class="btn primary" id="pasteGo">Read the odds</button><span class="status" id="pasteRes"></span></div>
+          <p class="hint">Copy the odds from the match page on Bet9ja, SportyBet or any site and paste them here. We read what we can and tell you what we missed. Always check the numbers in the boxes above.</p>
+        </div></details>
         <div class="mk-tools">
           <input type="search" id="mkFilter" placeholder="Search a bet: corners, GG, HT/FT" aria-label="Search a bet">
           <span class="seg" role="group" aria-label="Compare your odds with"><button type="button" id="cmpModel" aria-pressed="true">Our chance</button><button type="button" id="cmpMkt" aria-pressed="false">Bookmaker view</button></span>
@@ -369,8 +428,8 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
 </div>
 
 <nav id="bnav" aria-label="Jump to a part of the page">
-  <button type="button" data-to="board" aria-current="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Matches</button>
-  <button type="button" data-to="quick"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>Quick read</button>
+  <button type="button" data-to="picks" aria-current="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>Picks</button>
+  <button type="button" data-to="board"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Matches</button>
   <button type="button" data-to="liveSec" id="navLive" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M6 6a8 8 0 000 12M18 6a8 8 0 010 12"/></svg>Live</button>
   <button type="button" data-to="mkSec"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg>Odds</button>
   <button type="button" data-to="checklist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Checklist</button>
@@ -683,7 +742,7 @@ function ctl(f){
 $('form').innerHTML = GROUPS.map(g => '<section class="paper grpf" id="grp-' + g.id + '"><h2>' + g.title + '</h2>' + g.fields.map(ctl).join('') + '</section>').join('');
 
 /* ---------- state ---------- */
-let DATA = null, FX = null, S = null, PROV = [], filter = 'all', ODDS = {}, CMP = 'model', ROWS = [], LIVE = null, liveTimer = null, liveManual = false;
+let DATA = null, FX = null, S = null, PROV = [], filter = 'all', ODDS = {}, CMP = 'model', ROWS = [], ROWMAP = {}, ALLROWS = {}, LIVE = null, liveTimer = null, liveManual = false;
 const LS = 'naija-match-desk-v3';
 const lsRead = () => { try { return JSON.parse(localStorage.getItem(LS) || '{}'); } catch (e) { return {}; } };
 const lsWrite = o => { try { localStorage.setItem(LS, JSON.stringify(o)); return true; } catch (e) { return false; } };
@@ -737,6 +796,7 @@ function persist(){
   if (!FX) return;
   const all = lsRead(); all[FX.id] = {s:S, odds:ODDS}; all._cmp = CMP;
   $('saved').innerHTML = lsWrite(all) ? '<span class="sdot"></span>Saved on this phone' : '';
+  schedulePicks();
 }
 function selectFixture(id, scroll){
   stopLive();
@@ -751,6 +811,7 @@ function selectFixture(id, scroll){
   LIVE = null; liveManual = false;
   $('desk').hidden = false;
   renderBoard(); syncForm(); renderAll(); startLive();
+  try { const all = lsRead(); all._last = FX.id; lsWrite(all); } catch (e) {}
   const mh = $('mhCard'); mh.classList.remove('stamp-on'); void mh.offsetWidth; mh.classList.add('stamp-on');
   if (scroll && window.matchMedia('(max-width: 899px)').matches) mh.scrollIntoView({behavior:'smooth', block:'start'});
 }
@@ -788,11 +849,12 @@ function newsFactors(n){
   if (n.gk) def *= 1.10; if (n.df2) def *= 1.10; else if (n.df1) def *= 1.04;
   return {att: Math.max(att, 0.8), def: Math.min(def, 1.25)};
 }
-function newsOn(){ return !!(S && S.news && ['home','away'].some(sd => Object.keys(S.news[sd] || {}).some(k => S.news[sd][k]))); }
-function modelNow(){
-  const m = FX && FX.model; if (!m) return null;
-  if (!newsOn()) return m;
-  const h = newsFactors(S.news.home), a = newsFactors(S.news.away);
+function newsOnFor(s){ return !!(s && s.news && ['home','away'].some(sd => Object.keys(s.news[sd] || {}).some(k => s.news[sd][k]))); }
+function newsOn(){ return newsOnFor(S); }
+function modelFor(fx, s){
+  const m = fx && fx.model; if (!m) return null;
+  if (!newsOnFor(s)) return m;
+  const h = newsFactors(s.news.home), a = newsFactors(s.news.away);
   const lam = [m.lam[0] * h.att * a.def, m.lam[1] * a.att * h.def];
   const ph = poisPmf(lam[0], 12), pa = poisPmf(lam[1], 12), tot = conv(ph, pa);
   let W = 0, D = 0, A = 0;
@@ -801,6 +863,7 @@ function modelNow(){
   return Object.assign({}, m, {lam, p1x2:[W, D, A], exp_total: lam[0] + lam[1], adj:true,
     goals: Object.assign({}, m.goals, {o15:o(1), o25:o(2), o35:o(3), btts:(1 - ph[0]) * (1 - pa[0])})});
 }
+function modelNow(){ return (FX && S) ? modelFor(FX, S) : null; }
 function liveModel(m){
   const s = (LIVE && LIVE.stats) || {}, rh = (s.home && s.home.red) || 0, ra = (s.away && s.away.red) || 0;
   if (!rh && !ra) return m;
@@ -870,10 +933,10 @@ function edgeOf(odds, row){
   return odds * p + push - 1;
 }
 function renderMarkets(){
-  const gs = allGroups(); ROWS = []; const q = ($('mkFilter').value || '').trim().toLowerCase();
+  const gs = allGroups(); ROWS = []; ROWMAP = {}; const q = ($('mkFilter').value || '').trim().toLowerCase();
   const m = FX.model;
   $('mkSub').textContent = m ? '(our chances come from recent results' + (FX.mkt ? '; bookmaker view shown too)' : ')') : (FX.mkt ? '(bookmaker view only)' : '');
-  $('mkHint').innerHTML = gs.length ? 'Type the odds you see on Bet9ja, SportyBet, BetKing or any other site. We show the <b>value</b>: what you win or lose on average for every 1 you stake, if our chance is right. A plus is good. <b>Fair odds</b> are what the bet should pay.' : 'No prices for this match: there are no bookmaker odds and too few past results.';
+  $('mkHint').innerHTML = gs.length ? 'Type the odds you see on Bet9ja, SportyBet, BetKing or any other site in the boxes below, or paste them. We show the <b>value</b>: what you win or lose on average for every 1 you stake, if our chance is right. A plus is good. <b>Fair odds</b> are what the bet should pay.' : 'No prices for this match: there are no bookmaker odds and too few past results.';
   $('groups').innerHTML = gs.map((g, gi) => {
     const rows = g.rows.filter(r => !q || (g.title + ' ' + r.name).toLowerCase().includes(q));
     if (!rows.length) return '';
@@ -881,23 +944,53 @@ function renderMarkets(){
       (g.note ? '<p class="hint" style="padding:0 8px">' + esc(g.note) + '</p>' : '') +
       '<table><thead><tr><th>Bet</th><th class="num">Our chance</th><th class="num">Fair odds</th><th class="num">Bookies\' fair odds</th><th>Your odds</th><th class="num">Value</th></tr></thead><tbody>' +
       rows.map(r => {
-        const idx = ROWS.push(r) - 1, key = g.id + ':' + r.k, cur = ODDS[key] || '';
+        const idx = ROWS.push(r) - 1, key = g.id + ':' + r.k, cur = ODDS[key] || ''; ROWMAP[key] = r;
         const fair = r.p > 0 ? (1 - (r.push || 0)) / r.p : null;
         return '<tr data-i="' + idx + '"><td class="name">' + esc(r.name) + (r.push ? ' <span class="cons">(money back: ' + pc(r.push) + '%)</span>' : '') + '</td><td class="num mono" data-l="Our chance">' + (r.p * 100).toFixed(1) + '%</td><td class="num fair" data-l="Fair odds">' + (fair && fair < 200 ? fair.toFixed(2) : '-') + '</td>' +
           '<td class="num cons" data-l="Bookies\' fair odds">' + (r.cons != null && r.cons > 0 ? (1 / r.cons).toFixed(2) : '') + '</td>' +
           '<td class="inp" data-l="Your odds"><input type="text" inputmode="decimal" data-key="' + esc(key) + '" aria-label="Your odds for ' + esc(r.name) + '" placeholder="odds" value="' + esc(cur) + '"></td><td class="num val" data-l="Value" id="ev-' + idx + '">-</td></tr>';
       }).join('') + '</tbody></table></div></details>';
   }).join('');
+  renderQuickOdds(gs);
   updateEdges();
+}
+function qoRows(gs){
+  const map = {}; gs.forEach(g => g.rows.forEach(r => { map[g.id + ':' + r.k] = r; })); return map;
+}
+const QO = [
+  ['Who wins', [['result:1','Home win (1)'],['result:X','Draw (X)'],['result:2','Away win (2)']]],
+  ['Goals', [['goals:o1.5','Over 1.5'],['goals:u1.5','Under 1.5'],['goals:o2.5','Over 2.5'],['goals:u2.5','Under 2.5'],['goals:o3.5','Over 3.5'],['goals:u3.5','Under 3.5']]],
+  ['Both teams score', [['goals:gg','GG (yes)'],['goals:ng','NG (no)']]],
+  ['Double chance', [['result:1X','1X'],['result:X2','X2'],['result:12','12']]],
+  ['Draw no bet', [['result:dnb1','Home DNB'],['result:dnb2','Away DNB']]],
+  ['Corners', [['corners:co8.5','Over 8.5'],['corners:co9.5','Over 9.5'],['corners:cu9.5','Under 9.5'],['corners:co10.5','Over 10.5']]],
+  ['Cards', [['cards:ko3.5','Over 3.5'],['cards:ku3.5','Under 3.5'],['cards:ko4.5','Over 4.5']]]
+];
+function renderQuickOdds(gs){
+  const map = qoRows(gs); ALLROWS = map;
+  const act = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.key : null;
+  let h = '';
+  QO.forEach(g => {
+    const items = g[1].filter(i => map[i[0]]);
+    if (!items.length) return;
+    h += '<div class="qo-g"><h4>' + g[0] + '</h4><div class="qo-row">' + items.map(i => '<label class="qo-i"><span>' + i[1] + '</span><input type="text" inputmode="decimal" data-key="' + i[0] + '" placeholder="odds" value="' + esc(ODDS[i[0]] || '') + '" aria-label="Your odds for ' + esc(i[1]) + '"><span class="qo-ch">our chance ' + (map[i[0]].p * 100).toFixed(0) + '%' + (map[i[0]].p > 0.02 && 1.05 / map[i[0]].p < 60 ? ' &middot; take at ' + (1.05 / map[i[0]].p).toFixed(2) + '+' : '') + '</span><span class="qo-val" data-v="' + i[0] + '">-</span></label>').join('') + '</div></div>';
+  });
+  $('qo').innerHTML = h || '<p class="empty">No prices for this match yet, so there is nothing to compare.</p>';
+  $('pasteBox').hidden = !h;
 }
 function updateEdges(){
   const best = [];
+  document.querySelectorAll('#qo .qo-val').forEach(cell => {
+    const k = cell.dataset.v, r = ALLROWS[k], o = parseFloat(String(ODDS[k] || '').replace(',', '.'));
+    if (r && o > 1){ const e = edgeOf(o, r); cell.textContent = 'Value ' + (e >= 0 ? '+' : '') + (e * 100).toFixed(1) + '%'; cell.className = 'qo-val ' + (e > 0.02 ? 'pos' : e < -0.02 ? 'neg' : ''); }
+    else { cell.textContent = '-'; cell.className = 'qo-val'; }
+  });
+  Object.keys(ODDS).forEach(k => { const r = ALLROWS[k], o = parseFloat(String(ODDS[k] || '').replace(',', '.')); if (r && o > 1){ const e = edgeOf(o, r); if (e > 0.02) best.push([e, r.name, o]); } });
   document.querySelectorAll('#groups tr[data-i]').forEach(tr => {
     const r = ROWS[+tr.dataset.i], inp = tr.querySelector('input'), cell = tr.querySelector('.val');
     const o = parseFloat(String(inp.value).replace(',', '.'));
     if (o > 1){
       const e = edgeOf(o, r); cell.textContent = (e >= 0 ? '+' : '') + (e * 100).toFixed(1) + '%'; cell.className = 'num val ' + (e > 0.02 ? 'pos' : e < -0.02 ? 'neg' : '');
-      if (e > 0.02) best.push([e, r.name, o]);
     } else { cell.textContent = '-'; cell.className = 'num val'; }
   });
   best.sort((a, b) => b[0] - a[0]);
@@ -1109,13 +1202,110 @@ $('newsBody').addEventListener('change', e => {
   applyNews(); syncForm(); persist(); renderNewsInfo(); renderQuick(); renderContext(); renderMarkets(); renderResults();
 });
 
+
+/* ---------- picks: no typing ---------- */
+const PICKMAP = {over25:'goals:o2.5', under25:'goals:u2.5', gg:'goals:gg', under15:'goals:u1.5', o15_1h:'halves:h1o1.5', h1_draw:'halves:hx', home_win:'result:1', home_dnb:'result:dnb1', away_dnb:'result:dnb2', home_win_u25:'combo:1u25', over_corners:'corners:co9.5', under_corners:'corners:cu9.5', over_cards:'cards:ko3.5', under_cards:'cards:ku3.5', home_cs:'team:hcs', home_win_nil:'team:hwn', away_u05:'team:tau0.5'};
+const PKLS = 'naija-picks-v1';
+const pkRead = () => { try { return JSON.parse(localStorage.getItem(PKLS) || '{}'); } catch (e) { return {}; } };
+const pkWrite = o => { try { localStorage.setItem(PKLS, JSON.stringify(o)); } catch (e) {} };
+let PKS = pkRead(), PDAY = null, pkTimer = null, PKCACHE = [];
+function schedulePicks(){ if (!DATA) return; clearTimeout(pkTimer); pkTimer = setTimeout(renderPicks, 500); }
+function stateFor(f){
+  const auto = autoSetup(f), saved = lsRead()[f.id];
+  const s = saved && saved.s ? Object.assign({}, auto.s, saved.s) : auto.s;
+  if (!s.news) s.news = {home:{}, away:{}};
+  ['gpg','gpgLg','corn','cornLg','cardsExp','cardsLg','comp'].forEach(k => { s[k] = auto.s[k]; });
+  s.live = 'pre';
+  const m = modelFor(f, s); if (m && newsOnFor(s)) s.gpg = m.exp_total;
+  return {s, m};
+}
+function computePicks(){
+  const now = Date.now(), out = [];
+  DATA.fixtures.forEach(f => {
+    const d = new Date(f.ko).getTime(); if (f.koKnown && d + 3.3 * 3600e3 < now) return;
+    const st = stateFor(f), R = analyze(st.s);
+    const hits = R.pos.filter(r => r.score >= 12 && PICKMAP[r.key]).slice(0, 4); if (!hits.length) return;
+    const map = {};
+    if (st.m){ const share = ((DATA.leagues[f.league] || {}).avg || {}).h1share || 0.44; buildMarkets(st.m, share, f.mkt, f.ou, f.ah).forEach(g => g.rows.forEach(r => { map[g.id + ':' + r.k] = r; })); }
+    out.push({f, picks: hits.map(h => { const row = map[PICKMAP[h.key]], p = row ? row.p : null; return {id: f.id + '|' + h.key, label: h.label, score: h.score, why: h.reasons[0], p, target: (p && p > 0.02 && 1.05 / p < 60) ? 1.05 / p : null}; })});
+  });
+  return out;
+}
+function renderPicks(){
+  if (!DATA) return;
+  PKCACHE = computePicks();
+  const now = Date.now(), today = fmtDay.format(new Date(now)), tom = fmtDay.format(new Date(now + 864e5));
+  const dayOf = x => { const k = fmtDay.format(new Date(x.f.ko)); return k === today ? 'today' : k === tom ? 'tomorrow' : 'later'; };
+  const counts = {today:0, tomorrow:0, later:0}; PKCACHE.forEach(x => counts[dayOf(x)]++);
+  if (!PDAY || !counts[PDAY]) PDAY = counts.today ? 'today' : counts.tomorrow ? 'tomorrow' : counts.later ? 'later' : 'today';
+  const names = {today:'Today', tomorrow:'Tomorrow', later:'Later'};
+  $('pickDays').innerHTML = ['today','tomorrow','later'].filter(k => counts[k]).map(k => '<button type="button" class="chip-b" data-day="' + k + '" aria-pressed="' + (PDAY === k) + '">' + names[k] + '<small>' + counts[k] + '</small></button>').join('');
+  const list = PKCACHE.filter(x => dayOf(x) === PDAY);
+  // slip: every pick marked OK, any day
+  const slip = []; PKCACHE.forEach(x => x.picks.forEach(p => { if (PKS[p.id] === 'ok') slip.push([x, p]); }));
+  $('slip').innerHTML = slip.length ? '<div class="slip"><h3>My slip (' + slip.length + ')</h3><ul>' + slip.map(s => '<li><b>' + esc(s[1].label) + '</b> &middot; ' + esc(T(s[0].f.home).name) + ' v ' + esc(T(s[0].f.away).name) + (s[1].target ? ' &middot; only at ' + s[1].target.toFixed(2) + '+' : '') + '</li>').join('') + '</ul><div class="actions"><button type="button" class="btn primary" id="slipCopy">Copy slip</button><button type="button" class="btn" id="slipClear">Clear marks</button><span class="status" id="slipSt"></span></div></div>' : '';
+  $('picksBody').innerHTML = list.length ? list.map(x => {
+    const f = x.f, H = T(f.home).name, A = T(f.away).name, lg = (DATA.leagues[f.league] || {}).short || f.league;
+    return '<div class="pk-m"><div class="pk-h"><div><b>' + esc(H) + ' v ' + esc(A) + '</b><br><span>' + (f.koKnown ? fmtTime.format(new Date(f.ko)) + ' WAT' : 'time not set') + ' &middot; ' + esc(lg) + '</span></div><button type="button" class="btn small" data-open="' + esc(f.id) + '">Open match</button></div><ul class="pk-l">' +
+      x.picks.map(p => '<li class="pk' + (PKS[p.id] === 'low' ? ' done-low' : '') + '"><div class="pk-b"><b>' + esc(p.label) + '</b><small>' + strength(p.score) + ' sign. ' + esc(p.why) + '</small></div><div class="pk-t">' +
+        (p.target ? '<small>Take it at</small><big>' + p.target.toFixed(2) + ' or more</big><small>our chance ' + pc(p.p) + '%</small>' : '<small>No numbers for this match yet</small><big>Check the price</big>') +
+        '</div><div class="pk-a"><button type="button" data-pick="' + esc(p.id) + '" data-v="ok" aria-pressed="' + (PKS[p.id] === 'ok') + '">Price OK</button><button type="button" data-pick="' + esc(p.id) + '" data-v="low" aria-pressed="' + (PKS[p.id] === 'low') + '">Too low</button></div></li>').join('') + '</ul></div>';
+  }).join('') : '<p class="empty">No bets stand out for ' + (counts.today || counts.tomorrow || counts.later ? 'this day' : 'the matches in the data') + '. Open a match and add the pitch, weather and team news. That can bring bets up.</p>';
+}
+$('picks').addEventListener('click', e => {
+  const d = e.target.closest('[data-day]'); if (d){ PDAY = d.dataset.day; renderPicks(); return; }
+  const o = e.target.closest('[data-open]'); if (o){ selectFixture(o.dataset.open, false); $('mhCard').scrollIntoView({behavior:'smooth', block:'start'}); return; }
+  const p = e.target.closest('[data-pick]');
+  if (p){ const id = p.dataset.pick, v = p.dataset.v; if (PKS[id] === v) delete PKS[id]; else PKS[id] = v; pkWrite(PKS); renderPicks(); return; }
+  if (e.target.id === 'slipClear'){ Object.keys(PKS).forEach(k => { if (PKS[k] === 'ok') delete PKS[k]; }); pkWrite(PKS); renderPicks(); return; }
+  if (e.target.id === 'slipCopy'){
+    const lines = ['Naija Match Desk slip'];
+    PKCACHE.forEach(x => x.picks.forEach(p2 => { if (PKS[p2.id] === 'ok') lines.push(T(x.f.home).name + ' v ' + T(x.f.away).name + ': ' + p2.label + (p2.target ? ' (only at ' + p2.target.toFixed(2) + '+)' : '')); }));
+    lines.push('', '18+ only. Bet responsibly.');
+    const txt = lines.join('\n'), st = $('slipSt');
+    try { navigator.clipboard.writeText(txt).then(() => { st.textContent = 'Copied.'; }, () => { st.textContent = 'Could not copy. Select and copy the list above.'; }); } catch (err) { st.textContent = 'Could not copy. Select and copy the list above.'; }
+  }
+});
+
 /* ---------- events ---------- */
 $('form').addEventListener('input', e => {
   const el = e.target; if (!el.name) return;
   if (el.type === 'radio'){ if (!el.checked) return; S[el.name] = el.value; if (el.name === 'live') liveManual = true; } else if (el.type === 'checkbox') S[el.name] = el.checked;
   persist(); renderResults();
 });
-$('groups').addEventListener('input', e => { const k = e.target.dataset && e.target.dataset.key; if (!k) return; ODDS[k] = e.target.value; persist(); updateEdges(); });
+$('mkSec').addEventListener('input', e => {
+  const k = e.target.dataset && e.target.dataset.key; if (!k) return;
+  ODDS[k] = e.target.value;
+  document.querySelectorAll('#mkSec input[data-key]').forEach(i => { if (i !== e.target && i.dataset.key === k) i.value = e.target.value; });
+  persist(); updateEdges();
+});
+$('qo').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !e.target.dataset || !e.target.dataset.key) return;
+  e.preventDefault(); const all = [...document.querySelectorAll('#qo input')], i = all.indexOf(e.target); if (all[i + 1]) all[i + 1].focus(); else e.target.blur();
+});
+/* paste odds */
+function parseOdds(text){
+  let t = ' ' + String(text).toLowerCase().replace(/,/g, '.').replace(/[|;]/g, ' ').replace(/[ \t]+/g, ' ') + ' ';
+  const O = '(\\d{1,3}(?:\\.\\d{1,3})?)', S = '\\s*[:@=\\-]?\\s*', found = {};
+  const take = (re, fn) => { t = t.replace(re, (...a) => { fn(a); return ' '; }); };
+  const put = (k, v) => { v = parseFloat(v); if (v > 1 && v < 500) found[k] = v; };
+  take(new RegExp('corners?\\s*(over|under|ov|un|o|u)\\s*(\\d+\\.5)' + S + O, 'g'), a => put('corners:c' + (a[1][0] === 'o' ? 'o' : 'u') + a[2], a[3]));
+  take(new RegExp('(?:cards?|bookings?)\\s*(over|under|ov|un|o|u)\\s*(\\d+\\.5)' + S + O, 'g'), a => put('cards:k' + (a[1][0] === 'o' ? 'o' : 'u') + a[2], a[3]));
+  take(new RegExp('\\b(over|under|ov|un|o|u)\\s*(\\d\\.5)\\s*(?:goals?)?' + S + O, 'g'), a => put('goals:' + (a[1][0] === 'o' ? 'o' : 'u') + a[2], a[3]));
+  take(new RegExp('\\b(gg|btts yes|ng|btts no)\\b' + S + O, 'g'), a => put('goals:' + (a[1] === 'gg' || a[1] === 'btts yes' ? 'gg' : 'ng'), a[2]));
+  take(new RegExp('\\b(1x|x2|12)\\b' + S + O, 'g'), a => put('result:' + a[1].toUpperCase(), a[2]));
+  take(new RegExp('\\b(1|home(?: win)?)\\b' + S + O + '\\s*\\b(x|draw)\\b' + S + O + '\\s*\\b(2|away(?: win)?)\\b' + S + O, 'g'), a => { put('result:1', a[2]); put('result:X', a[4]); put('result:2', a[6]); });
+  take(new RegExp('\\b(home(?: win)?|draw|away(?: win)?)\\b' + S + O, 'g'), a => put('result:' + (a[1][0] === 'h' ? '1' : a[1][0] === 'd' ? 'X' : '2'), a[2]));
+  const left = t.trim(), tri = left.match(new RegExp('^' + O + '\\s+' + O + '\\s+' + O + '$'));
+  if (tri && !found['result:1'] && !found['result:X'] && !found['result:2']){ put('result:1', tri[1]); put('result:X', tri[2]); put('result:2', tri[3]); }
+  return found;
+}
+$('pasteGo').addEventListener('click', () => {
+  const found = parseOdds($('pasteTxt').value), keys = Object.keys(found), ok = [], missing = [];
+  keys.forEach(k => { if (ALLROWS[k]){ ODDS[k] = String(found[k]); ok.push(ALLROWS[k].name + ' @ ' + found[k]); } else missing.push(k.split(':')[1]); });
+  if (ok.length){ persist(); renderMarkets(); }
+  $('pasteRes').textContent = ok.length ? 'Read ' + ok.length + ' odds: ' + ok.join(', ') + (missing.length ? '. Not available for this match: ' + missing.join(', ') : '') + '.' : (keys.length ? 'Read the odds, but this match has no prices for them.' : 'Could not read any odds. Use lines like: Over 2.5 1.85');
+});
 $('mkFilter').addEventListener('input', () => renderMarkets());
 $('cmpModel').addEventListener('click', () => { CMP = 'model'; $('cmpModel').setAttribute('aria-pressed', 'true'); $('cmpMkt').setAttribute('aria-pressed', 'false'); updateEdges(); persist(); });
 $('cmpMkt').addEventListener('click', () => { CMP = 'market'; $('cmpModel').setAttribute('aria-pressed', 'false'); $('cmpMkt').setAttribute('aria-pressed', 'true'); updateEdges(); persist(); });
@@ -1164,9 +1354,11 @@ fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new
   try { const sv = lsRead(); if (sv._cmp === 'market'){ CMP = 'market'; $('cmpModel').setAttribute('aria-pressed', 'false'); $('cmpMkt').setAttribute('aria-pressed', 'true'); } } catch (e) {}
   renderChips();
   const now = Date.now();
-  const first = d.fixtures.find(f => f.koKnown && new Date(f.ko).getTime() + 3 * 3600e3 > now) || d.fixtures[0];
+  const lastId = lsRead()._last;
+  const first = d.fixtures.find(f => f.id === lastId && (!f.koKnown || new Date(f.ko).getTime() + 3 * 3600e3 > now)) || d.fixtures.find(f => f.koKnown && new Date(f.ko).getTime() + 3 * 3600e3 > now) || d.fixtures[0];
   if (!first){ $('board').innerHTML = '<div class="loading">No matches in the data file yet.</div>'; return; }
   selectFixture(first.id, false);
+  renderPicks();
 }).catch(err => {
   $('stamp').textContent = 'Could not load the match data.';
   $('board').innerHTML = '<div class="loading">The data file did not load (' + esc(err.message) + '). If this is a new setup, open GitHub, click Actions, and run "Daily update" once.</div>';
