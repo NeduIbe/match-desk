@@ -17,11 +17,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -55,10 +53,21 @@ jobs:
           mkdir -p _site/data
           cp index.html _site/
           cp data/*.json _site/data/
+          rm -f _site/data/lineups_cache.json
+          ls -la _site _site/data
 
       - uses: actions/configure-pages@v5
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
