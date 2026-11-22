@@ -349,6 +349,18 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
 .inj.plain li{display:list-item}
 .inj li.outp{color:var(--bad)}
 .inj li .mono{color:var(--muted);font-size:13px}
+
+.sc-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.sc-row{display:grid;grid-template-columns:44px minmax(0,1fr) auto minmax(0,1fr);gap:4px 8px;align-items:center;width:100%;text-align:left;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:inherit;padding:9px 10px;font:inherit;font-size:14px}
+button.sc-row{cursor:pointer}
+.sc-w{font-family:var(--f-mono);font-size:12.5px;color:var(--muted)}
+.sc-live{color:var(--live)}
+.sc-t{min-width:0;overflow-wrap:anywhere;font-weight:700}
+.sc-h{text-align:right}
+.sc-n{font-family:var(--f-mono);font-weight:800;font-size:16px;white-space:nowrap}
+.sc-vs{color:var(--muted);font-style:italic}
+.sc-lg{grid-column:2 / -1;font-size:12px;color:var(--muted)}
+.tag.live b{font-family:var(--f-mono)}
 </style></head><body>
 <div class="wrap">
   <header class="head paper">
@@ -361,6 +373,14 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
     <div class="chips" id="leagueChips" role="group" aria-label="Pick a league"></div>
     <details class="src"><summary>Where does the data come from?</summary><ul id="sources"></ul></details>
   </header>
+
+  <section class="paper sec" id="scoreSec">
+    <h2>Live scores <span id="scoreSub"></span></h2>
+    <div id="scoreBody"><p class="hint">Loading live scores...</p></div>
+    <div class="actions"><button type="button" class="btn" id="scoreNow">Refresh now</button>
+      <label class="chk" style="gap:8px;min-height:0"><input type="checkbox" id="scoreAuto" checked><span class="box" aria-hidden="true"></span><span class="chk-t">Update by itself</span></label>
+      <span class="status" id="scoreStamp"></span></div>
+  </section>
 
   <section class="paper sec" id="picks">
     <h2>Picks and record
@@ -478,6 +498,7 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
 </div>
 
 <nav id="bnav" aria-label="Jump to a part of the page">
+  <button type="button" data-to="scoreSec"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M12 5v14M4 12h16"/></svg>Scores</button>
   <button type="button" data-to="picks" aria-current="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>Picks</button>
   <button type="button" data-to="board"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Matches</button>
   <button type="button" data-to="liveSec" id="navLive" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M6 6a8 8 0 000 12M18 6a8 8 0 010 12"/></svg>Live</button>
@@ -896,7 +917,10 @@ function renderBoard(){
     const probs = f.mkt ? f.mkt.fair : (f.model ? f.model.p1x2 : null);
     if (filter === 'all') tags.push('<span class="tag">' + esc((DATA.leagues[f.league] || {}).short || f.league) + '</span>');
     if (f.ahead){ const fv = probs && probs[0] >= probs[2] ? f.ahead.home : f.ahead.away; if (fv) tags.push('<span class="tag rot">UCL soon</span>'); }
-    if (f.koKnown && now > d.getTime() && now < d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag live">Live</span>');
+    const sc = (typeof SCORES !== 'undefined' && f.espn) ? SCORES[f.espn.id] : null;
+    if (sc && sc.state === 'in') tags.push('<span class="tag live"><b>' + sc.gh + '-' + sc.ga + '</b> ' + esc(sc.when || 'Live') + '</span>');
+    else if (sc && sc.state === 'post') tags.push('<span class="tag"><b>' + sc.gh + '-' + sc.ga + '</b> FT</span>');
+    else if (f.koKnown && now > d.getTime() && now < d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag live">Live</span>');
     else if (f.koKnown && now >= d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag">Finished?</span>');
     if (!f.koKnown) tags.push('<span class="tag">Time not set</span>');
     const bar = probs ? '<span class="pbar" aria-hidden="true"><i class="ph" style="width:' + (probs[0] * 100) + '%"></i><i class="pd" style="width:' + (probs[1] * 100) + '%"></i><i class="pa" style="width:' + (probs[2] * 100) + '%"></i></span><span class="fx-meta mono">' + pc(probs[0]) + ' &middot; ' + pc(probs[1]) + ' &middot; ' + pc(probs[2]) + tags.join('') + '</span>' : '<span class="fx-meta">' + tags.join('') + '</span>';
@@ -1498,12 +1522,13 @@ function renderPicks(){
   PKCACHE = computePicks(); logPicks();
   const now = Date.now(), today = fmtDay.format(new Date(now)), tom = fmtDay.format(new Date(now + 864e5));
   const dayOf = x => fmtDay.format(new Date(x.f.ko));
+  const tomN = DATA.fixtures.filter(f => fmtDay.format(new Date(f.ko)) === tom).length;
   const counts = {}, order = [], upcoming = {};
   PKCACHE.slice().sort((a, b) => new Date(a.f.ko) - new Date(b.f.ko)).forEach(x => { const k = dayOf(x); if (!(k in counts)){ counts[k] = 0; order.push(k); } counts[k] += x.picks.length; if (new Date(x.f.ko).getTime() > now) upcoming[k] = true; });
   if (!PDAY || !(PDAY in counts)) PDAY = (counts[today] && upcoming[today]) ? today : counts[tom] ? tom : order[0] || today;
   const label = k => k === today ? 'Today' : k === tom ? 'Tomorrow' : k;
   $('pickDays').innerHTML = order.slice(0, 7).map(k => '<button type="button" class="chip-b" data-day="' + esc(k) + '" aria-pressed="' + (PDAY === k) + '">' + esc(label(k)) + '<small>' + counts[k] + '</small></button>').join('');
-  $('pickNext').innerHTML = counts[tom] ? 'Tomorrow (' + tom + '): <b>' + counts[tom] + ' ' + (counts[tom] === 1 ? 'pick' : 'picks') + '</b> are ready. ' + (PDAY === tom ? '' : '<button type="button" class="btn small" data-day="' + esc(tom) + '">See tomorrow\'s picks</button> ') + 'Come back tomorrow morning to see the day after. Lineups and news are not known yet, so check them on match day.' : 'No bets stand out for tomorrow yet. The match list refreshes at about 6:30 AM and 6:30 PM, so look again later.';
+  $('pickNext').innerHTML = counts[tom] ? 'Tomorrow (' + tom + '): <b>' + counts[tom] + ' ' + (counts[tom] === 1 ? 'pick' : 'picks') + '</b> are ready. ' + (PDAY === tom ? '' : '<button type="button" class="btn small" data-day="' + esc(tom) + '">See tomorrow\'s picks</button> ') + 'Come back tomorrow morning to see the day after. Lineups and news are not known yet, so check them on match day.' : (tomN ? 'Tomorrow (' + tom + '): ' + tomN + (tomN === 1 ? ' match is' : ' matches are') + ' listed, but none has a strong signal yet. Signals grow when lineups, weather and team news arrive. You can still open any match from the list below. The list refreshes at about 6:30 AM and 6:30 PM.' : 'No matches are listed for tomorrow (' + tom + ') yet. The list refreshes at about 6:30 AM and 6:30 PM, and covers about the next 9 days, so look again later.');
   const list = PKCACHE.filter(x => dayOf(x) === PDAY);
   // slip: every pick marked OK, any day
   const slip = []; PKCACHE.forEach(x => x.picks.forEach(p => { if (PKS[p.id] === 'ok') slip.push([x, p]); }));
@@ -1975,6 +2000,87 @@ $('themeBtn').addEventListener('click', () => {
   paintThemeBtn();
 });
 
+/* ---------- live scores (all of today's games) ---------- */
+const SC_NAMES = {'eng.1':'Premier League','esp.1':'La Liga','ita.1':'Serie A','ger.1':'Bundesliga','fra.1':'Ligue 1','uefa.champions':'Champions League','nga.1':'NPFL'};
+let SCORES = {}, SC_LIST = [], SC_AT = null, SC_ERR = '', SC_TIMER = null, SC_BUSY = false;
+const ymd = d => d.getUTCFullYear() + String(d.getUTCMonth() + 1).padStart(2, '0') + String(d.getUTCDate()).padStart(2, '0');
+function scSlugs(){
+  const s = Object.keys(SC_NAMES);
+  ((DATA && DATA.fixtures) || []).forEach(f => { const sl = f.espn && f.espn.slug; if (sl && s.indexOf(sl) < 0) s.push(sl); });
+  return s;
+}
+function parseScoreboard(j, slug){
+  const out = [];
+  (j.events || []).forEach(ev => {
+    const comp = (ev.competitions || [])[0] || {}, cs = comp.competitors || [];
+    const h = cs.find(c => c.homeAway === 'home'), a = cs.find(c => c.homeAway === 'away');
+    if (!h || !a) return;
+    const st = ev.status || comp.status || {}, ty = st.type || {};
+    const sc = c => { const n = parseInt(c.score, 10); return isNaN(n) ? 0 : n; };
+    const nm = c => (c.team || {}).shortDisplayName || (c.team || {}).displayName || (c.team || {}).name || '?';
+    const state = ty.state || 'pre';
+    let when = '';
+    if (state === 'in'){ const m = /(\d+)/.exec(st.displayClock || ''); when = /half/i.test(ty.detail || '') && !/1st|2nd|first|second/i.test(ty.detail || '') ? 'HT' : (m ? m[1] + "'" : (ty.shortDetail || 'Live')); }
+    else if (state === 'post') when = /ft|full|final/i.test((ty.shortDetail || '') + ' ' + (ty.detail || '')) ? 'FT' : (ty.shortDetail || 'FT');
+    out.push({id: String(ev.id), slug, ko: new Date(ev.date).getTime(), state, when, detail: ty.detail || '', h: nm(h), a: nm(a), gh: sc(h), ga: sc(a)});
+  });
+  return out;
+}
+async function pollScores(){
+  if (SC_BUSY) return; SC_BUSY = true;
+  const now = new Date(), d0 = ymd(new Date(now.getTime() - 864e5)), d1 = ymd(new Date(now.getTime() + 864e5));
+  const today = fmtDay.format(now), all = []; let ok = 0, bad = 0, lastErr = '';
+  await Promise.all(scSlugs().map(async slug => {
+    try {
+      const ctrl = new AbortController(), to = setTimeout(() => ctrl.abort(), 12000);
+      const r = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/' + slug + '/scoreboard?dates=' + d0 + '-' + d1 + '&limit=300', {signal: ctrl.signal});
+      clearTimeout(to);
+      if (!r.ok) throw new Error('status ' + r.status);
+      parseScoreboard(await r.json(), slug).forEach(e => all.push(e)); ok++;
+    } catch (e) { bad++; lastErr = e.message || String(e); }
+  }));
+  SC_BUSY = false;
+  if (!ok){ SC_ERR = 'Could not load live scores on this phone (' + lastErr + '). Tap Refresh to try again. The rest of the page still works.'; renderScores(); return; }
+  SC_ERR = bad ? 'Some leagues did not load (' + bad + ' of ' + (ok + bad) + ').' : '';
+  SC_AT = new Date();
+  SC_LIST = all.filter(e => e.state === 'in' || fmtDay.format(new Date(e.ko)) === today);
+  SCORES = {}; all.forEach(e => { SCORES[e.id] = e; });
+  renderScores(); if (DATA) renderBoard();
+}
+function renderScores(){
+  const sec = $('scoreSec'); if (!sec) return;
+  const rank = {in: 0, pre: 1, post: 2};
+  const list = SC_LIST.slice().sort((a, b) => (rank[a.state] - rank[b.state]) || (a.ko - b.ko));
+  const liveN = list.filter(e => e.state === 'in').length;
+  $('scoreSub').textContent = liveN ? liveN + (liveN === 1 ? ' game' : ' games') + ' live now' : (list.length ? list.length + ' games today' : '');
+  const byId = {}; ((DATA && DATA.fixtures) || []).forEach(f => { if (f.espn) byId[f.espn.id] = f; });
+  let html = '';
+  if (list.length){
+    html = '<ul class="sc-list">' + list.map(e => {
+      const f = byId[e.id], mid = e.state === 'pre' ? '<span class="sc-vs">v</span>' : '<span class="sc-n">' + e.gh + ' - ' + e.ga + '</span>';
+      const left = e.state === 'in' ? '<b class="sc-live">' + esc(e.when || 'Live') + '</b>' : e.state === 'post' ? '<span>' + esc(e.when || 'FT') + '</span>' : '<span>' + fmtTime.format(new Date(e.ko)) + '</span>';
+      const inner = '<span class="sc-w">' + left + '</span><span class="sc-t sc-h">' + esc(e.h) + '</span>' + mid + '<span class="sc-t">' + esc(e.a) + '</span><span class="sc-lg">' + esc(SC_NAMES[e.slug] || '') + '</span>';
+      return '<li>' + (f ? '<button type="button" class="sc-row" data-fid="' + esc(f.id) + '" title="Open this match">' + inner + '</button>' : '<div class="sc-row">' + inner + '</div>') + '</li>';
+    }).join('') + '</ul>';
+  } else if (SC_AT) html = '<p class="hint">No games today in these leagues.</p>';
+  else if (!SC_ERR) html = '<p class="hint">Loading live scores...</p>';
+  $('scoreBody').innerHTML = html + (SC_ERR ? '<p class="warn">' + esc(SC_ERR) + '</p>' : '');
+  $('scoreStamp').textContent = SC_AT ? 'Updated ' + fmtTime.format(SC_AT) + ' WAT' : '';
+}
+function scoreDue(){   // fast when a game is on or about to start, slow otherwise
+  const now = Date.now();
+  return SC_LIST.some(e => e.state === 'in' || (e.state === 'pre' && e.ko - now < 20 * 60e3 && e.ko - now > -3600e3)) ? 45000 : 300000;
+}
+function startScores(){
+  if (SC_TIMER) return;
+  renderScores(); pollScores();
+  let last = Date.now();
+  SC_TIMER = setInterval(() => { if (document.hidden || !$('scoreAuto').checked) return; if (Date.now() - last >= scoreDue() - 2000){ last = Date.now(); pollScores(); } }, 5000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && SC_AT && Date.now() - SC_AT.getTime() > 60000){ last = Date.now(); pollScores(); } });
+  $('scoreNow').addEventListener('click', () => { last = Date.now(); pollScores(); });
+  $('scoreBody').addEventListener('click', ev => { const b = ev.target.closest('[data-fid]'); if (b && DATA) selectFixture(b.getAttribute('data-fid'), true); });
+}
+
 /* ---------- start ---------- */
 fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new Error('status ' + r.status); return r.json(); }).then(d => {
   DATA = d;
@@ -2000,7 +2106,9 @@ fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new
   renderPicks();
   loadResults(true);
   loadSquads();
+  startScores();
 }).catch(err => {
+  startScores();
   $('stamp').textContent = 'Could not load the match data.';
   $('board').innerHTML = '<div class="loading">The data file did not load (' + esc(err.message) + '). If this is a new setup, open GitHub, click Actions, and run "Daily update" once.</div>';
 });
