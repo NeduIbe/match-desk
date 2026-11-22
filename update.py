@@ -481,35 +481,48 @@ ESPN_NPFL = 'nga.1'
 
 
 ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer/%s/scoreboard'
-ESPN_FORM = [0]   # which URL form worked last, so a form that ESPN refuses is not retried for every league
+ESPN_SIZE = [None]   # chunk size (days) that ESPN accepted last time: 0 = whole range, 30, 14, 7, 1
+ESPN_SIZES = [0, 30, 14, 7, 1]
 
 
 def espn_board(slug, d0, d1):
-    """ESPN scoreboard events for a date range. Tries three URL forms, because ESPN answers some of them with an error."""
+    """ESPN scoreboard events for a date range. ESPN refuses some range sizes with an error,
+    so this tries the whole range first, then smaller chunks (30, 14, 7 days, then one day at a time)."""
     base = ESPN_BASE % slug
-    rng = '%s-%s' % (d0, d1)
-    forms = [lambda: [base + '?' + urlencode({'dates': rng, 'limit': 300})],
-             lambda: [base + '?' + urlencode({'dates': rng})]]
-    span = (datetime.strptime(d1, '%Y%m%d') - datetime.strptime(d0, '%Y%m%d')).days
-    if span <= 14:
-        forms.append(lambda: [base + '?' + urlencode({'dates': (datetime.strptime(d0, '%Y%m%d') + timedelta(days=k)).strftime('%Y%m%d')}) for k in range(span + 1)])
-    order = list(range(len(forms)))
-    if ESPN_FORM[0] in order:
-        order.remove(ESPN_FORM[0]); order.insert(0, ESPN_FORM[0])
+    a0 = datetime.strptime(d0, '%Y%m%d')
+    span = (datetime.strptime(d1, '%Y%m%d') - a0).days
+    order = list(ESPN_SIZES)
+    if ESPN_SIZE[0] in order:
+        order.remove(ESPN_SIZE[0]); order.insert(0, ESPN_SIZE[0])
     last = None
-    for fi in order:
+    for size in order:
+        if size == 1 and span > 150:
+            continue          # one request per day for a long history is too many requests
+        if size and size >= span:
+            continue          # same as the whole range
+        urls = []
+        if not size:
+            urls = [base + '?' + urlencode({'dates': '%s-%s' % (d0, d1), 'limit': 300})]
+        else:
+            k = 0
+            while k <= span:
+                c0 = a0 + timedelta(days=k)
+                c1 = a0 + timedelta(days=min(span, k + size - 1))
+                dd = c0.strftime('%Y%m%d') if size == 1 else '%s-%s' % (c0.strftime('%Y%m%d'), c1.strftime('%Y%m%d'))
+                urls.append(base + '?' + urlencode({'dates': dd}))
+                k += size
         try:
             events, seen = [], set()
-            for url in forms[fi]():
-                j = json.loads(fetch(url, tries=2 if fi == order[0] else 1))
+            for url in urls:
+                j = json.loads(fetch(url, tries=2 if (size == order[0] and len(urls) == 1) else 1, timeout=30))
                 for ev in j.get('events', []):
                     if ev.get('id') not in seen:
                         seen.add(ev.get('id')); events.append(ev)
-            ESPN_FORM[0] = fi
+            ESPN_SIZE[0] = size
             return {'events': events}
         except Exception as e:
             last = e
-    raise last
+    raise last or RuntimeError('no usable ESPN date form')
 
 
 def espn_events(slug, days=9):

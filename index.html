@@ -361,6 +361,11 @@ button.sc-row{cursor:pointer}
 .sc-vs{color:var(--muted);font-style:italic}
 .sc-lg{grid-column:2 / -1;font-size:12px;color:var(--muted)}
 .tag.live b{font-family:var(--f-mono)}
+.sc-list{grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr))}
+#picksBody{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(100%,560px),1fr));align-items:start}
+#picksBody>.empty{grid-column:1 / -1}
+#pickPane .hint,#scoreBody .hint{max-width:75ch}
+.wrap{padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
 </style></head><body>
 <div class="wrap">
   <header class="head paper">
