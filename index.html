@@ -1220,6 +1220,44 @@ function row(r, neg){
   const w = Math.min(Math.abs(r.score), 70) / 70 * 100;
   return '<li class="mkr' + (neg ? ' neg' : '') + '"><div class="mk-top"><div class="mk-name">' + esc(r.label) + '</div><span class="chip">' + r.group + '</span><span class="scr">' + (r.score > 0 ? '+' : '') + r.score + '</span></div><div class="bar" aria-hidden="true"><i style="width:' + w.toFixed(0) + '%"></i></div><p class="why"><b>' + (neg ? 'Against.' : strength(r.score) + ' sign.') + '</b> ' + r.reasons.map(esc).join(' &middot; ') + '</p></li>';
 }
+/* ---------- match-day tips: always filled from what we know about this match ---------- */
+function matchTips(R){
+  const tips = [], now = Date.now(), H = T(FX.home).name, A = T(FX.away).name;
+  const ko = FX.koKnown ? new Date(FX.ko).getTime() : null;
+  const sc = (typeof SCORES !== 'undefined' && FX.espn) ? SCORES[FX.espn.id] : null;
+  if (LIVE && LIVE.state === 'in') tips.push('The game is on now: ' + H + ' ' + LIVE.gh + ' - ' + LIVE.ga + ' ' + A + (LIVE.minute ? ', minute ' + LIVE.minute : '') + '. Prices change fast. Check the Live section above.');
+  else if (sc && sc.state === 'in') tips.push('The game is on now: ' + H + ' ' + sc.gh + ' - ' + sc.ga + ' ' + A + (sc.when ? ' (' + sc.when + ')' : '') + '.');
+  else if ((LIVE && LIVE.state === 'post') || (sc && sc.state === 'post')) tips.push('This game has finished.');
+  else if (ko == null) tips.push('The kick-off time is not set yet. Check again later.');
+  else if (ko > now){
+    const hrs = (ko - now) / 3600e3;
+    tips.push('Kick-off ' + fmtDay.format(new Date(ko)) + ' at ' + fmtTime.format(new Date(ko)) + ' WAT' + (hrs < 1 ? ' (in under 1 hour)' : hrs < 48 ? ' (in about ' + Math.round(hrs) + (Math.round(hrs) === 1 ? ' hour)' : ' hours)') : '') + '. ' + (hrs > 3 ? 'Lineups usually show about 1 hour before. Check them before you bet.' : 'Lineups should be out about now. Open the Live section and check who is starting.'));
+  } else if (ko + 3.3 * 3600e3 < now) tips.push('This game has probably finished.');
+  const wx = FX.wx;
+  if (S.weather === 'rain') tips.push('Heavy rain is expected' + (wx ? ' (about ' + wx.rain + ' mm in the hour)' : '') + '. A wet pitch makes passing and shooting harder. The checklist above counts this.');
+  else if (S.weather === 'heat') tips.push('Very hot and humid' + (wx ? ' (about ' + Math.round(wx.t) + ' degrees)' : '') + '. Players tire in the second half. The checklist above counts this.');
+  else if (wx) tips.push('Weather looks fine: about ' + Math.round(wx.t) + ' degrees' + (wx.rain > 0.2 ? ' with light rain' : ', no heavy rain') + '.');
+  if (S.wind) tips.push('Strong wind is marked. It makes long passes, crosses and shots less accurate.');
+  if (S.pitch === 'worn' || S.pitch === 'bumpy') tips.push('The pitch is marked as ' + (S.pitch === 'worn' ? 'worn artificial' : 'bumpy') + '. That can mean mistakes and fewer clean passing moves.');
+  if (S.travel === 'long') tips.push('The away team has a long trip' + (FX.travelNote ? ': ' + FX.travelNote : '') + '. Tired legs can show late in the game.');
+  if (S.altitude) tips.push('This stadium is high above sea level. Visiting teams can tire sooner.');
+  const nw = S.news || {};
+  ['home', 'away'].forEach(sd => {
+    const nm = sd === 'home' ? H : A, who = (nw[sd] || {}).who || {};
+    Object.keys(who).forEach(k => { const w = who[k]; if (!w) return; const lab = k === '__multi__' ? 'Two or more regular starters are out' : k + ' (' + w.role + ') is out'; const bits = []; if (w.att && Math.abs(w.att - 1) >= 0.02) bits.push((w.att < 1 ? 'their goals down ' : 'their goals up ') + Math.round(Math.abs(1 - w.att) * 100) + '%'); if (w.def && Math.abs(w.def - 1) >= 0.02) bits.push((w.def > 1 ? 'goals against up ' : 'goals against down ') + Math.round(Math.abs(w.def - 1) * 100) + '%'); tips.push(nm + ': ' + lab + (bits.length ? '. Effect in our numbers: ' + bits.join(', ') + '.' : '. Our numbers do not change for this.')); });
+  });
+  const out = {home: 0, away: 0}; injList().forEach(p => { if ((p.side === 'home' || p.side === 'away') && OUTRX.test(p.status || '') && !/doubt|day/i.test(p.status || '')) out[p.side]++; });
+  if (out.home || out.away) tips.push('ESPN lists ' + (out.home ? out.home + ' out for ' + H : '') + (out.home && out.away ? ' and ' : '') + (out.away ? out.away + ' out for ' + A : '') + '. See the team news section for names.');
+  else if (!hasWho(S) && !newsOn()) tips.push('No team news found yet. Look at the club pages or X before you bet.');
+  if (S.rotKey) tips.push('A key goalkeeper or defensive midfielder is out. The favourite can be weaker than the odds think.');
+  if (S.contAhead) tips.push('The favourite has a big European game within 4 days. It may rest players.');
+  if (S.natDuty) tips.push('Some main players were away with national teams. They may be tired or rusty.');
+  if (S.midweek) tips.push('A team played or travelled in midweek. Tiredness can show late.');
+  const pk = (typeof PKCACHE !== 'undefined' && PKCACHE) ? PKCACHE.find(x => x.f.id === FX.id) : null;
+  if (pk && pk.picks.length) tips.push('Bets that stand out here: ' + pk.picks.map(p => p.label + (p.target ? ' (only at ' + p.target.toFixed(2) + ' or more)' : '')).join('; ') + '. If your bookmaker pays less than that number, skip it.');
+  else tips.push('No bet stands out strongly for this match yet. Skipping is a fine choice.');
+  return R.notes.concat(tips);
+}
 let lastText = '';
 function renderResults(){
   const R = analyze(S);
@@ -1228,7 +1266,7 @@ function renderResults(){
   $('favN').textContent = R.pos.length ? '(' + R.pos.length + ')' : '';
   $('against').innerHTML = R.neg.length ? R.neg.map(r => row(r, true)).join('') : '<li class="empty">Nothing is clearly against a bet.</li>';
   $('againstN').textContent = R.neg.length ? '(' + R.neg.length + ')' : '';
-  $('notesSec').hidden = !R.notes.length; $('notes').innerHTML = R.notes.map(n => '<p class="note">' + esc(n) + '</p>').join('');
+  const tips = matchTips(R); $('notesSec').hidden = !tips.length; $('notes').innerHTML = tips.map(n => '<p class="note">' + esc(n) + '</p>').join('');
   const H = T(FX.home), A = T(FX.away), full = R.stacks.filter(k => k.full).map(k => k.name);
   lastText = ['Naija Match Desk: ' + H.name + ' v ' + A.name + ' (' + ((DATA.leagues[FX.league] || {}).name || FX.league) + ', ' + fmtDay.format(new Date(FX.ko)) + ')']
     .concat(modelNow() ? ['Our chances: home ' + pc(modelNow().p1x2[0]) + '%, draw ' + pc(modelNow().p1x2[1]) + '%, away ' + pc(modelNow().p1x2[2]) + '%. Goals we expect: ' + f2(modelNow().exp_total) + (newsOn() ? ' (with team news)' : '')] : [])
