@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Naija Match Desk</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Nunito+Sans:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<style>
-/* Warm paper look. Light = cream paper. Dark = near-black with emerald and amber. */
+<style>/* Warm paper look. Light = cream paper. Dark = near-black with emerald and amber. */
 :root{
   --bg:#F3EAD8;--surface:#FBF5E6;--ink:#2A2118;--muted:#6B5C4A;--line:#D8C9AD;
   --accent:#0E7C57;--accent-ink:#FFFFFF;--good-bg:#E3EFD9;--bad:#B3361E;--away:#B7791F;--warn-bg:#F6E7BD;--live:#C0392B;
@@ -312,9 +311,37 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
   .pk-a{grid-column:1 / -1}
   .pk-a button{flex:1}
 }
-</style>
-</head>
-<body>
+
+/* notes + track record */
+#findTxt{width:100%;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;font-family:var(--f-body);font-size:16px;line-height:1.55;min-height:130px}
+#findOut{display:grid;gap:14px}
+.fo{border:1.5px solid var(--line);border-radius:10px;background:var(--bg);padding:14px 16px;display:grid;gap:8px}
+.fo h3{margin:0;font-size:15px;font-weight:800;font-family:var(--f-display)}
+.fo ul{margin:0;padding-left:20px;display:grid;gap:5px;font-size:14.5px}
+.fo.ok{border-color:var(--accent);background:var(--good-bg)}
+.sec h2 .seg{margin-left:auto}
+.tr-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tr-c{border:1.5px solid var(--line);border-radius:10px;background:var(--bg);padding:14px;display:grid;gap:4px;min-width:0}
+.tr-c b{font-family:var(--f-display);font-weight:800;font-size:26px;line-height:1.1}
+.tr-c span{font-size:13px;color:var(--muted)}
+.tr-c.pos b{color:var(--accent)}.tr-c.neg b{color:var(--bad)}
+.tr-t{display:grid;gap:12px}
+.tr-t h3{margin:0;font-size:17px;font-weight:800;font-family:var(--f-display)}
+.tr-l{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.tr-i{border:1.5px solid var(--line);border-radius:10px;background:var(--bg);padding:12px 14px;display:grid;gap:6px}
+.tr-i .top{display:flex;flex-wrap:wrap;gap:4px 10px;justify-content:space-between;align-items:baseline}
+.tr-i b{font-weight:800;overflow-wrap:anywhere}
+.tr-i .sub{font-size:13px;color:var(--muted)}
+.res{font-family:var(--f-mono);font-weight:700;font-size:13px;border-radius:4px;padding:1px 8px;border:1.5px solid var(--line);white-space:nowrap}
+.res.won{color:var(--accent);border-color:var(--accent)}.res.lost{color:var(--bad);border-color:var(--bad)}.res.void{color:var(--muted)}
+.tr-i .acts{display:flex;gap:8px;flex-wrap:wrap}
+.pk-odds{width:110px;background:var(--surface);border:1.5px solid var(--line);border-radius:8px;padding:6px 10px;min-height:44px;font-family:var(--f-mono)}
+.pk-oddsrow{grid-column:1 / -1;display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted)}
+
+.pk-a button:disabled{opacity:.45;cursor:not-allowed}
+#trackPane,#pickPane{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+#trackPane[hidden],#pickPane[hidden]{display:none}
+</style></head><body>
 <div class="wrap">
   <header class="head paper">
     <button type="button" class="btn small themeBtn" id="themeBtn">Dark mode</button>
@@ -328,11 +355,15 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
   </header>
 
   <section class="paper sec" id="picks">
-    <h2>Today's picks <span>no typing needed</span></h2>
-    <p class="hint">These are the bets your guide's signals point to. Next to each bet is the <b>lowest odds worth taking</b>. Open your bookmaker, look at the price, then come back and tap. If the bookmaker pays less than the number shown, skip it.</p>
-    <div class="chips" id="pickDays" role="group" aria-label="Pick a day"></div>
-    <div id="slip"></div>
-    <div id="picksBody"></div>
+    <h2>Picks and record
+      <span class="seg" role="group" aria-label="Choose a view"><button type="button" id="tabPicks" aria-pressed="true">Today's picks</button><button type="button" id="tabTrack" aria-pressed="false">Track record</button></span></h2>
+    <div id="pickPane">
+      <p class="hint">These are the bets your guide's signals point to. Next to each bet is the <b>lowest odds worth taking</b>. Open your bookmaker, look at the price, then come back and tap. If the bookmaker pays less than the number shown, skip it. Every pick you see here is saved in the Track record before kick-off, so you can see later if the picks really paid.</p>
+      <div class="chips" id="pickDays" role="group" aria-label="Pick a day"></div>
+      <div id="slip"></div>
+      <div id="picksBody"></div>
+    </div>
+    <div id="trackPane" hidden></div>
   </section>
 
   <div class="layout">
@@ -346,6 +377,14 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
       </section>
 
       <section class="paper sec" id="quick"><h2>Quick read <span id="quickSrc"></span></h2><div id="quickBody"></div></section>
+
+      <section class="paper sec" id="findSec">
+        <h2>Type what you found <span>the app reads it for you</span></h2>
+        <p class="hint">Write your findings about this match in plain words, like you would send in a message. The app ticks the checklist and the team news from what it reads. Say which team each fact is about, using the team name.</p>
+        <textarea id="findTxt" rows="5" aria-label="Your findings about this match" placeholder="Example: Heavy rain expected. Kano Pillars travelled 14 hours by road. Their striker is injured and players have not been paid. The pitch is worn artificial turf. No VAR."></textarea>
+        <div class="actions"><button type="button" class="btn primary" id="findGo">Read my notes</button><button type="button" class="btn" id="findClear">Clear notes</button></div>
+        <div id="findOut" aria-live="polite"></div>
+      </section>
 
       <section class="paper sec" id="liveSec" hidden>
         <h2>Live now <span id="liveSub"></span></h2>
@@ -706,7 +745,7 @@ function buildLive(model, minute, gh, ga){
 
 const DEFAULTS = {comp:'europe',fav:'none',style:'balanced',pitch:'unknown',weather:'clear',wind:false,
   travel:'short',altitude:false,novar:false,welfare:'none',rotKey:false,midweek:false,natDuty:false,physical:false,
-  contAhead:false,stakes:'normal',live:'pre',news:null,gpg:null,gpgLg:null,corn:null,cornLg:null,cardsExp:null,cardsLg:null};
+  contAhead:false,stakes:'normal',live:'pre',news:null,notes:'',noteBase:null,gpg:null,gpgLg:null,corn:null,cornLg:null,cardsExp:null,cardsLg:null};
 
 const GROUPS = [
   {id:'tactics', title:'The match-up', fields:[
@@ -811,6 +850,7 @@ function selectFixture(id, scroll){
   LIVE = null; liveManual = false;
   $('desk').hidden = false;
   renderBoard(); syncForm(); renderAll(); startLive();
+  $('findTxt').value = S.notes || ''; $('findOut').innerHTML = '';
   try { const all = lsRead(); all._last = FX.id; lsWrite(all); } catch (e) {}
   const mh = $('mhCard'); mh.classList.remove('stamp-on'); void mh.offsetWidth; mh.classList.add('stamp-on');
   if (scroll && window.matchMedia('(max-width: 899px)').matches) mh.scrollIntoView({behavior:'smooth', block:'start'});
@@ -1233,7 +1273,7 @@ function computePicks(){
 }
 function renderPicks(){
   if (!DATA) return;
-  PKCACHE = computePicks();
+  PKCACHE = computePicks(); logPicks();
   const now = Date.now(), today = fmtDay.format(new Date(now)), tom = fmtDay.format(new Date(now + 864e5));
   const dayOf = x => { const k = fmtDay.format(new Date(x.f.ko)); return k === today ? 'today' : k === tom ? 'tomorrow' : 'later'; };
   const counts = {today:0, tomorrow:0, later:0}; PKCACHE.forEach(x => counts[dayOf(x)]++);
@@ -1246,17 +1286,20 @@ function renderPicks(){
   $('slip').innerHTML = slip.length ? '<div class="slip"><h3>My slip (' + slip.length + ')</h3><ul>' + slip.map(s => '<li><b>' + esc(s[1].label) + '</b> &middot; ' + esc(T(s[0].f.home).name) + ' v ' + esc(T(s[0].f.away).name) + (s[1].target ? ' &middot; only at ' + s[1].target.toFixed(2) + '+' : '') + '</li>').join('') + '</ul><div class="actions"><button type="button" class="btn primary" id="slipCopy">Copy slip</button><button type="button" class="btn" id="slipClear">Clear marks</button><span class="status" id="slipSt"></span></div></div>' : '';
   $('picksBody').innerHTML = list.length ? list.map(x => {
     const f = x.f, H = T(f.home).name, A = T(f.away).name, lg = (DATA.leagues[f.league] || {}).short || f.league;
+    const locked = f.koKnown && new Date(f.ko).getTime() <= now;
     return '<div class="pk-m"><div class="pk-h"><div><b>' + esc(H) + ' v ' + esc(A) + '</b><br><span>' + (f.koKnown ? fmtTime.format(new Date(f.ko)) + ' WAT' : 'time not set') + ' &middot; ' + esc(lg) + '</span></div><button type="button" class="btn small" data-open="' + esc(f.id) + '">Open match</button></div><ul class="pk-l">' +
       x.picks.map(p => '<li class="pk' + (PKS[p.id] === 'low' ? ' done-low' : '') + '"><div class="pk-b"><b>' + esc(p.label) + '</b><small>' + strength(p.score) + ' sign. ' + esc(p.why) + '</small></div><div class="pk-t">' +
         (p.target ? '<small>Take it at</small><big>' + p.target.toFixed(2) + ' or more</big><small>our chance ' + pc(p.p) + '%</small>' : '<small>No numbers for this match yet</small><big>Check the price</big>') +
-        '</div><div class="pk-a"><button type="button" data-pick="' + esc(p.id) + '" data-v="ok" aria-pressed="' + (PKS[p.id] === 'ok') + '">Price OK</button><button type="button" data-pick="' + esc(p.id) + '" data-v="low" aria-pressed="' + (PKS[p.id] === 'low') + '">Too low</button></div></li>').join('') + '</ul></div>';
+        '</div><div class="pk-a"><button type="button" data-pick="' + esc(p.id) + '" data-v="ok" aria-pressed="' + (PKS[p.id] === 'ok') + '"' + (locked ? ' disabled' : '') + '>Price OK</button><button type="button" data-pick="' + esc(p.id) + '" data-v="low" aria-pressed="' + (PKS[p.id] === 'low') + '"' + (locked ? ' disabled' : '') + '>Too low</button></div>' +
+        (PKS[p.id] === 'ok' && !locked ? '<div class="pk-oddsrow"><label for="od-' + esc(p.id) + '">Odds you got (optional)</label><input class="pk-odds" id="od-' + esc(p.id) + '" inputmode="decimal" autocomplete="off" placeholder="e.g. 1.85" data-oddsfor="' + esc(p.id) + '" value="' + esc((TK.e[p.id] && TK.e[p.id].odds) || '') + '"></div>' : '') +
+        (locked ? '<div class="pk-oddsrow">Game has started. This pick is saved in your Track record.</div>' : '') + '</li>').join('') + '</ul></div>';
   }).join('') : '<p class="empty">No bets stand out for ' + (counts.today || counts.tomorrow || counts.later ? 'this day' : 'the matches in the data') + '. Open a match and add the pitch, weather and team news. That can bring bets up.</p>';
 }
 $('picks').addEventListener('click', e => {
   const d = e.target.closest('[data-day]'); if (d){ PDAY = d.dataset.day; renderPicks(); return; }
   const o = e.target.closest('[data-open]'); if (o){ selectFixture(o.dataset.open, false); $('mhCard').scrollIntoView({behavior:'smooth', block:'start'}); return; }
   const p = e.target.closest('[data-pick]');
-  if (p){ const id = p.dataset.pick, v = p.dataset.v; if (PKS[id] === v) delete PKS[id]; else PKS[id] = v; pkWrite(PKS); renderPicks(); return; }
+  if (p){ if (p.disabled) return; const id = p.dataset.pick, v = p.dataset.v; if (PKS[id] === v) delete PKS[id]; else PKS[id] = v; pkWrite(PKS); renderPicks(); return; }
   if (e.target.id === 'slipClear'){ Object.keys(PKS).forEach(k => { if (PKS[k] === 'ok') delete PKS[k]; }); pkWrite(PKS); renderPicks(); return; }
   if (e.target.id === 'slipCopy'){
     const lines = ['Naija Match Desk slip'];
@@ -1265,6 +1308,328 @@ $('picks').addEventListener('click', e => {
     const txt = lines.join('\n'), st = $('slipSt');
     try { navigator.clipboard.writeText(txt).then(() => { st.textContent = 'Copied.'; }, () => { st.textContent = 'Could not copy. Select and copy the list above.'; }); } catch (err) { st.textContent = 'Could not copy. Select and copy the list above.'; }
   }
+});
+
+/* ---------- track record ---------- */
+const TKLS = 'naija-track-v1';
+const tkRead = () => { try { const o = JSON.parse(localStorage.getItem(TKLS) || '{}'); return o && o.e ? o : {e:{}}; } catch (e) { return {e:{}}; } };
+const tkWrite = o => { try { localStorage.setItem(TKLS, JSON.stringify(o)); return true; } catch (e) { return false; } };
+let TK = tkRead(), RES = null, TKVIEW = 'all', TKFIX = {}, tkClearArm = false, resLoadedAt = 0;
+const nm = k => String(k || '').split(':').slice(1).join(':').toLowerCase().replace(/[^a-z0-9]/g, '');
+const AFTER = 2 * 3600e3; // a game is treated as over 2 hours after kick-off
+
+function logPicks(){
+  if (!DATA) return;
+  const now = Date.now(), seen = {};
+  PKCACHE.forEach(x => {
+    const f = x.f, ko = new Date(f.ko).getTime();
+    if (!f.koKnown || ko <= now) return;
+    x.picks.forEach(p => {
+      seen[p.id] = 1;
+      const key = p.id.split('|')[1], rowKey = PICKMAP[key]; if (!rowKey) return;
+      const old = TK.e[p.id] || {};
+      TK.e[p.id] = Object.assign(old, {id:p.id, fid:f.id, key, rowKey, label:p.label, home:T(f.home).name, away:T(f.away).name, hk:f.home, ak:f.away, lg:(DATA.leagues[f.league] || {}).short || f.league, ko:f.ko, p:p.p, target:p.target, taken:PKS[p.id] === 'ok', skipped:PKS[p.id] === 'low', res:old.res || null});
+    });
+  });
+  // a pick that disappeared before kick-off, and was not taken, was not part of the final list
+  Object.keys(TK.e).forEach(id => { const e = TK.e[id]; if (!seen[id] && new Date(e.ko).getTime() > now && !e.taken) delete TK.e[id]; });
+  tkWrite(TK);
+}
+
+/* result of one bet row: 'won' | 'lost' | 'void' | null (cannot tell) */
+function settleRow(rk, r){
+  const tg = r.hg + r.ag, hasH = r.hhg != null && r.hag != null, k = String(rk).split(':'), g = k[0], c = k[1], m = c.match(/^(co|cu|ko|ku|o|u)(\d+(?:\.\d+)?)$/);
+  const W = b => b ? 'won' : 'lost';
+  if (r.hg == null || r.ag == null) return null;
+  if (m){
+    const v = parseFloat(m[2]), o = m[1][m[1].length - 1] === 'o';
+    let val;
+    if (g === 'goals') val = tg;
+    else if (g === 'corners') val = (r.hc == null || r.ac == null) ? null : r.hc + r.ac;
+    else if (g === 'cards') val = r.cards == null ? null : r.cards;
+    else return null;
+    return val == null ? null : W(o ? val > v : val < v);
+  }
+  if (g === 'goals') return c === 'gg' ? W(r.hg > 0 && r.ag > 0) : c === 'ng' ? W(!(r.hg > 0 && r.ag > 0)) : null;
+  if (g === 'halves'){
+    if (!hasH) return null;
+    if (c === 'hx') return W(r.hhg === r.hag);
+    const hm = c.match(/^h1o(\d+\.5)$/); return hm ? W(r.hhg + r.hag > parseFloat(hm[1])) : null;
+  }
+  if (g === 'result'){
+    if (c === '1') return W(r.hg > r.ag); if (c === 'X') return W(r.hg === r.ag); if (c === '2') return W(r.hg < r.ag);
+    if (c === '1X') return W(r.hg >= r.ag); if (c === 'X2') return W(r.hg <= r.ag); if (c === '12') return W(r.hg !== r.ag);
+    if (c === 'dnb1') return r.hg === r.ag ? 'void' : W(r.hg > r.ag);
+    if (c === 'dnb2') return r.hg === r.ag ? 'void' : W(r.hg < r.ag);
+    return null;
+  }
+  if (g === 'combo' && c === '1u25') return W(r.hg > r.ag && tg < 2.5);
+  if (g === 'team'){
+    if (c === 'hcs') return W(r.ag === 0); if (c === 'hwn') return W(r.hg > r.ag && r.ag === 0);
+    if (c === 'tau0.5') return W(r.ag === 0);
+  }
+  return null;
+}
+function findResult(e){
+  if (!RES) return null;
+  if (RES.byId[e.fid]) return RES.byId[e.fid];
+  const ko = new Date(e.ko).getTime(), a = nm(e.hk) || nm(e.home), b = nm(e.ak) || nm(e.away);
+  return RES.list.find(r => nm(r.home) === a && nm(r.away) === b && Math.abs(new Date(r.ko).getTime() - ko) < 36 * 3600e3) || null;
+}
+function settleAll(){
+  const now = Date.now(); let changed = 0, unknown = 0;
+  Object.values(TK.e).forEach(e => {
+    if (e.res || new Date(e.ko).getTime() + AFTER > now) return;
+    const r = findResult(e), v = r ? settleRow(e.rowKey, r) : null;
+    if (v){ e.res = v; e.src = 'auto'; changed++; } else unknown++;
+  });
+  if (changed) tkWrite(TK);
+  return {changed, unknown};
+}
+function tkOdds(e, view){ // price used for profit
+  if (view === 'mine'){ const o = parseFloat(e.odds); return o > 1 ? o : e.target; }
+  return e.target;
+}
+function tkStats(view){
+  const list = Object.values(TK.e).filter(e => e.res && (view !== 'mine' || e.taken));
+  let n = 0, won = 0, exp = 0, profit = 0, noPrice = 0;
+  const by = {};
+  list.forEach(e => {
+    const o = tkOdds(e, view); const b = by[e.label] = by[e.label] || {n:0, won:0, profit:0};
+    if (e.res === 'void') return;
+    if (!(o > 1)){ noPrice++; return; }
+    n++; b.n++; if (e.p) exp += e.p;
+    const pr = e.res === 'won' ? o - 1 : -1; profit += pr; b.profit += pr;
+    if (e.res === 'won'){ won++; b.won++; }
+  });
+  return {n, won, exp, profit, noPrice, by, voids: list.filter(e => e.res === 'void').length};
+}
+const u2 = n => (n >= 0 ? '+' : '') + n.toFixed(2);
+function tkResBtns(e){
+  return '<div class="acts"><button type="button" class="btn small" data-trk="won" data-id="' + esc(e.id) + '">Won</button><button type="button" class="btn small" data-trk="lost" data-id="' + esc(e.id) + '">Lost</button><button type="button" class="btn small" data-trk="void" data-id="' + esc(e.id) + '">Money back</button></div>';
+}
+function renderTrack(){
+  const all = Object.values(TK.e), now = Date.now();
+  const st = tkStats(TKVIEW), settled = all.filter(e => e.res).length;
+  let h = '<p class="hint">This page keeps score. Every pick you saw before kick-off is written down here. When the game is over, the app checks the final score and marks it Won or Lost. It shows if the picks really paid, with plain numbers. <b>1 unit</b> means you bet the same amount on every pick. If 1 unit is 1,000 naira, then +5 units is +5,000 naira.</p>';
+  h += '<div class="seg" role="group" aria-label="Which bets to count"><button type="button" data-tview="all" aria-pressed="' + (TKVIEW === 'all') + '">All picks</button><button type="button" data-tview="mine" aria-pressed="' + (TKVIEW === 'mine') + '">Bets I took</button></div>';
+  h += '<p class="hint">' + (TKVIEW === 'all' ? '<b>All picks</b> counts every pick at the lowest price we told you to take. That is the best case, because a bookmaker may pay less.' : '<b>Bets I took</b> counts only the picks where you tapped "Price OK". It uses the odds you typed, or our lowest price if you typed nothing.') + '</p>';
+  if (!st.n && !st.voids && !st.noPrice){
+    h += '<p class="empty">' + (all.length ? 'No finished bets yet. ' + all.length + ' ' + (all.length === 1 ? 'pick is' : 'picks are') + ' waiting for the final score. Come back after the games.' : 'Nothing here yet. Open "Today\'s picks". Every pick you see there is saved here before kick-off.') + '</p>';
+  } else {
+    const roi = st.n ? st.profit / st.n * 100 : 0;
+    h += '<div class="tr-cards"><div class="tr-c"><b>' + st.n + '</b><span>finished bets</span></div><div class="tr-c"><b>' + st.won + '</b><span>won (we expected about ' + st.exp.toFixed(1) + ')</span></div><div class="tr-c ' + (st.profit >= 0 ? 'pos' : 'neg') + '"><b>' + u2(st.profit) + '</b><span>units won or lost</span></div><div class="tr-c ' + (roi >= 0 ? 'pos' : 'neg') + '"><b>' + (roi >= 0 ? '+' : '') + roi.toFixed(1) + '%</b><span>back on each unit bet</span></div></div>';
+    if (st.n < 100) h += '<p class="banner">Only ' + st.n + ' finished ' + (st.n === 1 ? 'bet' : 'bets') + '. Under 100 bets, luck looks like skill. A good week can mean nothing. Do not change how much you bet because of this yet.</p>';
+    else if (st.profit < 0) h += '<p class="banner">After ' + st.n + ' bets the picks are losing money. Think hard before you put real money on them.</p>';
+    else h += '<p class="banner">After ' + st.n + ' bets the picks are in profit. That is a good sign, but bookmakers change prices, so keep checking and bet only money you can afford to lose.</p>';
+    if (st.noPrice) h += '<p class="hint">' + st.noPrice + ' finished ' + (st.noPrice === 1 ? 'bet has' : 'bets have') + ' no price, so it is left out of the money numbers.</p>';
+    const rows = Object.keys(st.by).filter(k => st.by[k].n).sort((a, b) => st.by[b].n - st.by[a].n);
+    if (rows.length) h += '<div class="tr-t"><h3>By type of bet</h3><ul class="tr-l">' + rows.map(k => { const b = st.by[k]; return '<li class="tr-i"><div class="top"><b>' + esc(k) + '</b><span class="mono">' + u2(b.profit) + ' units</span></div><div class="sub">' + b.won + ' won out of ' + b.n + '</div></li>'; }).join('') + '</ul></div>';
+  }
+  const open = all.filter(e => !e.res).sort((a, b) => new Date(a.ko) - new Date(b.ko));
+  if (open.length){
+    h += '<div class="tr-t"><h3>Waiting for the score (' + open.length + ')</h3><ul class="tr-l">' + open.map(e => {
+      const ko = new Date(e.ko).getTime(), over = ko + AFTER <= now;
+      return '<li class="tr-i"><div class="top"><b>' + esc(e.label) + '</b><span class="res void">' + (over ? 'score not in yet' : ko <= now ? 'playing' : 'not started') + '</span></div><div class="sub">' + esc(e.home) + ' v ' + esc(e.away) + ' &middot; ' + fmtDay.format(new Date(e.ko)) + ' ' + fmtTime.format(new Date(e.ko)) + (e.taken ? ' &middot; you took it' + (parseFloat(e.odds) > 1 ? ' at ' + parseFloat(e.odds).toFixed(2) : '') : '') + '</div>' + (over ? '<div class="sub">The app could not find this score by itself. Check the score and tap the result:</div>' + tkResBtns(e) : '') + '</li>';
+    }).join('') + '</ul></div>';
+  }
+  const done = all.filter(e => e.res).sort((a, b) => new Date(b.ko) - new Date(a.ko)).slice(0, 30);
+  if (done.length) h += '<div class="tr-t"><h3>Latest finished bets</h3><ul class="tr-l">' + done.map(e => {
+    const o = tkOdds(e, TKVIEW === 'mine' && e.taken ? 'mine' : 'all');
+    return '<li class="tr-i"><div class="top"><b>' + esc(e.label) + '</b><span class="res ' + e.res + '">' + (e.res === 'won' ? 'WON' : e.res === 'lost' ? 'LOST' : 'MONEY BACK') + '</span></div><div class="sub">' + esc(e.home) + ' v ' + esc(e.away) + ' &middot; ' + fmtDay.format(new Date(e.ko)) + (o > 1 ? ' &middot; at ' + o.toFixed(2) : '') + (e.src === 'manual' ? ' &middot; marked by you' : '') + '</div>' + (TKFIX[e.id] ? tkResBtns(e) : '<div class="acts"><button type="button" class="btn small" data-trkfix="' + esc(e.id) + '">Wrong? Fix it</button></div>') + '</li>';
+  }).join('') + '</ul></div>';
+  h += '<div class="actions"><button type="button" class="btn primary" id="tkCopy"' + (all.length ? '' : ' disabled') + '>Copy my record</button><button type="button" class="btn" id="tkClear"' + (all.length ? '' : ' disabled') + '>' + (tkClearArm ? 'Tap again to erase everything' : 'Erase record') + '</button><span class="status" id="tkSt"></span></div>';
+  h += '<p class="hint">Saved on this phone only. If you clear your browser data or change phone, it is gone. Use "Copy my record" to keep a copy in your notes. ' + (RES ? 'Final scores were last updated ' + fmtDay.format(new Date(RES.asOf)) + ', ' + fmtTime.format(new Date(RES.asOf)) + ' WAT.' : 'The score file has not loaded, so use the Won / Lost buttons for finished games.') + ' Corner and card bets are only checked by the app for the big five leagues. Elsewhere, tap the result yourself.</p>';
+  $('trackPane').innerHTML = h;
+}
+function loadResults(force){
+  if (!force && Date.now() - resLoadedAt < 600e3) return Promise.resolve();
+  resLoadedAt = Date.now();
+  return fetch('data/results.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new Error('status ' + r.status); return r.json(); }).then(d => {
+    const list = Array.isArray(d.results) ? d.results : Object.values(d.results || {}), byId = {};
+    list.forEach(r => { byId[r.id] = r; });
+    RES = {asOf:d.asOf, list, byId};
+  }).catch(() => { RES = null; }).then(() => { settleAll(); renderTrack(); });
+}
+function showTab(t){
+  const tr = t === 'track';
+  $('tabPicks').setAttribute('aria-pressed', String(!tr)); $('tabTrack').setAttribute('aria-pressed', String(tr));
+  $('pickPane').hidden = tr; $('trackPane').hidden = !tr;
+  if (tr){ renderTrack(); loadResults(false); }
+}
+$('tabPicks').addEventListener('click', () => showTab('picks'));
+$('tabTrack').addEventListener('click', () => showTab('track'));
+$('trackPane').addEventListener('click', e => {
+  const v = e.target.closest('[data-tview]'); if (v){ TKVIEW = v.dataset.tview; renderTrack(); return; }
+  const r = e.target.closest('[data-trk]'); if (r){ const en = TK.e[r.dataset.id]; if (en){ en.res = r.dataset.trk; en.src = 'manual'; delete TKFIX[en.id]; tkWrite(TK); renderTrack(); } return; }
+  const fx = e.target.closest('[data-trkfix]'); if (fx){ TKFIX[fx.dataset.trkfix] = true; renderTrack(); return; }
+  if (e.target.id === 'tkClear'){
+    if (!tkClearArm){ tkClearArm = true; renderTrack(); setTimeout(() => { if (tkClearArm){ tkClearArm = false; renderTrack(); } }, 5000); }
+    else { tkClearArm = false; TK = {e:{}}; tkWrite(TK); renderTrack(); logPicks(); }
+    return;
+  }
+  if (e.target.id === 'tkCopy'){
+    const st = tkStats(TKVIEW), lines = ['Naija Match Desk record (' + (TKVIEW === 'all' ? 'all picks' : 'bets I took') + ')', st.n + ' finished bets, ' + st.won + ' won, ' + u2(st.profit) + ' units', ''];
+    Object.values(TK.e).sort((a, b) => new Date(a.ko) - new Date(b.ko)).forEach(en => { const o = tkOdds(en, TKVIEW); lines.push(fmtDay.format(new Date(en.ko)) + ' | ' + en.home + ' v ' + en.away + ' | ' + en.label + ' | ' + (o > 1 ? o.toFixed(2) : '-') + ' | ' + (en.res ? en.res : 'waiting') + (en.taken ? ' | taken' : '')); });
+    const txt = lines.join('\n'), s = $('tkSt');
+    try { navigator.clipboard.writeText(txt).then(() => { s.textContent = 'Copied.'; }, () => { s.textContent = 'Could not copy.'; }); } catch (err) { s.textContent = 'Could not copy.'; }
+  }
+});
+
+/* ---------- type what you found: keyword reading (not AI) ---------- */
+const STOPW = ['fc','afc','sc','cf','fk','the','of','de','la','el','al','club','city','united','town','athletic','sporting','real','sports','academy','rovers','wanderers','stars','utd'];
+const rxEsc = t => String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function nameBits(name, other){
+  const tk = n => String(n).toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(x => x.length >= 3);
+  const mine = tk(name), theirs = tk(other), dist = mine.filter(x => theirs.indexOf(x) < 0), good = dist.filter(x => STOPW.indexOf(x) < 0);
+  const full = String(name).toLowerCase().replace(/\s+/g, ' ').trim(), vars = [full];
+  [[/manchester/g, 'man'], [/\bunited\b/g, 'utd'], [/\bsaint\b/g, 'st'], [/wolverhampton wanderers/g, 'wolves'], [/tottenham hotspur/g, 'spurs'], [/tottenham/g, 'spurs'], [/paris saint[- ]germain/g, 'psg'], [/internazionale/g, 'inter'], [/\bborussia\b/g, 'bor'], [/\bfc\b|\bafc\b/g, '']].forEach(r => { const v = full.replace(r[0], r[1]).replace(/\s+/g, ' ').trim(); if (v && v !== full && vars.indexOf(v) < 0) vars.push(v); });
+  return {full: vars, tokens: good.length ? good : dist};
+}
+function sideRx(b){
+  const parts = b.full.map(v => rxEsc(v).replace(/ /g, '\\s+')).concat(b.tokens.map(rxEsc));
+  return new RegExp('\\b(?:' + parts.join('|') + ')\\b', 'g');
+}
+const NEGW = '(?:no|not|never|without|isn\'t|wasn\'t|won\'t|aren\'t|don\'t|doesn\'t|hasn\'t|haven\'t|didn\'t|zero|nothing)';
+const hasNeg = (t, src) => new RegExp('\\b' + NEGW + '\\b(?:\\s+\\w+){0,3}\\s+(?:' + src + ')', 'i').test(t);
+const POS = {
+  st: 'strikers?|centre[- ]?forwards?|center[- ]?forwards?|number 9|no\\.? ?9|top scorer|main scorer|leading scorer|goalscorer|forwards?|goal machine',
+  cr: 'wingers?|wide man|playmaker|creator|number 10|no\\.? ?10|attacking midfielders?|key midfielder|best player|star player|talisman|main man|captain|key player|top player',
+  gk: 'goalkeeper|keeper|goalie|gk|number 1',
+  dm: 'defensive midfielders?|holding midfielders?|destroyer|anchor ?man|number 6|no\\.? ?6|cdm|midfield anchor',
+  df: 'centre[- ]?backs?|center[- ]?backs?|defenders?|full[- ]?backs?|left[- ]?backs?|right[- ]?backs?|cbs?|back line|backline|defence|defense|back four|back three'
+};
+const POSNAME = {st:'main striker out', cr:'key winger or playmaker out', gk:'goalkeeper out', dm:'defensive midfielder out', df1:'one key defender out', df2:'two or more defenders out'};
+const INJ = 'injur\\w*|out|ruled out|miss(?:es|ing)?|sidelined|doubtful|doubts?|suspend\\w*|banned|unavailable|absent|sick|ill|knock|hamstring|ankle|knee|groin|red[- ]carded|not (?:fit|available|travelling|traveling)|won\'t play|will not play|long[- ]term|crisis|depleted|fitness (?:worries|concerns|problems|doubts)';
+const RET = 'is back|are back|back (?:from|in|after|for|at)|comes? back|came back|returns?|returned|returning|fit again|recovered|available again|passed (?:a )?fitness|cleared to play|is fit|are fit';
+const EUR = 'champions league|europa|conference league|uefa|european|europe|caf champions|confederation cup|continental|midweek|mid-week';
+
+function readNotes(text, hName, aName){
+  const hb = nameBits(hName, aName), ab = nameBits(aName, hName), hRx = sideRx(hb), aRx = sideRx(ab);
+  const clauses = String(text || '').replace(/\r/g, '\n').split(/[.!?;\n]+|\bbut\b|\bwhile\b|\bhowever\b|\balthough\b/i).map(x => x.trim()).filter(x => x.length > 2);
+  const fx = [], unused = []; let last = null;
+  clauses.forEach(raw => {
+    let t = ' ' + raw.toLowerCase().replace(/[,]+/g, ' , ').replace(/\s+/g, ' ') + ' ';
+    const hasH = hRx.test(t) || /\b(?:home team|home side|the hosts?|hosts|the home)\b/.test(t); hRx.lastIndex = 0;
+    const hasA = aRx.test(t) || /\b(?:away team|away side|visitors?|visiting|the guests?|the away)\b/.test(t); aRx.lastIndex = 0;
+    let side = hasH && hasA ? 'both' : hasH ? 'home' : hasA ? 'away' : null;
+    if (!side && /\b(?:they|their|them|its|his|he|the team|the side|the club)\b/.test(t)) side = last;
+    else if (side === 'home' || side === 'away') last = side;
+    t = t.replace(hRx, ' TEAMH ').replace(aRx, ' TEAMA ');
+    hRx.lastIndex = 0; aRx.lastIndex = 0;
+    const before = fx.length, say = (k, v, txt, extra) => fx.push(Object.assign({k, v, txt, from: raw}, extra || {}));
+    const nameOf = sd => sd === 'home' ? hName : aName;
+    // ----- weather, pitch, wind (about the match, no team needed)
+    if (/\b(?:heavy rain|raining|rain|rainy|downpour|storm|thunder|wet weather|wet day|wet pitch|showers?)\b/.test(t) && !hasNeg(t, 'heavy rain|raining|rain|rainy|downpour|storm|thunder|showers?')) say('weather', 'rain', 'Weather: heavy rain');
+    else if (/\b(?:very hot|hot|heat|humid|humidity|scorching|sweltering|3[0-9] ?degrees)\b/.test(t) && !hasNeg(t, 'hot|heat|humid|humidity')) say('weather', 'heat', 'Weather: very hot and humid');
+    else if (/\b(?:no rain|dry weather|clear weather|good weather|sunny|mild weather|dry day|dry and clear)\b/.test(t) || (/\b(?:rain|storm)\b/.test(t) && hasNeg(t, 'rain|storm'))) say('weather', 'clear', 'Weather: clear or mild');
+    if (/\b(?:strong wind|windy|high wind|gusts?|heavy wind|gale)\b/.test(t) && !hasNeg(t, 'wind|windy|gusts?')) say('wind', true, 'Strong wind');
+    if (/\b(?:artificial|astro|astroturf|synthetic|turf|worn|patchy|poor pitch|bad pitch|dry pitch|hard pitch)\b/.test(t) && !hasNeg(t, 'artificial|astro|synthetic|turf')) say('pitch', 'worn', 'Pitch: worn artificial');
+    else if (/\b(?:bumpy|rough pitch|uneven|bobbly|pot ?holes?|waterlogged|muddy|heavy pitch|sticky pitch|cut up)\b/.test(t)) say('pitch', 'bumpy', 'Pitch: bumpy grass');
+    else if (/\b(?:smooth|good pitch|perfect pitch|well kept|excellent pitch|lush|carpet)\b/.test(t) && !hasNeg(t, 'smooth|good pitch')) say('pitch', 'smooth', 'Pitch: smooth, good grass');
+    if (/\b(?:no var|without var|no video (?:referee|review|assistant))\b/.test(t) || /\bvar\b/.test(t) && /\b(?:not|unavailable|absent|missing)\b/.test(t)) say('novar', true, 'No VAR');
+    if (/\b(?:jos|altitude|high ground|plateau|thin air|high elevation)\b/.test(t)) say('altitude', true, 'High ground (Jos)');
+    // ----- travel (always about the away team)
+    const hm = t.match(/(\d+(?:\.\d+)?)[- ]?(?:hours?|hrs?|h)\b/);
+    const trav = /\b(?:road|bus|travell?ed|travel|trip|journey|drive|drove|coach|overnight|flew|flight)\b/.test(t);
+    if (trav && hm){ const n = parseFloat(hm[1]); say('travel', n >= 10 ? 'long' : n >= 3 ? 'mid' : 'short', 'Away trip: ' + n + ' hours = ' + (n >= 10 ? '10+ hours by road' : n >= 3 ? '3 to 9 hours' : 'under 3 hours') + (side === 'home' ? ' (travel is always counted for the away team)' : '')); }
+    else if (/\b(?:long (?:trip|journey|travel|road trip)|travell?ed (?:overnight|all night)|overnight (?:trip|journey|bus)|bad roads)\b/.test(t)) say('travel', 'long', 'Away trip: 10+ hours by road');
+    else if (/\b(?:flew|flight|flying)\b/.test(t)) say('travel', 'mid', 'Away trip: a flight, counted as 3 to 9 hours');
+    else if (/\b(?:short trip|short journey|local derby|same city|nearby|close by|stayed at home)\b/.test(t)) say('travel', 'short', 'Away trip: under 3 hours');
+    // ----- club money
+    if (/\b(?:unpaid|not (?:been )?paid|owed|arrears|salary (?:delay|dispute|row)|wages?|bonus(?:es)? (?:dispute|unpaid|owed|row)|strike|boycott|protest(?:ing)?|unrest|(?:haven't|have not|hasn't|has not) been paid|unhappy about money)\b/.test(t) && !/\b(?:have been paid|were paid|paid on time|paid up|salaries (?:are )?up to date)\b/.test(t)){
+      if (side === 'home' || side === 'away') say('welfare', side, 'Club money problems: ' + nameOf(side));
+      else unused.push([raw, 'I saw a pay problem, but could not tell which team. Write the team name.']);
+    } else if (/\b(?:have been paid|were paid|paid on time|paid up|salaries (?:are )?up to date|bonuses paid)\b/.test(t) && (side === 'home' || side === 'away')) say('welfare', 'none:' + side, 'Pay is fine: ' + nameOf(side));
+    // ----- tiredness and calendar
+    if (new RegExp('\\b(?:' + EUR + ')\\b').test(t)){
+      const past = /\b(?:played|came back|returned|travell?ed back|got back|just back|just returned|tired legs|last (?:week|night))\b/.test(t);
+      const fut = /\b(?:plays?|will play|face|facing|next|upcoming|ahead|big (?:game|match|tie)|this week|in (?:two|three|four|\d) days|before this|on (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b/.test(t);
+      if (past) say('midweek', true, 'A team just came back from a midweek European or away trip');
+      else if (fut && (side === 'home' || side === 'away')) say('contAhead', true, 'Big European game within 4 days: ' + nameOf(side), {fav: side});
+      else say('midweek', true, 'A midweek European or away trip');
+    }
+    if (/\b(?:national team|super eagles|chan|afcon|international (?:duty|break|call)|called up|call[- ]?ups?|u-?(?:17|20|23)|youth team|olympic team|nations league|world cup qualif\w*)\b/.test(t) && !hasNeg(t, 'national team|super eagles|international')) say('natDuty', true, 'Players away with the national team');
+    // ----- how the teams play
+    if (/\b(?:physical|rough|strong and rough|long ball|route one|aggressive|wins duels|dominates duels|big and strong|strong in the air)\b/.test(t)){
+      if (side === 'home') say('physical', true, 'Home team is strong and rough'); else unused.push([raw, 'The checklist only has "home team is strong and rough". Say it about the home team, or leave it.']);
+    }
+    if (/\b(?:draw (?:is )?(?:enough|suits|good enough|fine|would do|will do)|(?:one|a) point (?:is )?(?:enough|will do|would do)|needs? (?:just )?(?:a )?(?:point|draw)|both (?:teams )?(?:need|want) (?:a )?(?:point|draw)|nothing to play for|dead rubber|already (?:safe|relegated|crowned|champions|qualified))\b/.test(t)) say('stakes', 'draw', 'A draw suits both teams');
+    if (/\b(?:park(?:s|ed)? the bus|defend(?:s|ing)? deep|deep block|low block|sit(?:s)? deep|packed defen[cs]e|will defend|counter[- ]?attack\w*)\b/.test(t)) say('style', 'press_block', 'Style: strong team attacks, other team defends deep');
+    else if (/\b(?:open game|end[- ]to[- ]end|both teams (?:attack|like to attack|go forward|play attacking)|attacking football|high line|wide open|goal ?fest|no one defends)\b/.test(t)) say('style', 'open', 'Style: both teams attack, lots of space');
+    else if (/\b(?:cagey|tight game|balanced|even game|evenly matched)\b/.test(t)) say('style', 'balanced', 'Style: normal');
+    if (/\b(?:favou?rites?|expected to win|clearly better|much stronger|better team|stronger side)\b/.test(t) && !hasNeg(t, 'favou?rites?')){
+      if (side === 'home' || side === 'away') say('fav', side, 'Favourite: ' + nameOf(side));
+      else unused.push([raw, 'I saw "favourite" but could not tell which team.']);
+    } else if (/\bunderdogs?\b/.test(t) && (side === 'home' || side === 'away')) say('fav', side === 'home' ? 'away' : 'home', 'Favourite: ' + nameOf(side === 'home' ? 'away' : 'home') + ' (the other team are underdogs)');
+    // ----- injuries and lineups (team needed)
+    const clean = t.replace(/\bout of (?:form|contract|position|shape)\b|\bout wide\b|\bout-of-form\b/g, ' ');
+    const injHit = new RegExp('\\b(?:' + INJ + ')\\b').test(clean), retHit = new RegExp('\\b(?:' + RET + ')\\b').test(clean);
+    const posHit = {};
+    Object.keys(POS).forEach(p => { if (new RegExp('\\b(?:' + POS[p] + ')\\b').test(clean)) posHit[p] = true; });
+    if (posHit.gk && /\b(?:backup|reserve|second[- ]choice|third[- ]choice|youth)\b/.test(clean)) delete posHit.gk;
+    const posKeys = Object.keys(posHit);
+    if (side === 'home' || side === 'away'){
+      if (/\b(?:full strength|no injur(?:y|ies)|no (?:fresh )?(?:injury|absentee)s?|all fit|fully fit|no injury worries|no injury concerns)\b/.test(clean)){
+        NEWS.forEach(n => say('news.' + side + '.' + n[0], false, 'No injuries: ' + nameOf(side)));
+      } else if (posKeys.length && (injHit || retHit)){
+        const ret = retHit && !/\b(?:ruled out|is out|are out|out injured|misses|missing|sidelined|suspended|doubtful|unavailable|banned|out for|will be out)\b/.test(clean);
+        posKeys.forEach(p => {
+          if (p === 'df'){
+            const two = /\b(?:two|three|four|both|2|3|4|several|many|multiple|defensive crisis|defen[cs]e (?:crisis|in tatters|depleted))\b/.test(clean) || /\b(?:defenders|centre[- ]?backs|center[- ]?backs|full[- ]?backs)\b/.test(clean) && !/\b(?:one|a|the|their|first[- ]choice|key|main)\s+(?:\w+\s+){0,2}(?:defender|centre[- ]?back|center[- ]?back|full[- ]?back)\b/.test(clean);
+            if (ret){ say('news.' + side + '.df1', false, 'Defender back: ' + nameOf(side)); say('news.' + side + '.df2', false, 'Defenders back: ' + nameOf(side)); }
+            else if (two){ say('news.' + side + '.df2', true, nameOf(side) + ': ' + POSNAME.df2); say('news.' + side + '.df1', false, null); }
+            else { say('news.' + side + '.df1', true, nameOf(side) + ': ' + POSNAME.df1); }
+          } else say('news.' + side + '.' + p, !ret, ret ? 'Back in the team: ' + nameOf(side) + ' (' + POSNAME[p].replace(' out', '') + ')' : nameOf(side) + ': ' + POSNAME[p]);
+        });
+      } else if (!posKeys.length && injHit && /\b(?:players?|squad|regulars?|first[- ]team(?:ers)?|stars?)\b/.test(clean) && /\b(?:injur\w*|out|missing|ruled out|sidelined|suspended|unavailable)\b/.test(clean)) unused.push([raw, 'Players are out, but I need the position: striker, winger, playmaker, goalkeeper, defender or defensive midfielder.']);
+    } else if (posKeys.length && injHit) unused.push([raw, 'I saw an injury but could not tell which team. Write the team name.']);
+    if (fx.length === before && !unused.some(u => u[0] === raw)) unused.push([raw, null]);
+  });
+  return {fx, unused};
+}
+function noteGet(k){ const p = k.split('.'); return p.length === 3 ? !!(S.news[p[1]] || {})[p[2]] : S[k]; }
+function noteSet(k, v){ const p = k.split('.'); if (p.length === 3){ if (!S.news[p[1]]) S.news[p[1]] = {}; S.news[p[1]][p[2]] = v; } else S[k] = v; }
+function noteRevert(){
+  if (S.noteBase) Object.keys(S.noteBase).forEach(k => noteSet(k, S.noteBase[k]));
+  S.noteBase = null;
+}
+function applyFindings(){
+  const text = $('findTxt').value; S.notes = text;
+  noteRevert();
+  const out = $('findOut');
+  if (!text.trim()){ finishNotes(); out.innerHTML = '<div class="fo"><h3>Nothing to read</h3><p class="hint">Type what you found about the match first.</p></div>'; return; }
+  const R = readNotes(text, T(FX.home).name, T(FX.away).name), base = {}, done = [], skipped = [];
+  // 1) simple facts and the favourite first, because "big game ahead" depends on who is the favourite
+  const order = R.fx.slice().sort((a, b) => (a.k === 'fav' ? 0 : 1) - (b.k === 'fav' ? 0 : 1));
+  order.forEach(e => {
+    let k = e.k, v = e.v;
+    if (k === 'welfare' && typeof v === 'string' && v.indexOf('none:') === 0){ const sd = v.slice(5); if (S.welfare !== sd) return; v = 'none'; }
+    if (k === 'contAhead'){ const fv = S.fav; if (fv !== e.fav){ skipped.push([e.from, fv === 'none' ? 'Big European game noted, but no clear favourite. The checklist only counts it when the favourite has the game.' : 'Big European game noted, but this app only counts it for the favourite.']); return; } }
+    if (!(k in base)) base[k] = noteGet(k);
+    noteSet(k, v);
+    if (e.txt) done.push([e.txt, e.from]);
+  });
+  S.noteBase = base;
+  finishNotes();
+  const li = (a, b) => '<li>' + esc(a) + '<br><small>from: "' + esc(b) + '"</small></li>';
+  const seen = {}, uniq = done.filter(d => { if (seen[d[0]]) return false; seen[d[0]] = 1; return true; });
+  const bad = R.unused.concat(skipped);
+  let h = '<div class="fo' + (uniq.length ? ' ok' : '') + '"><h3>' + (uniq.length ? 'What I understood (' + uniq.length + ')' : 'I could not use any of it') + '</h3>' + (uniq.length ? '<ul>' + uniq.map(d => li(d[0], d[1])).join('') + '</ul><p class="hint">These are now ticked in the checklist and team news. You can change any tick yourself.</p>' : '<p class="hint">Try shorter sentences with the team name, like "Kano Pillars striker is injured".</p>') + '</div>';
+  if (bad.length) h += '<div class="fo"><h3>What I could not use (' + bad.length + ')</h3><ul>' + bad.slice(0, 8).map(u => '<li>' + esc(u[0]) + '<br><small>' + esc(u[1] || 'I did not find a fact the checklist can use.') + '</small></li>').join('') + '</ul></div>';
+  h += '<p class="hint">This reads key words. It is not AI and it can miss things or read them wrong. Always look at the ticks.</p>';
+  out.innerHTML = h;
+}
+function finishNotes(){
+  applyNews(); syncForm(); persist(); renderAll();
+}
+$('findGo').addEventListener('click', applyFindings);
+$('findClear').addEventListener('click', () => { $('findTxt').value = ''; applyFindings(); $('findOut').innerHTML = ''; });
+$('findTxt').addEventListener('input', () => { if (!S) return; S.notes = $('findTxt').value; persist(); });
+
+$('picksBody').addEventListener('input', e => {
+  const id = e.target.dataset && e.target.dataset.oddsfor; if (!id || !TK.e[id]) return;
+  TK.e[id].odds = e.target.value.replace(',', '.'); tkWrite(TK);
 });
 
 /* ---------- events ---------- */
@@ -1359,6 +1724,7 @@ fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new
   if (!first){ $('board').innerHTML = '<div class="loading">No matches in the data file yet.</div>'; return; }
   selectFixture(first.id, false);
   renderPicks();
+  loadResults(true);
 }).catch(err => {
   $('stamp').textContent = 'Could not load the match data.';
   $('board').innerHTML = '<div class="loading">The data file did not load (' + esc(err.message) + '). If this is a new setup, open GitHub, click Actions, and run "Daily update" once.</div>';

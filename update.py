@@ -428,8 +428,9 @@ def build_league(code):
         if m['ref'] and k is not None:
             refs.setdefault(m['ref'], []).append(k)
     refstats = {r: {'n': len(v), 'avg': sum(v) / len(v)} for r, v in refs.items()}
+    recent = [m for m in cur if m['d'] >= NOW - timedelta(days=21)]
     return {'code': code, 'lg': lg, 'profiles': profiles, 'table': table, 'refs': refstats, 'names': names,
-            'cur_n': len(cur)}
+            'cur_n': len(cur), 'recent': recent}
 
 
 def team_entry(code, name, B):
@@ -725,6 +726,96 @@ def npfl_update(key):
 
 
 # ---------------------------------------------------------------- main
+# ---------------------------------------------------------------- results (for the track record page)
+def espn_results(slug, back=3):
+    """Finished matches of the last few days from the keyless ESPN scoreboard (goals only)."""
+    d0 = (NOW - timedelta(days=back)).strftime('%Y%m%d')
+    d1 = NOW.strftime('%Y%m%d')
+    url = 'https://site.api.espn.com/apis/site/v2/sports/soccer/%s/scoreboard?%s' % (slug, urlencode({'dates': '%s-%s' % (d0, d1), 'limit': 300}))
+    j = json.loads(fetch(url))
+    out = []
+    for ev in j.get('events', []):
+        comp = (ev.get('competitions') or [{}])[0]
+        cs = comp.get('competitors') or []
+        home = next((c for c in cs if c.get('homeAway') == 'home'), None)
+        away = next((c for c in cs if c.get('homeAway') == 'away'), None)
+        if not home or not away:
+            continue
+        if ((ev.get('status') or {}).get('type') or {}).get('state') != 'post':
+            continue
+        try:
+            hg, ag = int(home.get('score')), int(away.get('score'))
+        except (TypeError, ValueError):
+            continue
+        ko = datetime.fromisoformat(ev['date'].replace('Z', '+00:00'))
+        if ko.tzinfo is None:
+            ko = ko.replace(tzinfo=timezone.utc)
+        out.append({'id': str(ev['id']), 'ko': ko.astimezone(timezone.utc), 'h': home.get('team') or {}, 'a': away.get('team') or {}, 'hg': hg, 'ag': ag})
+    return out
+
+
+def build_results(built, prev_results):
+    """Finished matches from the last 45 days: football-data.co.uk (full stats) plus ESPN (goals, faster)."""
+    res = {}
+
+    def rk(h, a, ko):
+        return '%s|%s|%s' % (h, a, ko.strftime('%Y%m%d'))
+
+    for code, B in built.items():
+        for m in B.get('recent', []):
+            k = rk('%s:%s' % (code, m['h']), '%s:%s' % (code, m['a']), m['d'])
+            tc = total_cards(m)
+            res[k] = {'id': '%s-%s-%s-%s' % (code, m['d'].strftime('%Y%m%d'), norm(m['h']).replace(' ', ''), norm(m['a']).replace(' ', '')),
+                      'league': code, 'ko': m['d'].strftime('%Y-%m-%dT%H:%M:00Z'), 'home': '%s:%s' % (code, m['h']), 'away': '%s:%s' % (code, m['a']),
+                      'hg': m['hg'], 'ag': m['ag'], 'hhg': m['hhg'], 'hag': m['hag'], 'hc': m['hc'], 'ac': m['ac'], 'cards': tc}
+    all_names = {c: B['names'] for c, B in built.items()}
+    for code, slug in ESPN.items():
+        if code not in built:
+            continue
+        try:
+            for ev in espn_results(slug):
+                h, a = espn_name(ev['h'], all_names[code]), espn_name(ev['a'], all_names[code])
+                if not h or not a:
+                    continue
+                k = rk('%s:%s' % (code, h), '%s:%s' % (code, a), ev['ko'])
+                if k not in res:
+                    res[k] = {'id': '%s-%s-%s-%s' % (code, ev['ko'].strftime('%Y%m%d'), norm(h).replace(' ', ''), norm(a).replace(' ', '')),
+                              'league': code, 'ko': ev['ko'].strftime('%Y-%m-%dT%H:%M:00Z'), 'home': '%s:%s' % (code, h), 'away': '%s:%s' % (code, a),
+                              'hg': ev['hg'], 'ag': ev['ag'], 'hhg': None, 'hag': None, 'hc': None, 'ac': None, 'cards': None}
+        except Exception as e:
+            NOTES.append('ESPN results %s: %s' % (slug, e))
+
+    def key_for(team):
+        for c, names in all_names.items():
+            m = espn_name(team, names)
+            if m:
+                return '%s:%s' % (c, m)
+        return 'X:' + (team.get('displayName') or team.get('name') or '?')
+    try:
+        for ev in espn_results(ESPN_CL):
+            h, a = key_for(ev['h']), key_for(ev['a'])
+            k = rk(h, a, ev['ko'])
+            res[k] = {'id': 'CL-%s-%s' % (ev['ko'].strftime('%Y%m%d'), norm(ev['h'].get('displayName') or '?').replace(' ', '')),
+                      'league': 'CL', 'ko': ev['ko'].strftime('%Y-%m-%dT%H:%M:00Z'), 'home': h, 'away': a, 'hg': ev['hg'], 'ag': ev['ag'],
+                      'hhg': None, 'hag': None, 'hc': None, 'ac': None, 'cards': None}
+    except Exception as e:
+        NOTES.append('ESPN results CL: %s' % e)
+    try:
+        for ev in espn_results(ESPN_NPFL, back=5):
+            h, a = 'NPFL:' + (ev['h'].get('displayName') or '?'), 'NPFL:' + (ev['a'].get('displayName') or '?')
+            res[rk(h, a, ev['ko'])] = {'id': 'NPFL-%s' % ev['id'], 'league': 'NPFL', 'ko': ev['ko'].strftime('%Y-%m-%dT%H:%M:00Z'), 'home': h, 'away': a,
+                                       'hg': ev['hg'], 'ag': ev['ag'], 'hhg': None, 'hag': None, 'hc': None, 'ac': None, 'cards': None}
+    except Exception as e:
+        NOTES.append('ESPN results NPFL: %s' % e)
+    # keep older results from the previous file so slow-to-settle picks can still be settled
+    cutoff = (NOW - timedelta(days=45)).strftime('%Y-%m-%dT%H:%M:00Z')
+    for r in prev_results:
+        k = '%s|%s|%s' % (r.get('home'), r.get('away'), (r.get('ko') or '')[:10].replace('-', ''))
+        if k not in res and (r.get('ko') or '') >= cutoff:
+            res[k] = r
+    return sorted(res.values(), key=lambda r: r['ko'])
+
+
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     out_path = os.path.join(DATA_DIR, 'fixtures.json')
@@ -828,6 +919,28 @@ def main():
            'leagues': leagues, 'teams': teams, 'fixtures': fixtures}
     with open(out_path, 'w') as f:
         json.dump(out, f, separators=(',', ':'))
+    # results for the track record page (never allowed to break the main update)
+    try:
+        rpath = os.path.join(DATA_DIR, 'results.json')
+        prev_res = []
+        if os.path.exists(rpath):
+            try:
+                with open(rpath) as f:
+                    prev_res = json.load(f).get('results', [])
+            except Exception:
+                prev_res = []
+        results = build_results(built, prev_res)
+        with open(rpath, 'w') as f:
+            json.dump({'asOf': NOW.strftime('%Y-%m-%dT%H:%M:00Z'), 'results': results}, f, separators=(',', ':'))
+        STATUS['results (track record)'] = 'ok: %d finished matches' % len(results)
+        out['status'] = STATUS
+        with open(out_path, 'w') as f:
+            json.dump(out, f, separators=(',', ':'))
+    except Exception as e:
+        STATUS['results (track record)'] = 'FAILED: %s' % e
+        out['status'] = STATUS
+        with open(out_path, 'w') as f:
+            json.dump(out, f, separators=(',', ':'))
     log('Wrote %s: %d fixtures, %d teams' % (out_path, len(fixtures), len(teams)))
     for k_, v in STATUS.items():
         log(' ', k_, '->', v)
