@@ -480,12 +480,43 @@ ESPN_CL = 'uefa.champions'
 ESPN_NPFL = 'nga.1'
 
 
+ESPN_BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer/%s/scoreboard'
+ESPN_FORM = [0]   # which URL form worked last, so a form that ESPN refuses is not retried for every league
+
+
+def espn_board(slug, d0, d1):
+    """ESPN scoreboard events for a date range. Tries three URL forms, because ESPN answers some of them with an error."""
+    base = ESPN_BASE % slug
+    rng = '%s-%s' % (d0, d1)
+    forms = [lambda: [base + '?' + urlencode({'dates': rng, 'limit': 300})],
+             lambda: [base + '?' + urlencode({'dates': rng})]]
+    span = (datetime.strptime(d1, '%Y%m%d') - datetime.strptime(d0, '%Y%m%d')).days
+    if span <= 14:
+        forms.append(lambda: [base + '?' + urlencode({'dates': (datetime.strptime(d0, '%Y%m%d') + timedelta(days=k)).strftime('%Y%m%d')}) for k in range(span + 1)])
+    order = list(range(len(forms)))
+    if ESPN_FORM[0] in order:
+        order.remove(ESPN_FORM[0]); order.insert(0, ESPN_FORM[0])
+    last = None
+    for fi in order:
+        try:
+            events, seen = [], set()
+            for url in forms[fi]():
+                j = json.loads(fetch(url, tries=2 if fi == order[0] else 1))
+                for ev in j.get('events', []):
+                    if ev.get('id') not in seen:
+                        seen.add(ev.get('id')); events.append(ev)
+            ESPN_FORM[0] = fi
+            return {'events': events}
+        except Exception as e:
+            last = e
+    raise last
+
+
 def espn_events(slug, days=9):
     """Keyless ESPN scoreboard: upcoming and live matches for one competition."""
     d0 = NOW.strftime('%Y%m%d')
     d1 = (NOW + timedelta(days=days)).strftime('%Y%m%d')
-    url = 'https://site.api.espn.com/apis/site/v2/sports/soccer/%s/scoreboard?%s' % (slug, urlencode({'dates': '%s-%s' % (d0, d1), 'limit': 300}))
-    j = json.loads(fetch(url))
+    j = espn_board(slug, d0, d1)
     out = []
     for ev in j.get('events', []):
         comp = (ev.get('competitions') or [{}])[0]
@@ -746,8 +777,7 @@ def espn_results(slug, back=3, upto=0):
     """Finished matches of the last few days from the keyless ESPN scoreboard (goals only)."""
     d0 = (NOW - timedelta(days=back)).strftime('%Y%m%d')
     d1 = (NOW - timedelta(days=upto)).strftime('%Y%m%d')
-    url = 'https://site.api.espn.com/apis/site/v2/sports/soccer/%s/scoreboard?%s' % (slug, urlencode({'dates': '%s-%s' % (d0, d1), 'limit': 300}))
-    j = json.loads(fetch(url))
+    j = espn_board(slug, d0, d1)
     out = []
     for ev in j.get('events', []):
         comp = (ev.get('competitions') or [{}])[0]
