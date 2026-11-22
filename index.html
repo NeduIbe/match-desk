@@ -341,6 +341,14 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
 .pk-a button:disabled{opacity:.45;cursor:not-allowed}
 #trackPane,#pickPane{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
 #trackPane[hidden],#pickPane[hidden]{display:none}
+#newsSug:empty,#newsInj:empty{display:none}
+
+#newsUsual:empty{display:none}
+#newsSug{display:grid;gap:14px}
+.inj.plain{list-style:disc;padding-left:20px;display:grid;gap:6px}
+.inj.plain li{display:list-item}
+.inj li.outp{color:var(--bad)}
+.inj li .mono{color:var(--muted);font-size:13px}
 </style></head><body>
 <div class="wrap">
   <header class="head paper">
@@ -359,6 +367,7 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
       <span class="seg" role="group" aria-label="Choose a view"><button type="button" id="tabPicks" aria-pressed="true">Today's picks</button><button type="button" id="tabTrack" aria-pressed="false">Track record</button></span></h2>
     <div id="pickPane">
       <p class="hint">These are the bets your guide's signals point to. Next to each bet is the <b>lowest odds worth taking</b>. Open your bookmaker, look at the price, then come back and tap. If the bookmaker pays less than the number shown, skip it. Every pick you see here is saved in the Track record before kick-off, so you can see later if the picks really paid.</p>
+      <p class="hint" id="pickNext" aria-live="polite"></p>
       <div class="chips" id="pickDays" role="group" aria-label="Pick a day"></div>
       <div id="slip"></div>
       <div id="picksBody"></div>
@@ -403,6 +412,8 @@ dl.gloss dd{margin:2px 0 0;font-size:14.5px;color:var(--muted)}
         <p class="hint" id="newsHint"></p>
         <div id="newsInfo"></div>
         <div class="twocol" id="newsBody"></div>
+        <div id="newsSug"></div>
+        <div id="newsUsual"></div>
         <div id="newsInj"></div>
       </section>
 
@@ -759,7 +770,7 @@ const GROUPS = [
       {key:'midweek', label:'A team just came back from a midweek European or away trip'}]}]},
   {id:'env', title:'Pitch and weather', fields:[
     {t:'seg', key:'pitch', label:'Pitch', opts:[['unknown','Not known'],['smooth','Smooth, good grass'],['worn','Worn artificial'],['bumpy','Bumpy grass']]},
-    {t:'seg', key:'weather', label:'Weather at kick-off', opts:[['clear','Clear or mild'],['rain','Heavy rain'],['heat','Very hot and humid']], hint:'Afternoon games (3 or 4 PM) in Lagos, Port Harcourt or Uyo are the hot case.'},
+    {t:'seg', key:'weather', label:'Weather at kick-off', opts:[['clear','Clear or mild'],['rain','Heavy rain'],['heat','Very hot and humid']], hint:'Filled in from the forecast for the stadium city when we have it. Afternoon games (3 or 4 PM) in Lagos, Port Harcourt or Uyo are the hot case.'},
     {t:'checks', items:[{key:'wind', label:'Strong wind'}]}]},
   {id:'npfl', only:'npfl', title:'NPFL only: travel and club money', fields:[
     {t:'seg', key:'travel', label:'Away team travel', opts:[['short','Under 3 hours'],['mid','3 to 9 hours'],['long','10+ hours by road']]},
@@ -815,6 +826,13 @@ function autoSetup(fx){
     s.contAhead = (s.fav === 'home' && !!fx.ahead.home) || (s.fav === 'away' && !!fx.ahead.away);
     prov.push(['Champions League soon', who.join(' and ') + ' play in the Champions League within 4 days' + (s.contAhead ? '. The favourite may rest players.' : '.'), 'data']);
   }
+  if (fx.wx){
+    const w = fx.wx;
+    s.weather = (w.rain >= 1 || (w.pp >= 70 && w.rain >= 0.5)) ? 'rain' : (w.t >= 31 || (w.t >= 29 && w.h >= 65)) ? 'heat' : 'clear';
+    s.wind = (w.gust || 0) >= 45;
+    const bits = [Math.round(w.t) + ' C' + (w.h != null ? ', ' + w.h + '% humidity' : ''), (w.rain > 0 ? w.rain + ' mm of rain' : 'no rain') + (w.pp != null ? ' (' + w.pp + '% chance)' : ''), w.gust != null ? 'wind gusts ' + w.gust + ' km/h' : ''].filter(Boolean);
+    prov.push(['Weather forecast', bits.join(', ') + ' during the game' + (fx.geo ? ' in ' + fx.geo[2] : '') + '. Free forecast from Open-Meteo, checked ' + fmtDay.format(new Date(w.at)) + ' ' + fmtTime.format(new Date(w.at)) + ' WAT. Forecasts can be wrong.', 'data']);
+  }
   const m = fx.model;
   if (m){
     s.gpg = m.exp_total; s.gpgLg = avg.g_team ? avg.g_team * 2 : null;
@@ -831,6 +849,13 @@ function autoSetup(fx){
   }
   return {s, prov};
 }
+function mergeSaved(a, sv){
+  if (!sv){ a.autoWx = {weather: a.weather, wind: a.wind}; return a; }
+  const s = Object.assign({}, a, sv), prev = sv.autoWx || {};
+  ['weather', 'wind'].forEach(k => { if (prev[k] !== undefined && sv[k] === prev[k]) s[k] = a[k]; });   // not changed by the person: follow the newest forecast
+  s.autoWx = {weather: a.weather, wind: a.wind};
+  return s;
+}
 function persist(){
   if (!FX) return;
   const all = lsRead(); all[FX.id] = {s:S, odds:ODDS}; all._cmp = CMP;
@@ -842,14 +867,14 @@ function selectFixture(id, scroll){
   FX = DATA.fixtures.find(f => f.id === id) || DATA.fixtures[0];
   const auto = autoSetup(FX); PROV = auto.prov;
   const saved = lsRead()[FX.id];
-  S = saved && saved.s ? Object.assign({}, auto.s, saved.s) : auto.s;
+  S = mergeSaved(auto.s, saved && saved.s);
   if (!S.news) S.news = {home:{}, away:{}};
   ['gpg','gpgLg','corn','cornLg','cardsExp','cardsLg','comp'].forEach(k => { S[k] = auto.s[k]; });
-  if (newsOn()){ const mn = modelNow(); if (mn) S.gpg = mn.exp_total; }
+  if (hasWho(S)){ const mn = modelNow(); if (mn) S.gpg = mn.exp_total; }
   ODDS = saved && saved.odds ? saved.odds : {};
   LIVE = null; liveManual = false;
   $('desk').hidden = false;
-  renderBoard(); syncForm(); renderAll(); startLive();
+  renderBoard(); syncForm(); renderAll(); startLive(); refreshWx();
   $('findTxt').value = S.notes || ''; $('findOut').innerHTML = '';
   try { const all = lsRead(); all._last = FX.id; lsWrite(all); } catch (e) {}
   const mh = $('mhCard'); mh.classList.remove('stamp-on'); void mh.offsetWidth; mh.classList.add('stamp-on');
@@ -881,19 +906,19 @@ function renderBoard(){
 }
 
 
-/* ---------- team news: rough changes to our numbers ---------- */
-const NEWS = [['st','Main striker out'],['cr','Key winger or playmaker out'],['gk','First-choice goalkeeper out'],['df1','One key defender out'],['df2','Two or more defenders out'],['dm','Key defensive midfielder out']];
-function newsFactors(n){
+/* ---------- team news: numbers change only from each player's with-and-without record ---------- */
+const NEWS = [['st','Main striker out'],['cr','Key winger or playmaker out'],['gk','First-choice goalkeeper out'],['df1','One key defender out'],['df2','Two or more defenders out'],['dm','Key defensive midfielder out'],['cm','Key central midfielder out']];
+function newsFactors(n){   // only players with a with-and-without record change the numbers
   n = n || {}; let att = 1, def = 1;
-  if (n.st) att *= 0.90; if (n.cr) att *= 0.95; if (n.dm){ def *= 1.05; att *= 0.98; }
-  if (n.gk) def *= 1.10; if (n.df2) def *= 1.10; else if (n.df1) def *= 1.04;
-  return {att: Math.max(att, 0.8), def: Math.min(def, 1.25)};
+  Object.keys(n.who || {}).forEach(k => { const w = n.who[k]; if (w && w.att > 0) att *= w.att; if (w && w.def > 0) def *= w.def; });
+  return {att: Math.min(1.6, Math.max(0.5, att)), def: Math.min(1.6, Math.max(0.6, def))};
 }
-function newsOnFor(s){ return !!(s && s.news && ['home','away'].some(sd => Object.keys(s.news[sd] || {}).some(k => s.news[sd][k]))); }
+function hasWho(s){ return !!(s && s.news && ['home','away'].some(sd => Object.keys((s.news[sd] || {}).who || {}).length)); }
+function newsOnFor(s){ return !!(s && s.news && ['home','away'].some(sd => NEWS.some(x => (s.news[sd] || {})[x[0]]))); }
 function newsOn(){ return newsOnFor(S); }
 function modelFor(fx, s){
   const m = fx && fx.model; if (!m) return null;
-  if (!newsOnFor(s)) return m;
+  if (!hasWho(s)) return m;
   const h = newsFactors(s.news.home), a = newsFactors(s.news.away);
   const lam = [m.lam[0] * h.att * a.def, m.lam[1] * a.att * h.def];
   const ph = poisPmf(lam[0], 12), pa = poisPmf(lam[1], 12), tot = conv(ph, pa);
@@ -1159,7 +1184,7 @@ function renderContext(){
   } else if (m) g = 'Chance of home / draw / away from our numbers: <b>' + pc(m.p1x2[0]) + ' / ' + pc(m.p1x2[1]) + ' / ' + pc(m.p1x2[2]) + '</b>. No bookmaker odds for this match yet.';
   else if (FX.league === 'CL') g = 'No numbers for Champions League matches. The two teams come from different leagues, so we cannot compare them.';
   else if (FX.league === 'NPFL') g = 'No numbers for NPFL matches yet. Add the free API key from the setup guide to get them.';
-  if (m && newsOn()) g += ' Our numbers include the team news you entered.';
+  if (m && hasWho(S)) g += ' Our numbers include the team news you entered.';
   $('gapNote').innerHTML = g;
 }
 function renderProv(){
@@ -1217,7 +1242,7 @@ function renderNewsBody(){
   const H = T(FX.home), A = T(FX.away);
   const side = (sd, name) => '<div class="tcard"><div class="tn">' + esc(name) + '<span>' + sd + '</span></div><div class="checks">' + NEWS.map(n => '<label class="chk"><input type="checkbox" data-side="' + sd + '" data-k="' + n[0] + '"' + (S.news[sd][n[0]] ? ' checked' : '') + '><span class="box" aria-hidden="true"></span><span class="chk-t">' + n[1] + '</span></label>').join('') + '</div></div>';
   $('newsBody').innerHTML = side('home', H.name) + side('away', A.name);
-  $('newsHint').innerHTML = 'Tick what applies. We change our numbers a little for each missing player group. Bookmakers already know the news, so their odds usually move first. These changes are rough guesses (about 5 to 12% per group), not measured facts.';
+  $('newsHint').innerHTML = 'Our numbers change only from a player\'s own record: how the team did in games he started and in games he did not. Use "Tick it" under a player below, or type his name in the notes box. Ticking a box by hand only marks the news, and the numbers stay the same. Bookmakers already know the news, so their odds usually move first.';
   renderNewsInfo();
 }
 function renderNewsInfo(){
@@ -1225,20 +1250,217 @@ function renderNewsInfo(){
   const lineup = LIVE && LIVE.lineups && LIVE.lineups.some(x => x.players.length);
   $('newsSub').textContent = lineup ? '(lineups are in)' : '(lineups usually come about 1 hour before kick-off)';
   let info = '<p class="gap">' + (lineup ? '<b>Lineups are in.</b> Look at both starting teams in "Live now". Is a regular starter missing? Tick it here.' : '<b>No lineup yet.</b> Check the club\'s social media and the news for injuries, then tick here. Lineups show in "Live now" about 1 hour before kick-off.') + '</p>';
-  if (newsOn() && m && mn){
+  if (hasWho(S) && m && mn){
     info += '<p class="gap"><b>What changed:</b> goals we expect: ' + esc(H.name) + ' ' + f2(m.lam[0]) + ' to ' + f2(mn.lam[0]) + ', ' + esc(A.name) + ' ' + f2(m.lam[1]) + ' to ' + f2(mn.lam[1]) + '. Chance of a home win: ' + pc(m.p1x2[0]) + '% to ' + pc(mn.p1x2[0]) + '%. The Odds checker now uses the new numbers.</p>';
-  } else if (newsOn()) info += '<p class="gap">Saved. There are no numbers for this match, but the checklist below uses your news.</p>';
+  } else if (newsOn()) info += '<p class="gap">Marked only. Our numbers change only for a named player we have a with-and-without record for. Use the "Tick it" buttons below or type the player\'s name in the notes box.</p>';
   $('newsInfo').innerHTML = info;
-  const inj = (LIVE && LIVE.injuries) || [];
+  const inj = injList();
+  renderAdvice();
   if (inj.length){
     const grp = sd => inj.filter(x => x.side === sd).map(x => '<li><b>' + esc(x.name) + '</b>' + (x.pos ? ' (' + esc(x.pos) + ')' : '') + (x.status ? ': ' + esc(x.status) : '') + '</li>').join('');
     const un = inj.filter(x => x.side !== 'home' && x.side !== 'away').map(x => '<li><b>' + esc(x.name) + '</b>' + (x.pos ? ' (' + esc(x.pos) + ')' : '') + (x.status ? ': ' + esc(x.status) : '') + '</li>').join('');
-    $('newsInj').innerHTML = '<div class="tcard"><div class="tn">Injury list from ESPN <span>may be incomplete</span></div><ul class="inj">' + (grp('home') ? '<li><b>' + esc(H.name) + '</b></li>' + grp('home') : '') + (grp('away') ? '<li><b>' + esc(A.name) + '</b></li>' + grp('away') : '') + un + '</ul></div>';
+    $('newsInj').innerHTML = '<div class="tcard"><div class="tn">Injury list from ESPN <span>may be incomplete' + (!(LIVE && LIVE.injuries && LIVE.injuries.length) && FX.injAt ? ', checked ' + fmtDay.format(new Date(FX.injAt)) + ' ' + fmtTime.format(new Date(FX.injAt)) + ' WAT' : '') + '</span></div><ul class="inj">' + (grp('home') ? '<li><b>' + esc(H.name) + '</b></li>' + grp('home') : '') + (grp('away') ? '<li><b>' + esc(A.name) + '</b></li>' + grp('away') : '') + un + '</ul></div>';
   } else $('newsInj').innerHTML = FX.espn ? '<p class="hint">ESPN has not given an injury list for this match, or it has not loaded. Check the club news too.</p>' : '';
 }
+
+function injList(){
+  if (LIVE && LIVE.injuries && LIVE.injuries.length) return LIVE.injuries;
+  return ((FX && FX.inj) || []).map(x => ({side: x.s, name: x.n, pos: x.p, status: x.st}));
+}
+const OUTRX = /out|suspend|injur|ruled|not available/i;
+function injTag(f){
+  const n = {home:0, away:0}; ((f && f.inj) || []).forEach(x => { if ((x.s === 'home' || x.s === 'away') && OUTRX.test(x.st || '') && !/doubt|day/i.test(x.st || '')) n[x.s]++; });
+  if (!n.home && !n.away) return '';
+  return ' &middot; news: ' + (n.home ? n.home + ' out at ' + esc(T(f.home).name) : '') + (n.home && n.away ? ', ' : '') + (n.away ? n.away + ' out at ' + esc(T(f.away).name) : '');
+}
+/* fresh forecast when a match is opened (Open-Meteo allows browsers; if it fails we keep the saved forecast) */
+async function refreshWx(){
+  const fx = FX; if (!fx || !fx.geo || !fx.koKnown) return;
+  const ko = new Date(fx.ko).getTime(); if (ko < Date.now() - 3 * 3600e3 || ko > Date.now() + 9 * 864e5) return;
+  try {
+    const ctrl = new AbortController(), to = setTimeout(() => ctrl.abort(), 10000);
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + fx.geo[0] + '&longitude=' + fx.geo[1] + '&timezone=UTC&forecast_days=11&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,wind_gusts_10m', {signal: ctrl.signal});
+    clearTimeout(to); if (!r.ok) return;
+    const H = (await r.json()).hourly; if (FX !== fx || !H) return;
+    const key = new Date(Math.floor(ko / 3600e3) * 3600e3).toISOString().slice(0, 13) + ':00', i = H.time.indexOf(key); if (i < 0) return;
+    const win = []; for (let n = i; n < Math.min(i + 3, H.time.length); n++) win.push(n);
+    const g = k => win.map(n => H[k][n]).filter(v => v != null), mx = a => a.length ? Math.max.apply(null, a) : null;
+    if (!g('temperature_2m').length) return;
+    fx.wx = {t: Math.round(mx(g('temperature_2m')) * 10) / 10, h: mx(g('relative_humidity_2m')), rain: Math.round(g('precipitation').reduce((a, b) => a + b, 0) * 10) / 10, pp: mx(g('precipitation_probability')), gust: Math.round(mx(g('wind_gusts_10m')) || 0), at: new Date().toISOString()};
+    const a = autoSetup(fx); PROV = a.prov; const au = S.autoWx || {};
+    ['weather', 'wind'].forEach(k => { if (S[k] === au[k]) S[k] = a.s[k]; });
+    S.autoWx = {weather: a.s.weather, wind: a.s.wind};
+    syncForm(); persist(); renderAll();
+  } catch (e) {}
+}
+/* ---------- usual teams: who normally starts, and what a missing player costs ---------- */
+let SQ = null, SUGS = [];
+const accent = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+function roleOf(pos){
+  const p = String(pos || '').toUpperCase();
+  if (/^G/.test(p)) return 'gk';
+  if (/^(DM|CDM|HM)/.test(p)) return 'dm';
+  if (/^(CD|CB|LB|RB|SW|LWB|RWB|WB|D)/.test(p)) return 'df';
+  if (/^(CM|MC|MF|M$)/.test(p)) return 'cm';
+  if (/^(AM|CAM|LW|RW|W|LM|RM)/.test(p)) return 'cr';
+  if (/^(F|CF|ST|SS|FW)/.test(p)) return 'st';
+  return '';
+}
+const ROLENAME = {gk:'goalkeeper', df:'defender', dm:'defensive midfielder', cm:'central midfielder', cr:'winger or playmaker', st:'forward'};
+const ROLEKEY = {gk:'gk', dm:'dm', cm:'cm', cr:'cr', st:'st'};
+const ROLEWHY = {
+  st: 'Fewer chances in the box. The team may lean more on wide play and long shots.',
+  cr: 'Less creativity between midfield and attack. Passes may become more direct.',
+  cm: 'Less control in the middle. The game can become more open.',
+  dm: 'Less protection in front of the defence. The team gets stretched, so goals at both ends become more likely.',
+  df: 'The back line has new partners. Mistakes are more likely, mostly against fast attackers.',
+  gk: 'A back-up goalkeeper is usually a little less sure at crosses and shots, so the other team gets a small boost.'
+};
+function teamKeyOf(side){ return FX ? (side === 'home' ? FX.home : FX.away) : null; }
+function sqTeam(key){ return (SQ && SQ.teams && SQ.teams[key]) || null; }
+const sqMeta = () => (SQ && SQ.meta) || {};
+const sqBt = () => sqMeta().bt || null;
+/* row: 0 name, 1 pos, 2 starts, 3 appearances, 4 goals, 5 set-ups, 6 games not started, 7-10 raw goals for/against per game with and without him,
+   11-14 the same adjusted for opponent strength and home or away, 15 attack factor, 16 defence factor, 17 1 = league-wide pattern only */
+function pInfo(key, name){
+  const t = sqTeam(key); if (!t) return null;
+  const nn = accent(name); let r = t.p.find(x => accent(x[0]) === nn);
+  if (!r){ const last = nn.split(' ').pop(); if (last.length >= 4){ const c = t.p.filter(x => accent(x[0]).split(' ').pop() === last); if (c.length === 1) r = c[0]; } }
+  if (!r) return null;
+  const n = t.n;
+  return {name: r[0], pos: r[1], role: roleOf(r[1]), st: r[2], ap: r[3], g: r[4], a: r[5], wo: r[6], rGfW: r[7], rGfO: r[8], rGaW: r[9], rGaO: r[10], aGfW: r[11], aGfO: r[12], aGaW: r[13], aGaO: r[14], att: r[15], def: r[16], src: r[17], n, tg: t.gf, tga: t.ga || 0, regular: n >= 5 && r[2] / n >= 0.6, team: t};
+}
+function dataFactors(i){ return (i && i.att > 0 && i.def > 0) ? {att: i.att, def: i.def, src: i.src, nw: i.st, no: i.wo} : null; }
+const pctTxt = f => (f < 0.995 ? 'down ' + Math.round((1 - f) * 100) + '%' : f > 1.005 ? 'up ' + Math.round((f - 1) * 100) + '%' : 'no change');
+const pctOf = f => Math.round(f * 100) + '%';
+function poolKEff(k){
+  const m = sqMeta(), p = (m.poolK || {})[k >= 3 ? '3' : '2'], bt = sqBt() || {};
+  if (!p || !p.ok) return null;
+  return {att: bt.useAtt === false ? 1 : p.att, def: bt.useDef === false ? 1 : p.def, n: p.n, rawAtt: p.att, rawDef: p.def};
+}
+function btLine(){
+  const b = sqBt(); if (!b || !b.n) return 'Back-test: not enough past games yet, so these numbers are <b>unproven</b>.';
+  const w = v => (v >= 0 ? 'better by ' : 'worse by ') + Math.abs(Math.round(v * 1000) / 10) + '%';
+  let s = 'Back-test on <b>' + b.n + '</b> past games where one regular starter was missing (each game predicted using only earlier games): our attack prediction was ' + w(b.impAtt) + ' and our defence prediction was ' + w(b.impDef) + ', compared with simply using the team average.';
+  if (!b.enough) s += ' That is too few games to be sure.';
+  if (b.enough && !b.useAtt) s += ' The attack part did not help, so it is <b>switched off</b>.';
+  if (b.enough && !b.useDef) s += ' The defence part did not help, so it is <b>switched off</b>.';
+  return s;
+}
+function replacementFor(key, info, outNames){
+  const t = sqTeam(key); if (!t) return null;
+  const c = t.p.filter(r => r[0] !== info.name && roleOf(r[1]) === info.role && outNames.indexOf(r[0]) < 0 && r[3] >= 1 && r[2] < t.n * 0.6).sort((a, b) => b[3] - a[3] || b[4] - a[4])[0];
+  return c ? c[0] + ' (used in ' + c[3] + ' of the last ' + t.n + ' games' + (c[4] ? ', scored ' + c[4] : '') + ')' : null;
+}
+function explainOut(side, info, outNames){
+  const nm = side === 'home' ? T(FX.home).name : T(FX.away).name, L = [], b = sqBt() || {}, pl = (sqMeta().pool1 || {})[info.role];
+  const f2n = v => v == null ? '-' : Number(v).toFixed(2);
+  L.push('<b>' + esc(info.name) + '</b> (' + (ROLENAME[info.role] || 'player') + '): started ' + info.st + ' of the last ' + info.n + ' games' + (info.g || info.a ? ', scored ' + info.g + ' and set up ' + info.a : ', no goals or set-ups') + '.');
+  if (info.wo > 0){
+    L.push('<b>His own record.</b> In the ' + info.st + ' games he started, ' + esc(nm) + ' scored <b>' + f2n(info.rGfW) + '</b> and let in <b>' + f2n(info.rGaW) + '</b> a game. In the ' + info.wo + ' games he did not start: scored <b>' + f2n(info.rGfO) + '</b> and let in <b>' + f2n(info.rGaO) + '</b> a game.');
+    L.push('<b>Fair comparison.</b> We adjust each game for how strong the other team was and for home or away. Then: with him ' + f2n(info.aGfW) + ' scored and ' + f2n(info.aGaW) + ' let in; without him ' + f2n(info.aGfO) + ' scored and ' + f2n(info.aGaO) + ' let in.');
+  } else L.push('<b>His own record.</b> He started all ' + info.n + ' games, so there are no games without him to compare.');
+  if (pl && pl.ok) L.push('<b>All teams.</b> In ' + pl.n + ' games across the leagues where exactly one regular ' + ROLENAME[info.role] + ' was missing, those teams scored ' + pctOf(pl.att) + ' and let in ' + pctOf(pl.def) + ' of their normal amount.');
+  else L.push('<b>All teams.</b> Not enough games yet across the leagues for this kind of player, so we cannot add a league-wide pattern.');
+  L.push('<b>Result.</b> ' + esc(nm) + '\'s goals <b>' + pctTxt(info.att) + '</b> (x' + info.att.toFixed(2) + ') and the other team\'s goals <b>' + pctTxt(info.def) + '</b> (x' + info.def.toFixed(2) + '). ' + (info.src ? 'This uses the all-teams pattern only.' : 'This mixes his own record with the all-teams pattern. The fewer games he missed, the more the all-teams pattern counts.') + (b.enough && (!b.useAtt || !b.useDef) ? ' A part that the back-test switched off shows x1.00.' : ''));
+  const rep = replacementFor(side === 'home' ? FX.home : FX.away, info, outNames);
+  if (rep) L.push('Likely replacement: ' + esc(rep) + '.');
+  L.push(ROLEWHY[info.role] + ' <small>(general football sense, not measured)</small>');
+  return L;
+}
+/* everyone we think is out: ESPN injury list plus regular starters missing from a published lineup */
+function outPlayers(){
+  const out = [], seen = {};
+  const add = (side, name, pos, why) => { const k = side + '|' + accent(name); if (seen[k]) return; seen[k] = 1; out.push({side, name, pos, why}); };
+  injList().forEach(p => { if ((p.side === 'home' || p.side === 'away') && OUTRX.test(p.status || '') && !/doubt|day/i.test(p.status || '')) add(p.side, p.name, p.pos, 'ESPN lists him as ' + (p.status || 'out').toLowerCase()); });
+  const lu = (LIVE && LIVE.lineups) || [];
+  ['home', 'away'].forEach(sd => {
+    const l = lu.find(x => x.side === sd); if (!l || !l.players.some(p => p.starter)) return;
+    const xi = l.players.filter(p => p.starter).map(p => accent(p.name)), bench = l.players.filter(p => !p.starter).map(p => accent(p.name));
+    const t = sqTeam(teamKeyOf(sd)); if (!t) return;
+    t.p.forEach(r => { const i = pInfo(teamKeyOf(sd), r[0]); if (i && i.regular && xi.indexOf(accent(r[0])) < 0) add(sd, r[0], r[1], bench.indexOf(accent(r[0])) >= 0 ? 'he is on the bench, not in the starting team' : 'he is not in the squad list'); });
+  });
+  return out;
+}
+function adviceFor(){
+  const outs = outPlayers(), res = {sug: [], ignored: [], unknown: []};
+  ['home', 'away'].forEach(sd => {
+    const key = teamKeyOf(sd), mine = outs.filter(o => o.side === sd), names = mine.map(o => o.name), groups = {}, regs = [];
+    mine.forEach(o => {
+      const info = pInfo(key, o.name);
+      if (!info){ if (sqTeam(key)) res.ignored.push({side: sd, name: o.name, note: 'not in the usual squad (probably not a regular)'}); else res.unknown.push({side: sd, name: o.name, pos: o.pos, why: o.why}); return; }
+      if (!info.regular){ res.ignored.push({side: sd, name: o.name, note: info.st === 0 ? 'has not started any of the last ' + info.n + ' games, so no change' : 'started only ' + info.st + ' of the last ' + info.n + ' games, so no change'}); return; }
+      (groups[info.role] = groups[info.role] || []).push({o, info}); regs.push({o, info});
+    });
+    const flagOf = (role, g) => role === 'df' ? (g.length >= 2 ? 'df2' : 'df1') : ROLEKEY[role];
+    const why = lst => lst.map(x => x.o.why).filter((v, i, a) => a.indexOf(v) === i).join('; ');
+    if (regs.length >= 2){
+      // two or more regular starters out: use the all-teams pattern for that situation, so the same games are not counted twice
+      const pm = poolKEff(regs.length), lines = [];
+      regs.forEach(x => lines.push(explainOut(sd, x.info, names)[0]));
+      let who = {}, say = regs.length + ' regular starters out';
+      if (pm){
+        who['__multi__'] = {role: 'multi', att: pm.att, def: pm.def};
+        const mb = (sqBt() || {}).multi || {};
+        lines.push('<b>Why one combined number.</b> When two or more regulars are out, adding up each player would count the same games twice. So we use all teams in the same situation instead: in ' + pm.n + ' games where ' + (regs.length >= 3 ? 'three or more' : 'exactly two') + ' regular starters were missing, teams scored ' + pctOf(pm.rawAtt) + ' and let in ' + pctOf(pm.rawDef) + ' of their normal amount.');
+        lines.push('<b>Result.</b> Their goals <b>' + pctTxt(pm.att) + '</b> (x' + pm.att.toFixed(2) + ') and the other team\'s goals <b>' + pctTxt(pm.def) + '</b> (x' + pm.def.toFixed(2) + ').' + (mb.n ? ' Back-test on ' + mb.n + ' such past games: attack ' + (mb.impAtt >= 0 ? 'better' : 'worse') + ' by ' + Math.abs(Math.round(mb.impAtt * 1000) / 10) + '%, defence ' + (mb.impDef >= 0 ? 'better' : 'worse') + ' by ' + Math.abs(Math.round(mb.impDef * 1000) / 10) + '%.' : ''));
+      } else {
+        const best = regs.map(x => ({x, d: dataFactors(x.info)})).filter(z => z.d).sort((a, b) => (Math.abs(Math.log(b.d.att)) + Math.abs(Math.log(b.d.def))) - (Math.abs(Math.log(a.d.att)) + Math.abs(Math.log(a.d.def))))[0];
+        if (best){ who[best.x.info.name] = {role: best.x.info.role, att: best.d.att, def: best.d.def}; lines.push('<b>Result.</b> Not enough league-wide games for this many missing players. To avoid counting the same games twice, we use only the biggest single effect, ' + esc(best.x.info.name) + ': goals <b>' + pctTxt(best.d.att) + '</b>, other team\'s goals <b>' + pctTxt(best.d.def) + '</b>.'); }
+      }
+      const keys = Object.keys(groups).map(r => flagOf(r, groups[r]));
+      res.sug.push({side: sd, keys, who, names: regs.map(x => x.info.name).join(', '), why: why(regs), lines, say});
+      return;
+    }
+    Object.keys(groups).forEach(role => {
+      const g = groups[role], who = {}, lines = [];
+      g.forEach(x => explainOut(sd, x.info, names).forEach(l => lines.push(l)));
+      g.forEach(x => { const f = dataFactors(x.info); if (f) who[x.info.name] = {role, att: f.att, def: f.def}; });
+      res.sug.push({side: sd, keys: [flagOf(role, g)], who, names: g.map(x => x.info.name).join(', '), why: why(g), lines, say: ROLENAME[role] + ' out'});
+    });
+  });
+  return res;
+}
+function renderAdvice(){
+  const H = T(FX.home).name, A = T(FX.away).name, ad = adviceFor(), nmOf = sd => sd === 'home' ? H : A;
+  let h = '';
+  SUGS = ad.sug;
+  ad.sug.forEach((x, ix) => {
+    const nw = S.news[x.side].who || {};
+    const on = x.keys.every(k => S.news[x.side][k]) && Object.keys(x.who).every(k => nw[k]);
+    h += '<div class="tcard"><div class="tn">' + esc(nmOf(x.side)) + ': ' + esc(x.say) + '<span>' + esc(x.why) + '</span></div><ul class="inj plain">' + x.lines.map(l => '<li>' + l + '</li>').join('') + '</ul>' + (on ? '<p class="status">Ticked in the team news above.</p>' : '<div class="actions"><button type="button" class="btn small primary" data-sg="' + ix + '">' + (Object.keys(x.who).length ? 'Tick it and use these numbers' : 'Mark it (numbers stay the same)') + '</button></div>') + '</div>';
+  });
+  if (ad.sug.length) h += '<p class="hint">' + btLine() + ' It ignores lineups and tactics we cannot see, and the all-teams numbers include this same history, so treat the back-test as a guide, not a guarantee.</p>';
+  if (ad.unknown.length) h += '<div class="tcard"><div class="tn">Out, but we have no history for them <span>check if they are regular starters</span></div><ul class="inj">' + ad.unknown.map(u => '<li><b>' + esc(u.name) + '</b> (' + esc(nmOf(u.side)) + (u.pos ? ', ' + esc(u.pos) : '') + '): ' + esc(u.why) + '</li>').join('') + '</ul></div>';
+  if (ad.ignored.length) h += '<p class="hint">No change for: ' + ad.ignored.map(u => esc(u.name) + ' (' + esc(u.note) + ')').join('; ') + '.</p>';
+  $('newsSug').innerHTML = h;
+  let u = '';
+  ['home', 'away'].forEach(sd => {
+    const key = teamKeyOf(sd), t = sqTeam(key); if (!t) return;
+    const order = {gk:0, df:1, dm:2, cm:3, cr:4, st:5}, outN = outPlayers().filter(o => o.side === sd).map(o => accent(o.name));
+    const reg = t.p.map(r => pInfo(key, r[0])).filter(i => i && i.regular).sort((a, b) => (order[a.role] || 9) - (order[b.role] || 9) || b.st - a.st).slice(0, 11);
+    const sc = t.p.slice().sort((a, b) => b[4] - a[4]).filter(r => r[4] > 0).slice(0, 3);
+    let fl = ''; const lu = (LIVE && LIVE.lineups || []).find(x => x.side === sd);
+    if (t.f && lu && lu.formation && lu.formation !== t.f) fl = ' Today\'s lineup uses <b>' + esc(lu.formation) + '</b>, not the usual ' + esc(t.f) + '. The shape has changed.';
+    u += '<div class="tcard"><div class="tn">' + esc(nmOf(sd)) + ': the usual team <span>last ' + t.n + ' games' + (t.f ? ', usually ' + esc(t.f) : '') + '</span></div><ul class="inj">' + reg.map(i => '<li' + (outN.indexOf(accent(i.name)) >= 0 ? ' class="outp"' : '') + '><b>' + esc(i.name) + '</b> <span class="mono">' + i.st + '/' + i.n + '</span>' + (outN.indexOf(accent(i.name)) >= 0 ? ' <span class="status">out</span>' : '') + '</li>').join('') + '</ul>' + (sc.length ? '<p class="hint">Goals in these games: ' + sc.map(r => esc(r[0]) + ' ' + r[4]).join(', ') + '.' + fl + '</p>' : (fl ? '<p class="hint">' + fl + '</p>' : '')) + '</div>';
+  });
+  $('newsUsual').innerHTML = u ? '<div class="twocol">' + u + '</div><p class="hint">Built from ESPN lineups of each club\'s recent games' + (SQ && SQ.asOf ? ' (updated ' + fmtDay.format(new Date(SQ.asOf)) + ')' : '') + '. A "regular starter" started at least 6 in every 10 recent games. Only the with-and-without goal records change our numbers.</p>' : '';
+}
+function loadSquads(){
+  return fetch('data/squads.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => { SQ = d && d.teams ? d : null; if (FX && S){ renderNewsInfo(); } }).catch(() => { SQ = null; });
+}
+$('newsSug').addEventListener('click', e => {
+  const b = e.target.closest('[data-sg]'); if (!b) return;
+  const x = SUGS[parseInt(b.dataset.sg, 10)]; if (!x) return;
+  const n = S.news[x.side]; x.keys.forEach(k => { n[k] = true; }); if (x.keys.indexOf('df2') >= 0) n.df1 = false;
+  n.who = {}; Object.keys(x.who).forEach(k => { n.who[k] = x.who[k]; });
+  applyNews(); syncForm(); persist(); renderNewsBody(); renderQuick(); renderContext(); renderMarkets(); renderResults();
+});
+
 $('newsBody').addEventListener('change', e => {
   const el = e.target; if (!el.dataset || !el.dataset.k) return;
   S.news[el.dataset.side][el.dataset.k] = el.checked;
+  if (!el.checked){ const w = S.news[el.dataset.side].who || {}, role = /^df/.test(el.dataset.k) ? 'df' : el.dataset.k; Object.keys(w).forEach(k => { if (w[k].role === role || w[k].role === 'multi') delete w[k]; }); }
   applyNews(); syncForm(); persist(); renderNewsInfo(); renderQuick(); renderContext(); renderMarkets(); renderResults();
 });
 
@@ -1252,11 +1474,11 @@ let PKS = pkRead(), PDAY = null, pkTimer = null, PKCACHE = [];
 function schedulePicks(){ if (!DATA) return; clearTimeout(pkTimer); pkTimer = setTimeout(renderPicks, 500); }
 function stateFor(f){
   const auto = autoSetup(f), saved = lsRead()[f.id];
-  const s = saved && saved.s ? Object.assign({}, auto.s, saved.s) : auto.s;
+  const s = mergeSaved(auto.s, saved && saved.s);
   if (!s.news) s.news = {home:{}, away:{}};
   ['gpg','gpgLg','corn','cornLg','cardsExp','cardsLg','comp'].forEach(k => { s[k] = auto.s[k]; });
   s.live = 'pre';
-  const m = modelFor(f, s); if (m && newsOnFor(s)) s.gpg = m.exp_total;
+  const m = modelFor(f, s); if (m && hasWho(s)) s.gpg = m.exp_total;
   return {s, m};
 }
 function computePicks(){
@@ -1275,11 +1497,13 @@ function renderPicks(){
   if (!DATA) return;
   PKCACHE = computePicks(); logPicks();
   const now = Date.now(), today = fmtDay.format(new Date(now)), tom = fmtDay.format(new Date(now + 864e5));
-  const dayOf = x => { const k = fmtDay.format(new Date(x.f.ko)); return k === today ? 'today' : k === tom ? 'tomorrow' : 'later'; };
-  const counts = {today:0, tomorrow:0, later:0}; PKCACHE.forEach(x => counts[dayOf(x)]++);
-  if (!PDAY || !counts[PDAY]) PDAY = counts.today ? 'today' : counts.tomorrow ? 'tomorrow' : counts.later ? 'later' : 'today';
-  const names = {today:'Today', tomorrow:'Tomorrow', later:'Later'};
-  $('pickDays').innerHTML = ['today','tomorrow','later'].filter(k => counts[k]).map(k => '<button type="button" class="chip-b" data-day="' + k + '" aria-pressed="' + (PDAY === k) + '">' + names[k] + '<small>' + counts[k] + '</small></button>').join('');
+  const dayOf = x => fmtDay.format(new Date(x.f.ko));
+  const counts = {}, order = [], upcoming = {};
+  PKCACHE.slice().sort((a, b) => new Date(a.f.ko) - new Date(b.f.ko)).forEach(x => { const k = dayOf(x); if (!(k in counts)){ counts[k] = 0; order.push(k); } counts[k] += x.picks.length; if (new Date(x.f.ko).getTime() > now) upcoming[k] = true; });
+  if (!PDAY || !(PDAY in counts)) PDAY = (counts[today] && upcoming[today]) ? today : counts[tom] ? tom : order[0] || today;
+  const label = k => k === today ? 'Today' : k === tom ? 'Tomorrow' : k;
+  $('pickDays').innerHTML = order.slice(0, 7).map(k => '<button type="button" class="chip-b" data-day="' + esc(k) + '" aria-pressed="' + (PDAY === k) + '">' + esc(label(k)) + '<small>' + counts[k] + '</small></button>').join('');
+  $('pickNext').innerHTML = counts[tom] ? 'Tomorrow (' + tom + '): <b>' + counts[tom] + ' ' + (counts[tom] === 1 ? 'pick' : 'picks') + '</b> are ready. ' + (PDAY === tom ? '' : '<button type="button" class="btn small" data-day="' + esc(tom) + '">See tomorrow\'s picks</button> ') + 'Come back tomorrow morning to see the day after. Lineups and news are not known yet, so check them on match day.' : 'No bets stand out for tomorrow yet. The match list refreshes at about 6:30 AM and 6:30 PM, so look again later.';
   const list = PKCACHE.filter(x => dayOf(x) === PDAY);
   // slip: every pick marked OK, any day
   const slip = []; PKCACHE.forEach(x => x.picks.forEach(p => { if (PKS[p.id] === 'ok') slip.push([x, p]); }));
@@ -1287,13 +1511,13 @@ function renderPicks(){
   $('picksBody').innerHTML = list.length ? list.map(x => {
     const f = x.f, H = T(f.home).name, A = T(f.away).name, lg = (DATA.leagues[f.league] || {}).short || f.league;
     const locked = f.koKnown && new Date(f.ko).getTime() <= now;
-    return '<div class="pk-m"><div class="pk-h"><div><b>' + esc(H) + ' v ' + esc(A) + '</b><br><span>' + (f.koKnown ? fmtTime.format(new Date(f.ko)) + ' WAT' : 'time not set') + ' &middot; ' + esc(lg) + '</span></div><button type="button" class="btn small" data-open="' + esc(f.id) + '">Open match</button></div><ul class="pk-l">' +
+    return '<div class="pk-m"><div class="pk-h"><div><b>' + esc(H) + ' v ' + esc(A) + '</b><br><span>' + (f.koKnown ? fmtTime.format(new Date(f.ko)) + ' WAT' : 'time not set') + ' &middot; ' + esc(lg) + injTag(f) + (f.wx ? ' &middot; ' + (f.wx.rain >= 1 ? 'rain likely' : f.wx.t >= 31 ? 'hot' : f.wx.gust >= 45 ? 'windy' : '') : '') + '</span></div><button type="button" class="btn small" data-open="' + esc(f.id) + '">Open match</button></div><ul class="pk-l">' +
       x.picks.map(p => '<li class="pk' + (PKS[p.id] === 'low' ? ' done-low' : '') + '"><div class="pk-b"><b>' + esc(p.label) + '</b><small>' + strength(p.score) + ' sign. ' + esc(p.why) + '</small></div><div class="pk-t">' +
         (p.target ? '<small>Take it at</small><big>' + p.target.toFixed(2) + ' or more</big><small>our chance ' + pc(p.p) + '%</small>' : '<small>No numbers for this match yet</small><big>Check the price</big>') +
         '</div><div class="pk-a"><button type="button" data-pick="' + esc(p.id) + '" data-v="ok" aria-pressed="' + (PKS[p.id] === 'ok') + '"' + (locked ? ' disabled' : '') + '>Price OK</button><button type="button" data-pick="' + esc(p.id) + '" data-v="low" aria-pressed="' + (PKS[p.id] === 'low') + '"' + (locked ? ' disabled' : '') + '>Too low</button></div>' +
         (PKS[p.id] === 'ok' && !locked ? '<div class="pk-oddsrow"><label for="od-' + esc(p.id) + '">Odds you got (optional)</label><input class="pk-odds" id="od-' + esc(p.id) + '" inputmode="decimal" autocomplete="off" placeholder="e.g. 1.85" data-oddsfor="' + esc(p.id) + '" value="' + esc((TK.e[p.id] && TK.e[p.id].odds) || '') + '"></div>' : '') +
         (locked ? '<div class="pk-oddsrow">Game has started. This pick is saved in your Track record.</div>' : '') + '</li>').join('') + '</ul></div>';
-  }).join('') : '<p class="empty">No bets stand out for ' + (counts.today || counts.tomorrow || counts.later ? 'this day' : 'the matches in the data') + '. Open a match and add the pitch, weather and team news. That can bring bets up.</p>';
+  }).join('') : '<p class="empty">No bets stand out for ' + (order.length ? 'this day' : 'the matches in the data') + '. Open a match and add the pitch, weather and team news. That can bring bets up.</p>';
 }
 $('picks').addEventListener('click', e => {
   const d = e.target.closest('[data-day]'); if (d){ PDAY = d.dataset.day; renderPicks(); return; }
@@ -1504,7 +1728,7 @@ const INJ = 'injur\\w*|out|ruled out|miss(?:es|ing)?|sidelined|doubtful|doubts?|
 const RET = 'is back|are back|back (?:from|in|after|for|at)|comes? back|came back|returns?|returned|returning|fit again|recovered|available again|passed (?:a )?fitness|cleared to play|is fit|are fit';
 const EUR = 'champions league|europa|conference league|uefa|european|europe|caf champions|confederation cup|continental|midweek|mid-week';
 
-function readNotes(text, hName, aName){
+function readNotes(text, hName, aName, ctx){
   const hb = nameBits(hName, aName), ab = nameBits(aName, hName), hRx = sideRx(hb), aRx = sideRx(ab);
   const clauses = String(text || '').replace(/\r/g, '\n').split(/[.!?;\n]+|\bbut\b|\bwhile\b|\bhowever\b|\balthough\b/i).map(x => x.trim()).filter(x => x.length > 2);
   const fx = [], unused = []; let last = null;
@@ -1569,18 +1793,38 @@ function readNotes(text, hName, aName){
     Object.keys(POS).forEach(p => { if (new RegExp('\\b(?:' + POS[p] + ')\\b').test(clean)) posHit[p] = true; });
     if (posHit.gk && /\b(?:backup|reserve|second[- ]choice|third[- ]choice|youth)\b/.test(clean)) delete posHit.gk;
     const posKeys = Object.keys(posHit);
-    if (side === 'home' || side === 'away'){
+    let handled = false;
+    if (ctx && ctx.players && ctx.players.length && (injHit || retHit)){
+      const tn = accent(raw), outHit = /\b(?:ruled out|is out|are out|out injured|misses|missing|sidelined|suspended|doubtful|unavailable|banned|out for|will be out)\b/.test(clean);
+      ctx.players.filter(p => p.rx.test(tn)).forEach(p => {
+        handled = true; const i = p.info, sd = p.side, role = i.role;
+        if (!role){ unused.push([raw, 'I know ' + i.name + ' but not his position, so I changed nothing.']); return; }
+        if (retHit && !outHit){
+          say('who:' + sd + ':' + i.name, null, null);
+          if (role === 'df'){ say('news.' + sd + '.df1', false, 'Back in the team: ' + i.name + ' (' + nameOf(sd) + ')'); say('news.' + sd + '.df2', false, null); }
+          else say('news.' + sd + '.' + ROLEKEY[role], false, 'Back in the team: ' + i.name + ' (' + nameOf(sd) + ')');
+          return;
+        }
+        if (!i.regular){ unused.push([raw, i.name + ' ' + (i.st === 0 ? 'has not started any of the last ' + i.n + ' games' : 'started only ' + i.st + ' of the last ' + i.n + ' games') + ', so I changed nothing.']); return; }
+        const d = dataFactors(i), flag = role === 'df' ? ((ctx.df[sd] = (ctx.df[sd] || 0) + 1) >= 2 ? 'df2' : 'df1') : ROLEKEY[role], f2n = v => v == null ? '-' : Number(v).toFixed(2);
+        if (flag === 'df2') say('news.' + sd + '.df1', false, null);
+        say('news.' + sd + '.' + flag, true, nameOf(sd) + ': ' + i.name + ' (' + ROLENAME[role] + ') out, started ' + i.st + ' of ' + i.n + (d ? (i.wo > 0 ? '. Team scored ' + f2n(i.rGfW) + ' a game with him and ' + f2n(i.rGfO) + ' without; let in ' + f2n(i.rGaW) + ' with and ' + f2n(i.rGaO) + ' without' : '. He started every game, so the all-teams pattern is used') + '. Numbers: their goals ' + pctTxt(d.att) + ', other team\'s goals ' + pctTxt(d.def) : ''));
+        if (d) say('who:' + sd + ':' + i.name, {role: role, att: d.att, def: d.def}, null);
+      });
+    }
+    if (handled){ /* named players were handled above */ }
+    else if (side === 'home' || side === 'away'){
       if (/\b(?:full strength|no injur(?:y|ies)|no (?:fresh )?(?:injury|absentee)s?|all fit|fully fit|no injury worries|no injury concerns)\b/.test(clean)){
-        NEWS.forEach(n => say('news.' + side + '.' + n[0], false, 'No injuries: ' + nameOf(side)));
+        NEWS.forEach(n => say('news.' + side + '.' + n[0], false, 'No injuries: ' + nameOf(side))); say('who:' + side + ':*', null, null);
       } else if (posKeys.length && (injHit || retHit)){
         const ret = retHit && !/\b(?:ruled out|is out|are out|out injured|misses|missing|sidelined|suspended|doubtful|unavailable|banned|out for|will be out)\b/.test(clean);
         posKeys.forEach(p => {
           if (p === 'df'){
             const two = /\b(?:two|three|four|both|2|3|4|several|many|multiple|defensive crisis|defen[cs]e (?:crisis|in tatters|depleted))\b/.test(clean) || /\b(?:defenders|centre[- ]?backs|center[- ]?backs|full[- ]?backs)\b/.test(clean) && !/\b(?:one|a|the|their|first[- ]choice|key|main)\s+(?:\w+\s+){0,2}(?:defender|centre[- ]?back|center[- ]?back|full[- ]?back)\b/.test(clean);
             if (ret){ say('news.' + side + '.df1', false, 'Defender back: ' + nameOf(side)); say('news.' + side + '.df2', false, 'Defenders back: ' + nameOf(side)); }
-            else if (two){ say('news.' + side + '.df2', true, nameOf(side) + ': ' + POSNAME.df2); say('news.' + side + '.df1', false, null); }
-            else { say('news.' + side + '.df1', true, nameOf(side) + ': ' + POSNAME.df1); }
-          } else say('news.' + side + '.' + p, !ret, ret ? 'Back in the team: ' + nameOf(side) + ' (' + POSNAME[p].replace(' out', '') + ')' : nameOf(side) + ': ' + POSNAME[p]);
+            else if (two){ say('news.' + side + '.df2', true, nameOf(side) + ': ' + POSNAME.df2 + ' (marked only, numbers unchanged)'); say('news.' + side + '.df1', false, null); }
+            else { say('news.' + side + '.df1', true, nameOf(side) + ': ' + POSNAME.df1 + ' (marked only, numbers unchanged)'); }
+          } else say('news.' + side + '.' + p, !ret, ret ? 'Back in the team: ' + nameOf(side) + ' (' + POSNAME[p].replace(' out', '') + ')' : nameOf(side) + ': ' + POSNAME[p] + ' (marked only, numbers unchanged. Name the player so I can use his record)');
         });
       } else if (!posKeys.length && injHit && /\b(?:players?|squad|regulars?|first[- ]team(?:ers)?|stars?)\b/.test(clean) && /\b(?:injur\w*|out|missing|ruled out|sidelined|suspended|unavailable)\b/.test(clean)) unused.push([raw, 'Players are out, but I need the position: striker, winger, playmaker, goalkeeper, defender or defensive midfielder.']);
     } else if (posKeys.length && injHit) unused.push([raw, 'I saw an injury but could not tell which team. Write the team name.']);
@@ -1588,8 +1832,18 @@ function readNotes(text, hName, aName){
   });
   return {fx, unused};
 }
-function noteGet(k){ const p = k.split('.'); return p.length === 3 ? !!(S.news[p[1]] || {})[p[2]] : S[k]; }
-function noteSet(k, v){ const p = k.split('.'); if (p.length === 3){ if (!S.news[p[1]]) S.news[p[1]] = {}; S.news[p[1]][p[2]] = v; } else S[k] = v; }
+function noteGet(k){
+  if (k.indexOf('who:') === 0){ const p = k.split(':'); const w = ((S.news[p[1]] || {}).who || {}), nm = p.slice(2).join(':'); return nm === '*' ? JSON.parse(JSON.stringify(w)) : (w[nm] || null); }
+  const p = k.split('.'); return p.length === 3 ? !!(S.news[p[1]] || {})[p[2]] : S[k];
+}
+function noteSet(k, v){
+  if (k.indexOf('who:') === 0){
+    const p = k.split(':'), nm = p.slice(2).join(':'); if (!S.news[p[1]]) S.news[p[1]] = {}; const n = S.news[p[1]]; if (!n.who) n.who = {};
+    if (nm === '*') n.who = (v && typeof v === 'object') ? JSON.parse(JSON.stringify(v)) : {}; else if (v) n.who[nm] = v; else delete n.who[nm];
+    return;
+  }
+  const p = k.split('.'); if (p.length === 3){ if (!S.news[p[1]]) S.news[p[1]] = {}; S.news[p[1]][p[2]] = v; } else S[k] = v;
+}
 function noteRevert(){
   if (S.noteBase) Object.keys(S.noteBase).forEach(k => noteSet(k, S.noteBase[k]));
   S.noteBase = null;
@@ -1599,7 +1853,27 @@ function applyFindings(){
   noteRevert();
   const out = $('findOut');
   if (!text.trim()){ finishNotes(); out.innerHTML = '<div class="fo"><h3>Nothing to read</h3><p class="hint">Type what you found about the match first.</p></div>'; return; }
-  const R = readNotes(text, T(FX.home).name, T(FX.away).name), base = {}, done = [], skipped = [];
+  const pl = [], lastCount = {};
+  ['home', 'away'].forEach(sd => { const t = sqTeam(teamKeyOf(sd)); if (t) t.p.forEach(r => { const l = accent(r[0]).split(' ').pop(); lastCount[l] = (lastCount[l] || 0) + 1; }); });
+  ['home', 'away'].forEach(sd => { const t = sqTeam(teamKeyOf(sd)); if (t) t.p.forEach(r => {
+    const i = pInfo(teamKeyOf(sd), r[0]); if (!i) return; const full = accent(r[0]), l = full.split(' ').pop();
+    const parts = [rxEsc(full).replace(/ /g, '\\s+')]; if (l.length >= 4 && lastCount[l] === 1 && (' ' + accent(T(FX.home).name) + ' ' + accent(T(FX.away).name) + ' ').indexOf(' ' + l + ' ') < 0) parts.push(rxEsc(l));
+    pl.push({side: sd, info: i, rx: new RegExp('\\b(?:' + parts.join('|') + ')\\b')});
+  }); });
+  const R = readNotes(text, T(FX.home).name, T(FX.away).name, {players: pl, df: {}, f: {}}), base = {}, done = [], skipped = [];
+  // two or more regular starters out on one side: use the all-teams pattern, so the same games are not counted twice
+  ['home', 'away'].forEach(sd => {
+    const ws = R.fx.filter(e => e.k.indexOf('who:' + sd + ':') === 0 && e.v);
+    if (ws.length < 2) return;
+    const pm = poolKEff(ws.length), nmS = sd === 'home' ? T(FX.home).name : T(FX.away).name;
+    if (pm){
+      R.fx = R.fx.filter(e => ws.indexOf(e) < 0);
+      R.fx.push({k: 'who:' + sd + ':__multi__', v: {role: 'multi', att: pm.att, def: pm.def}, txt: nmS + ': ' + ws.length + ' regular starters out. Numbers come from all teams in the same situation (' + pm.n + ' games): their goals ' + pctTxt(pm.att) + ', other team\'s goals ' + pctTxt(pm.def), from: ws.map(e => e.from).filter((v, i2, a2) => a2.indexOf(v) === i2).join(' / ')});
+    } else {
+      const best = ws.slice().sort((a, b) => (Math.abs(Math.log(b.v.att)) + Math.abs(Math.log(b.v.def))) - (Math.abs(Math.log(a.v.att)) + Math.abs(Math.log(a.v.def))))[0];
+      R.fx = R.fx.filter(e => ws.indexOf(e) < 0 || e === best);
+    }
+  });
   // 1) simple facts and the favourite first, because "big game ahead" depends on who is the favourite
   const order = R.fx.slice().sort((a, b) => (a.k === 'fav' ? 0 : 1) - (b.k === 'fav' ? 0 : 1));
   order.forEach(e => {
@@ -1715,7 +1989,7 @@ fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new
     '<li><b>Past results, corners, cards, referees and odds:</b> football-data.co.uk (free). Updated twice a day. Their odds file is uploaded once a week, so some matches have no odds.</li>',
     '<li><b>Match list and live lineups:</b> ESPN. This is an unofficial feed and can change without notice.</li>',
     '<li><b>Update status:</b> ' + Object.keys(d.status || {}).map(k => esc(k + ': ' + d.status[k])).join('. ') + '</li>',
-    '<li><b>Not here:</b> player stats, injuries, weather and Nigerian bookmaker odds. Type your own odds in the Odds checker.</li>'].join('');
+    '<li><b>Weather:</b> forecast for the stadium city from Open-Meteo (free). Checked at each update and again when you open a match. Forecasts can be wrong.</li>','<li><b>Injury lists:</b> ESPN, up to 2 days before the match. Lineups come about 1 hour before kick-off.</li>','<li><b>Not here:</b> player stats and Nigerian bookmaker odds. Type your own odds in the Odds checker.</li>'].join('');
   try { const sv = lsRead(); if (sv._cmp === 'market'){ CMP = 'market'; $('cmpModel').setAttribute('aria-pressed', 'false'); $('cmpMkt').setAttribute('aria-pressed', 'true'); } } catch (e) {}
   renderChips();
   const now = Date.now();
@@ -1725,6 +1999,7 @@ fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new
   selectFixture(first.id, false);
   renderPicks();
   loadResults(true);
+  loadSquads();
 }).catch(err => {
   $('stamp').textContent = 'Could not load the match data.';
   $('board').innerHTML = '<div class="loading">The data file did not load (' + esc(err.message) + '). If this is a new setup, open GitHub, click Actions, and run "Daily update" once.</div>';

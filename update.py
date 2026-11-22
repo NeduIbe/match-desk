@@ -99,6 +99,16 @@ def fetch(url, headers=None, tries=3, timeout=45):
         name = '%s_%s.csv' % (m.group(1), m.group(2)) if m else url.rsplit('/', 1)[-1].split('?')[0]
         if e:
             name = 'espn_%s_%s.json' % (e.group(1), e.group(2))
+            ev_ = re.search(r'event=(\w+)', url)
+            if e.group(2) == 'summary' and ev_ and os.path.exists(os.path.join(LOCAL, 'espn_%s_summary_%s.json' % (e.group(1), ev_.group(1)))):
+                name = 'espn_%s_summary_%s.json' % (e.group(1), ev_.group(1))
+            dd_ = re.search(r'dates=(\d{8})-(\d{8})', url)
+            if e.group(2) == 'scoreboard' and dd_ and (datetime.strptime(dd_.group(2), '%Y%m%d').date() - datetime.strptime(dd_.group(1), '%Y%m%d').date()).days > 20:
+                name = 'espn_%s_scoreboard_past.json' % e.group(1)
+        if 'open-meteo.com/v1/forecast' in url:
+            name = 'openmeteo_forecast.json'
+        if 'geocoding-api.open-meteo.com' in url:
+            name = 'openmeteo_geo.json'
         path = os.path.join(LOCAL, name)
         if not os.path.exists(path):
             raise FileNotFoundError(name)
@@ -490,8 +500,10 @@ def espn_events(slug, days=9):
         ko = datetime.fromisoformat(ev['date'].replace('Z', '+00:00'))
         if ko.tzinfo is None:
             ko = ko.replace(tzinfo=timezone.utc)
+        ven = comp.get('venue') or {}
         out.append({'id': str(ev['id']), 'ko': ko.astimezone(timezone.utc), 'state': state,
-                    'h': home.get('team') or {}, 'a': away.get('team') or {}})
+                    'h': home.get('team') or {}, 'a': away.get('team') or {},
+                    'venue': {'n': ven.get('fullName'), 'c': (ven.get('address') or {}).get('city')}})
     return out
 
 
@@ -533,13 +545,16 @@ def espn_fixtures(built, have):
                         break
             if hit:
                 hit['espn'] = {'slug': slug, 'id': ev['id']}
+                if (ev.get('venue') or {}).get('c'):
+                    hit['venue'] = ev['venue']
                 attached += 1
                 continue
             model = predict(B['profiles'].get(h), B['profiles'].get(a), B['lg'], None)
             extra.append({'id': '%s-%s-%s-%s' % (code, ev['ko'].strftime('%Y%m%d'), norm(h).replace(' ', ''), norm(a).replace(' ', '')),
                           'league': code, 'ko': ev['ko'].strftime('%Y-%m-%dT%H:%M:00Z'), 'koKnown': True,
                           'home': '%s:%s' % (code, h), 'away': '%s:%s' % (code, a), 'source': 'ESPN',
-                          'espn': {'slug': slug, 'id': ev['id']}, 'ref': None, 'mkt': None, 'ou': None, 'ah': None, 'model': model})
+                          'espn': {'slug': slug, 'id': ev['id']}, 'ref': None, 'mkt': None, 'ou': None, 'ah': None, 'model': model,
+                          'venue': ev.get('venue')})
             attached += 1
     try:
         for ev in espn_events(ESPN_CL):
@@ -550,7 +565,7 @@ def espn_fixtures(built, have):
                         return '%s:%s' % (c, m)
                 return 'X:' + (team.get('displayName') or team.get('name') or '?')
             cl.append({'ko': ev['ko'], 'h': key_for(ev['h']), 'a': key_for(ev['a']), 'id': ev['id'],
-                       'hn': ev['h'].get('displayName') or '?', 'an': ev['a'].get('displayName') or '?'})
+                       'hn': ev['h'].get('displayName') or '?', 'an': ev['a'].get('displayName') or '?', 'venue': ev.get('venue')})
     except Exception as e:
         NOTES.append('ESPN Champions League: %s' % e)
     return extra, cl, attached
@@ -570,7 +585,7 @@ def espn_npfl(fixtures, teams, leagues):
                          'koKnown': not (ev['ko'].hour == 0 and ev['ko'].minute == 0), 'home': 'NPFL:' + h, 'away': 'NPFL:' + a,
                          'source': 'ESPN', 'espn': {'slug': ESPN_NPFL, 'id': ev['id']}, 'ref': None, 'mkt': None,
                          'ou': None, 'ah': None, 'model': None, 'travel': cls, 'travelNote': note,
-                         'altitude': bool(hc and hc[0] == 'Jos')})
+                         'altitude': bool(hc and hc[0] == 'Jos'), 'venue': ev.get('venue')})
         n += 1
     leagues.setdefault('NPFL', {'name': 'NPFL (Nigeria)', 'short': 'NPFL', 'comp': 'npfl', 'avg': {}})
     return n
@@ -727,10 +742,10 @@ def npfl_update(key):
 
 # ---------------------------------------------------------------- main
 # ---------------------------------------------------------------- results (for the track record page)
-def espn_results(slug, back=3):
+def espn_results(slug, back=3, upto=0):
     """Finished matches of the last few days from the keyless ESPN scoreboard (goals only)."""
     d0 = (NOW - timedelta(days=back)).strftime('%Y%m%d')
-    d1 = NOW.strftime('%Y%m%d')
+    d1 = (NOW - timedelta(days=upto)).strftime('%Y%m%d')
     url = 'https://site.api.espn.com/apis/site/v2/sports/soccer/%s/scoreboard?%s' % (slug, urlencode({'dates': '%s-%s' % (d0, d1), 'limit': 300}))
     j = json.loads(fetch(url))
     out = []
@@ -816,6 +831,483 @@ def build_results(built, prev_results):
     return sorted(res.values(), key=lambda r: r['ko'])
 
 
+# ---------------------------------------------------------------- weather (Open-Meteo, free, no key)
+CLUBCITY = {
+    'E0': {'arsenal': 'London', 'aston villa': 'Birmingham', 'brentford': 'London', 'chelsea': 'London', 'crystal palace': 'London',
+           'everton': 'Liverpool', 'fulham': 'London', "nott'm forest": 'Nottingham', 'tottenham': 'London', 'west ham': 'London',
+           'man city': 'Manchester', 'man united': 'Manchester', 'wolves': 'Wolverhampton', 'newcastle': 'Newcastle upon Tyne',
+           'brighton': 'Brighton', 'bournemouth': 'Bournemouth', 'burnley': 'Burnley', 'leeds': 'Leeds', 'liverpool': 'Liverpool',
+           'sunderland': 'Sunderland'},
+    'SP1': {'alaves': 'Vitoria-Gasteiz', 'ath bilbao': 'Bilbao', 'ath madrid': 'Madrid', 'barcelona': 'Barcelona', 'betis': 'Seville',
+            'celta': 'Vigo', 'elche': 'Elche', 'espanol': 'Barcelona', 'getafe': 'Getafe', 'girona': 'Girona', 'levante': 'Valencia',
+            'mallorca': 'Palma', 'osasuna': 'Pamplona', 'oviedo': 'Oviedo', 'real madrid': 'Madrid', 'sevilla': 'Seville',
+            'sociedad': 'San Sebastian', 'valencia': 'Valencia', 'vallecano': 'Madrid', 'villarreal': 'Villarreal'},
+    'I1': {'atalanta': 'Bergamo', 'bologna': 'Bologna', 'cagliari': 'Cagliari', 'como': 'Como', 'cremonese': 'Cremona',
+           'fiorentina': 'Florence', 'genoa': 'Genoa', 'inter': 'Milan', 'juventus': 'Turin', 'lazio': 'Rome', 'lecce': 'Lecce',
+           'milan': 'Milan', 'napoli': 'Naples', 'parma': 'Parma', 'pisa': 'Pisa', 'roma': 'Rome', 'sassuolo': 'Sassuolo',
+           'torino': 'Turin', 'udinese': 'Udine', 'verona': 'Verona'},
+    'D1': {'augsburg': 'Augsburg', 'bayern munich': 'Munich', 'dortmund': 'Dortmund', 'ein frankfurt': 'Frankfurt', 'fc koln': 'Cologne',
+           'freiburg': 'Freiburg', 'hamburg': 'Hamburg', 'heidenheim': 'Heidenheim', 'hoffenheim': 'Sinsheim', 'leverkusen': 'Leverkusen',
+           "m'gladbach": 'Monchengladbach', 'mainz': 'Mainz', 'rb leipzig': 'Leipzig', 'st pauli': 'Hamburg', 'stuttgart': 'Stuttgart',
+           'union berlin': 'Berlin', 'werder bremen': 'Bremen', 'wolfsburg': 'Wolfsburg'},
+    'F1': {'angers': 'Angers', 'auxerre': 'Auxerre', 'brest': 'Brest', 'le havre': 'Le Havre', 'lens': 'Lens', 'lille': 'Lille',
+           'lorient': 'Lorient', 'lyon': 'Lyon', 'marseille': 'Marseille', 'metz': 'Metz', 'monaco': 'Monaco', 'nantes': 'Nantes',
+           'nice': 'Nice', 'paris fc': 'Paris', 'paris sg': 'Paris', 'rennes': 'Rennes', 'strasbourg': 'Strasbourg', 'toulouse': 'Toulouse'},
+}
+CCODE = {'E0': 'GB', 'SP1': 'ES', 'I1': 'IT', 'D1': 'DE', 'F1': 'FR'}
+
+
+def geocode(place, cc, cache):
+    key = '%s|%s' % (place.lower(), cc or '')
+    if key in cache:
+        return cache[key]
+    res = None
+    try:
+        j = json.loads(fetch('https://geocoding-api.open-meteo.com/v1/search?' + urlencode({'name': place, 'count': 8, 'language': 'en', 'format': 'json'}), tries=2, timeout=20))
+        rs = j.get('results') or []
+        if cc:
+            rs = [r for r in rs if r.get('country_code') == cc]
+        if rs:
+            res = [round(rs[0]['latitude'], 3), round(rs[0]['longitude'], 3), rs[0].get('name') or place]
+    except Exception as e:
+        NOTES.append('geocode %s: %s' % (place, e))
+        return None          # network problem: do not cache, try again next time
+    cache[key] = res         # cache misses too, so we do not ask again every day
+    if not LOCAL:
+        time.sleep(0.25)
+    return res
+
+
+def venue_point(f, cache):
+    lg = f['league']
+    if lg == 'NPFL':
+        hc = city_of(f['home'].split(':', 1)[1])
+        return [hc[1], hc[2], hc[0]] if hc else None
+    cc = CCODE.get(lg)
+    place = (f.get('venue') or {}).get('c')
+    if not place and lg in CLUBCITY:
+        place = CLUBCITY[lg].get(f['home'].split(':', 1)[1].lower())
+    if not place:
+        place = f['home'].split(':', 1)[1]
+    return geocode(place, cc, cache)
+
+
+def add_weather(fixtures):
+    gpath = os.path.join(DATA_DIR, 'geo.json')
+    cache = {}
+    if os.path.exists(gpath):
+        try:
+            with open(gpath) as fh:
+                cache = json.load(fh)
+        except Exception:
+            cache = {}
+    horizon = NOW + timedelta(days=10)
+    todo = {}
+    ok = miss = 0
+    for f in fixtures:
+        if not f.get('koKnown'):
+            continue
+        ko = datetime.strptime(f['ko'][:16], '%Y-%m-%dT%H:%M').replace(tzinfo=timezone.utc)
+        if ko < NOW - timedelta(hours=3) or ko > horizon:
+            continue
+        pt = venue_point(f, cache)
+        if not pt:
+            miss += 1
+            continue
+        f['geo'] = pt
+        todo.setdefault((pt[0], pt[1]), []).append((f, ko))
+    for (la, lo), items in todo.items():
+        try:
+            j = json.loads(fetch('https://api.open-meteo.com/v1/forecast?' + urlencode({
+                'latitude': la, 'longitude': lo, 'timezone': 'UTC', 'forecast_days': 11,
+                'hourly': 'temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,wind_gusts_10m'}), tries=2, timeout=30))
+            H = j['hourly']
+            idx = {t: i for i, t in enumerate(H['time'])}
+        except Exception as e:
+            NOTES.append('weather %s,%s: %s' % (la, lo, e))
+            miss += len(items)
+            continue
+        for f, ko in items:
+            i = idx.get(ko.strftime('%Y-%m-%dT%H:00'))
+            if i is None:
+                miss += 1
+                continue
+            win = range(i, min(i + 3, len(H['time'])))
+            g = lambda k: [H[k][n] for n in win if H[k][n] is not None]
+            t, hu, pr, pp, gu = g('temperature_2m'), g('relative_humidity_2m'), g('precipitation'), g('precipitation_probability'), g('wind_gusts_10m')
+            if not t:
+                miss += 1
+                continue
+            f['wx'] = {'t': round(max(t), 1), 'h': round(max(hu)) if hu else None, 'rain': round(sum(pr), 1) if pr else 0,
+                       'pp': round(max(pp)) if pp else None, 'gust': round(max(gu)) if gu else None,
+                       'at': NOW.strftime('%Y-%m-%dT%H:%M:00Z')}
+            ok += 1
+    try:
+        with open(gpath, 'w') as fh:
+            json.dump(cache, fh, separators=(',', ':'), sort_keys=True)
+    except Exception:
+        pass
+    return ok, miss
+
+
+# ---------------------------------------------------------------- team news (ESPN injury lists, free)
+def add_team_news(fixtures):
+    ok = fail = 0
+    for f in fixtures:
+        es = f.get('espn')
+        if not es or not f.get('koKnown'):
+            continue
+        ko = datetime.strptime(f['ko'][:16], '%Y-%m-%dT%H:%M').replace(tzinfo=timezone.utc)
+        if ko < NOW - timedelta(hours=1) or ko > NOW + timedelta(hours=60):
+            continue
+        try:
+            j = json.loads(fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/%s/summary?event=%s' % (es['slug'], es['id']), tries=2, timeout=25))
+        except Exception as e:
+            fail += 1
+            NOTES.append('news %s: %s' % (f['id'], e))
+            continue
+        comp = ((j.get('header') or {}).get('competitions') or [{}])[0]
+        names = {((c.get('team') or {}).get('displayName')) or '': c.get('homeAway') for c in comp.get('competitors') or []}
+        inj = []
+        for t in j.get('injuries') or []:
+            sd = names.get(((t.get('team') or {}).get('displayName')) or '')
+            if sd not in ('home', 'away'):
+                continue
+            for i in (t.get('injuries') or [])[:14]:
+                a = i.get('athlete') or {}
+                stt = i.get('status')
+                stt = stt if isinstance(stt, str) else ((stt or {}).get('name') or (i.get('type') or {}).get('description') or '')
+                inj.append({'s': sd, 'n': a.get('displayName') or a.get('shortName') or '?',
+                            'p': ((a.get('position') or {}).get('abbreviation')) or '', 'st': stt})
+        f['inj'] = inj
+        f['injAt'] = NOW.strftime('%Y-%m-%dT%H:%M:00Z')
+        ok += 1
+        if not LOCAL:
+            time.sleep(0.2)
+    return ok, fail
+
+
+# ---------------------------------------------------------------- usual teams: who starts, who scores (ESPN lineups of past matches)
+SQ_WINDOW = 20       # last matches per team used to find regular starters and compare games with and without a player
+SQ_MAX_NEW = 300     # most new match lineups fetched in one run (keeps the update fast; the rest comes next run)
+
+
+def parse_lineup(j):
+    comp = ((j.get('header') or {}).get('competitions') or [{}])[0]
+    names = {((c.get('team') or {}).get('displayName')) or '': c.get('homeAway') for c in comp.get('competitors') or []}
+    out = {'home': None, 'away': None}
+    for ro in j.get('rosters') or []:
+        sd = ro.get('homeAway')
+        if sd not in out:
+            continue
+        xi, on = [], []
+        for p in ro.get('roster') or []:
+            a = p.get('athlete') or {}
+            nm = a.get('displayName') or a.get('shortName')
+            if not nm:
+                continue
+            pos = ((p.get('position') or {}).get('abbreviation')) or ''
+            if p.get('starter'):
+                xi.append([nm, pos])
+            elif p.get('subbedIn'):
+                on.append([nm, pos])
+        if xi:
+            out[sd] = {'f': ro.get('formation') or '', 'xi': xi, 'on': on}
+    goals = []
+    for e in j.get('keyEvents') or []:
+        ty = (((e.get('type') or {}).get('text')) or ((e.get('type') or {}).get('type')) or '').lower()
+        if not (e.get('scoringPlay') or 'goal' in ty) or 'own' in ty or 'disallow' in ty or 'no goal' in ty:
+            continue
+        sd = names.get(((e.get('team') or {}).get('displayName')) or '')
+        ps = [((x.get('athlete') or {}).get('displayName')) for x in (e.get('participants') or [])]
+        ps = [x for x in ps if x]
+        if sd in ('home', 'away') and ps:
+            goals.append([sd, ps[0], ps[1] if len(ps) > 1 else ''])
+    return out, goals
+
+
+def build_squads(built):
+    cpath = os.path.join(DATA_DIR, 'lineups_cache.json')
+    cache = {}
+    if os.path.exists(cpath):
+        try:
+            with open(cpath) as fh:
+                cache = json.load(fh)
+        except Exception:
+            cache = {}
+    cutoff = (NOW - timedelta(days=330)).strftime('%Y-%m-%d')
+    cache = {k: v for k, v in cache.items() if v.get('d', '') >= cutoff}
+    new = fails = 0
+    jobs = []
+    for code, slug in list(ESPN.items()) + [('NPFL', ESPN_NPFL)]:
+        if code != 'NPFL' and code not in built:
+            continue
+        try:
+            evs, seen_ids = [], set()
+            for b0 in (300, 225, 150, 75):                 # ESPN returns limited rows per call, so ask in slices
+                for ev in espn_results(slug, back=b0, upto=b0 - 76 if b0 > 75 else 0):
+                    if ev['id'] not in seen_ids:
+                        seen_ids.add(ev['id'])
+                        evs.append(ev)
+        except Exception as e:
+            NOTES.append('squads %s: %s' % (slug, e))
+            continue
+        names = built[code]['names'] if code in built else None
+        for ev in evs:
+            if names is not None:
+                h, a = espn_name(ev['h'], names), espn_name(ev['a'], names)
+                if not h or not a:
+                    continue
+            else:
+                h, a = ev['h'].get('displayName'), ev['a'].get('displayName')
+                if not h or not a:
+                    continue
+            jobs.append((code, slug, ev, '%s:%s' % (code, h), '%s:%s' % (code, a)))
+    jobs.sort(key=lambda x: x[2]['ko'], reverse=True)       # newest matches first
+    for code, slug, ev, hk, ak in jobs:
+        eid = '%s_%s' % (slug, ev['id'])
+        if eid in cache:
+            continue
+        if new >= SQ_MAX_NEW:
+            break
+        try:
+            j = json.loads(fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/%s/summary?event=%s' % (slug, ev['id']), tries=2, timeout=25))
+            lu, goals = parse_lineup(j)
+        except Exception as e:
+            fails += 1
+            NOTES.append('lineup %s: %s' % (eid, e))
+            continue
+        if lu['home'] or lu['away']:
+            cache[eid] = {'d': ev['ko'].strftime('%Y-%m-%d'), 'h': hk, 'a': ak, 'hg': ev['hg'], 'ag': ev['ag'], 'H': lu['home'], 'A': lu['away'], 'g': goals}
+            new += 1
+        else:
+            cache[eid] = {'d': ev['ko'].strftime('%Y-%m-%d'), 'h': hk, 'a': ak, 'hg': ev['hg'], 'ag': ev['ag'], 'H': None, 'A': None, 'g': []}
+        if not LOCAL:
+            time.sleep(0.2)
+    with open(cpath, 'w') as fh:
+        json.dump(cache, fh, separators=(',', ':'))
+    teams, meta = build_profiles(cache)
+    return teams, meta, new, fails
+
+
+# ---------------------------------------------------------------- what a missing regular starter really costs
+SQ_K_CHOICES = (1, 2, 3, 5, 8, 15)
+SQ_POOL_MIN = 25      # fewest league-wide cases before we trust a league-wide pattern
+SQ_BT_MIN = 40        # fewest back-test cases before the back-test can switch a part off
+
+
+def role_of(pos):
+    p = (pos or '').upper()
+    if p.startswith('G'):
+        return 'gk'
+    if re.match(r'(DM|CDM|HM)', p):
+        return 'dm'
+    if re.match(r'(CD|CB|LB|RB|SW|LWB|RWB|WB|D)', p):
+        return 'df'
+    if re.match(r'(CM|MC|MF|M$)', p):
+        return 'cm'
+    if re.match(r'(AM|CAM|LW|RW|W|LM|RM)', p):
+        return 'cr'
+    if re.match(r'(F|CF|ST|SS|FW)', p):
+        return 'st'
+    return ''
+
+
+def build_profiles(cache):
+    """Turns stored lineups into: who is a regular starter, how the team did with and without each one
+    (adjusted for opponent strength and home or away), the league-wide pattern, and a back-test of the method."""
+    W = SQ_WINDOW
+    allm = []
+    for v in cache.values():
+        allm.append(v)
+    lg_n, lg_h, lg_a = {}, {}, {}
+    tgf, tga, tn = {}, {}, {}
+    for v in allm:
+        lg = v['h'].split(':', 1)[0]
+        lg_n[lg] = lg_n.get(lg, 0) + 1
+        lg_h[lg] = lg_h.get(lg, 0) + v['hg']
+        lg_a[lg] = lg_a.get(lg, 0) + v['ag']
+        for key, gf, ga in ((v['h'], v['hg'], v['ag']), (v['a'], v['ag'], v['hg'])):
+            tgf[key] = tgf.get(key, 0) + gf
+            tga[key] = tga.get(key, 0) + ga
+            tn[key] = tn.get(key, 0) + 1
+    LG = {}
+    for lg, n in lg_n.items():
+        if n >= 10 and lg_h[lg] + lg_a[lg] > 0:
+            L = (lg_h[lg] + lg_a[lg]) / (2.0 * n)
+            LG[lg] = (L, (lg_h[lg] / n) / L if lg_h[lg] else 1.0, (lg_a[lg] / n) / L if lg_a[lg] else 1.0)
+
+    def clampr(x):
+        return min(1.8, max(0.55, x))
+
+    def adj(key, sd, gf, ga, opp):
+        lg = key.split(':', 1)[0]
+        if lg not in LG:
+            return float(gf), float(ga)
+        L, hm, am = LG[lg]
+        ogs = (tga.get(opp, 0) + 5 * L) / (tn.get(opp, 0) + 5)
+        ofs = (tgf.get(opp, 0) + 5 * L) / (tn.get(opp, 0) + 5)
+        if sd == 'home':
+            return gf / (hm * clampr(ogs / L)), ga / (am * clampr(ofs / L))
+        return gf / (am * clampr(ogs / L)), ga / (hm * clampr(ofs / L))
+
+    per = {}
+    for eid, v in cache.items():
+        for sd, key, gf, ga, lu, opp in (('home', v['h'], v['hg'], v['ag'], v.get('H'), v['a']), ('away', v['a'], v['ag'], v['hg'], v.get('A'), v['h'])):
+            if not lu:
+                continue
+            agf, aga = adj(key, sd, gf, ga, opp)
+            per.setdefault(key, []).append({'d': v['d'], 'eid': eid, 'gf': gf, 'ga': ga, 'agf': agf, 'aga': aga,
+                                            'xi': {n: p for n, p in lu['xi']}, 'on': [n for n, p in lu['on']],
+                                            'goals': [(g[1], g[2]) for g in (v.get('g') or []) if g[0] == sd]})
+    for ms in per.values():
+        ms.sort(key=lambda m: (m['d'], m['eid']))
+
+    def window(ms, i):
+        return ms[max(0, i - W):i]
+
+    def regulars(w):
+        c, pc = {}, {}
+        for m in w:
+            for nm, pos in m['xi'].items():
+                c[nm] = c.get(nm, 0) + 1
+                d = pc.setdefault(nm, {})
+                d[pos] = d.get(pos, 0) + 1
+        n = len(w)
+        pos_of = {nm: max(d.items(), key=lambda x: x[1])[0] for nm, d in pc.items()}
+        return {nm: k for nm, k in c.items() if k / n >= 0.6}, pos_of
+
+    # every game where at least one regular starter was missing
+    events = []
+    for key, ms in per.items():
+        for i in range(5, len(ms)):
+            w = window(ms, i)
+            regs, pos_of = regulars(w)
+            absent = [nm for nm in regs if nm not in ms[i]['xi']]
+            bg = sum(m['agf'] for m in w) / len(w)
+            ba = sum(m['aga'] for m in w) / len(w)
+            if absent and bg > 0 and ba > 0:
+                events.append({'key': key, 'i': i, 'absent': absent, 'pos_of': pos_of, 'agf': ms[i]['agf'], 'aga': ms[i]['aga'], 'bg': bg, 'ba': ba})
+
+    def pool_of(group):
+        n = len(group)
+        if n < SQ_POOL_MIN:
+            return {'att': 1.0, 'def': 1.0, 'n': n, 'ok': False}
+        return {'att': round(sum(e['agf'] for e in group) / sum(e['bg'] for e in group), 3),
+                'def': round(sum(e['aga'] for e in group) / sum(e['ba'] for e in group), 3), 'n': n, 'ok': True}
+
+    pool1 = {}
+    for role in ('gk', 'df', 'dm', 'cm', 'cr', 'st'):
+        pool1[role] = pool_of([e for e in events if len(e['absent']) == 1 and role_of(e['pos_of'][e['absent'][0]]) == role])
+    poolK = {'2': pool_of([e for e in events if len(e['absent']) == 2]), '3': pool_of([e for e in events if len(e['absent']) >= 3])}
+
+    def own(ms, i, name, K, pa, pd):
+        w = window(ms, i)
+        wi = [m for m in w if name in m['xi']]
+        oi = [m for m in w if name not in m['xi']]
+        if not wi:
+            return None
+        if not oi:
+            return pa, pd, 1
+        wgf = sum(m['agf'] for m in wi) / len(wi)
+        wga = sum(m['aga'] for m in wi) / len(wi)
+        n = len(oi)
+        att = (sum(m['agf'] for m in oi) / wgf + K * pa) / (n + K) if wgf > 0 else pa
+        dfn = (sum(m['aga'] for m in oi) / wga + K * pd) / (n + K) if wga > 0 else pd
+        return min(1.8, max(0.4, att)), min(1.8, max(0.4, dfn)), 0
+
+    # back-test: for each past game with exactly one regular missing, predict goals from data BEFORE that game
+    bt = {}
+    singles = [e for e in events if len(e['absent']) == 1]
+    for K in SQ_K_CHOICES + (None,):
+        ea = eb = da = db = 0.0
+        n = 0
+        for e in singles:
+            nm = e['absent'][0]
+            r = role_of(e['pos_of'][nm])
+            if not r:
+                continue
+            p = pool1[r]
+            f = (p['att'], p['def'], 1) if K is None else own(per[e['key']], e['i'], nm, K, p['att'], p['def'])
+            if not f:
+                continue
+            n += 1
+            ea += (e['agf'] - e['bg'] * f[0]) ** 2
+            eb += (e['agf'] - e['bg']) ** 2
+            da += (e['aga'] - e['ba'] * f[1]) ** 2
+            db += (e['aga'] - e['ba']) ** 2
+        if n:
+            bt[K] = {'n': n, 'impAtt': 1 - ea / eb if eb else 0.0, 'impDef': 1 - da / db if db else 0.0}
+    best = None
+    for K in SQ_K_CHOICES:
+        if K in bt and (best is None or bt[K]['impAtt'] + bt[K]['impDef'] > bt[best]['impAtt'] + bt[best]['impDef']):
+            best = K
+    K = best if best is not None else 3
+    cur = bt.get(best) or {'n': 0, 'impAtt': 0.0, 'impDef': 0.0}
+    enough = cur['n'] >= SQ_BT_MIN
+    use_att = (cur['impAtt'] > 0) if enough else True
+    use_def = (cur['impDef'] > 0) if enough else True
+    # back-test for games with two or more regulars missing, using the league-wide pattern for that many
+    mm = [e for e in events if len(e['absent']) >= 2]
+    ma = mb = md = mc = 0.0
+    for e in mm:
+        p = poolK['2' if len(e['absent']) == 2 else '3']
+        ma += (e['agf'] - e['bg'] * p['att']) ** 2
+        mb += (e['agf'] - e['bg']) ** 2
+        md += (e['aga'] - e['ba'] * p['def']) ** 2
+        mc += (e['aga'] - e['ba']) ** 2
+    meta = {'window': W, 'K': K, 'pool1': pool1, 'poolK': poolK,
+            'bt': {'n': cur['n'], 'impAtt': round(cur['impAtt'], 4), 'impDef': round(cur['impDef'], 4), 'enough': enough,
+                   'useAtt': use_att, 'useDef': use_def,
+                   'poolOnly': {'impAtt': round(bt[None]['impAtt'], 4), 'impDef': round(bt[None]['impDef'], 4)} if None in bt else None,
+                   'multi': {'n': len(mm), 'impAtt': round(1 - ma / mb, 4) if mb else 0.0, 'impDef': round(1 - md / mc, 4) if mc else 0.0},
+                   'byK': {str(k): [bt[k]['n'], round(bt[k]['impAtt'], 4), round(bt[k]['impDef'], 4)] for k in SQ_K_CHOICES if k in bt}}}
+    # current profiles
+    teams = {}
+    for key, ms in per.items():
+        if len(ms) < 5:
+            continue
+        i = len(ms)
+        w = window(ms, i)
+        n = len(w)
+        starts, apps, pcnt, gl, asst = {}, {}, {}, {}, {}
+        forms = {}
+        for m in w:
+            for nm, pos in m['xi'].items():
+                starts[nm] = starts.get(nm, 0) + 1
+                apps[nm] = apps.get(nm, 0) + 1
+                d = pcnt.setdefault(nm, {})
+                d[pos] = d.get(pos, 0) + 1
+            for nm in m['on']:
+                apps[nm] = apps.get(nm, 0) + 1
+            for sc, a_ in m['goals']:
+                gl[sc] = gl.get(sc, 0) + 1
+                if a_:
+                    asst[a_] = asst.get(a_, 0) + 1
+        for eid in [m['eid'] for m in w]:
+            v = cache[eid]
+            f = (v.get('H') if v['h'] == key else v.get('A')) or {}
+            if f.get('f'):
+                forms[f['f']] = forms.get(f['f'], 0) + 1
+        rows = []
+        for nm, st in starts.items():
+            pos = max(pcnt[nm].items(), key=lambda x: x[1])[0]
+            r = role_of(pos)
+            p = pool1.get(r) or {'att': 1.0, 'def': 1.0}
+            wi = [m for m in w if nm in m['xi']]
+            oi = [m for m in w if nm not in m['xi']]
+            f = own(ms, i, nm, K, p['att'], p['def']) or (1.0, 1.0, 1)
+            att, dfn = (f[0] if use_att else 1.0), (f[1] if use_def else 1.0)
+            av = lambda lst, k: round(sum(m[k] for m in lst) / len(lst), 2) if lst else None
+            rows.append([nm, pos, st, apps.get(nm, st), gl.get(nm, 0), asst.get(nm, 0), len(oi),
+                         av(wi, 'gf'), av(oi, 'gf'), av(wi, 'ga'), av(oi, 'ga'),
+                         av(wi, 'agf'), av(oi, 'agf'), av(wi, 'aga'), av(oi, 'aga'), round(att, 3), round(dfn, 3), f[2]])
+        rows.sort(key=lambda r: (-r[2], -r[3], -r[4]))
+        usual = max(forms.items(), key=lambda x: x[1])[0] if forms else ''
+        teams[key] = {'n': n, 'gf': sum(m['gf'] for m in w), 'ga': sum(m['ga'] for m in w), 'f': usual, 'p': rows[:26]}
+    return teams, meta
+
+
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     out_path = os.path.join(DATA_DIR, 'fixtures.json')
@@ -861,7 +1353,8 @@ def main():
                 fixtures.append({'id': 'CL-%s-%s' % (c['ko'].strftime('%Y%m%d'), norm(c['hn']).replace(' ', '')),
                                  'league': 'CL', 'ko': c['ko'].strftime('%Y-%m-%dT%H:%M:00Z'), 'koKnown': True,
                                  'home': c['h'], 'away': c['a'], 'source': 'ESPN', 'espn': {'slug': ESPN_CL, 'id': c['id']},
-                                 'ref': None, 'mkt': None, 'ou': None, 'ah': None, 'model': None})
+                                 'ref': None, 'mkt': None, 'ou': None, 'ah': None, 'model': None,
+                                 'venue': c.get('venue')})
         except Exception as e:
             STATUS['ESPN (live feed)'] = 'FAILED: %s (lineups, live events and mid-week fixtures will be missing)' % e
         # continental tie within 4 days after a league fixture
@@ -915,6 +1408,19 @@ def main():
             log(' ', k_, '->', v)
         sys.exit(1)
     fixtures.sort(key=lambda f: (f['ko'][:10], 0 if f['koKnown'] else 1, f['ko']))
+    try:
+        sq, meta_, new_, fail_ = build_squads(built)
+        with open(os.path.join(DATA_DIR, 'squads.json'), 'w') as fh:
+            json.dump({'asOf': NOW.strftime('%Y-%m-%dT%H:%M:00Z'), 'window': SQ_WINDOW, 'meta': meta_, 'teams': sq}, fh, separators=(',', ':'))
+        STATUS['usual teams (ESPN lineups)'] = 'ok: %d teams profiled, %d new match lineups read, %d failed' % (len(sq), new_, fail_)
+    except Exception as e:
+        STATUS['usual teams (ESPN lineups)'] = 'FAILED: %s (the app still works without it)' % e
+    for label, fn in (('weather (Open-Meteo)', add_weather), ('team news (ESPN injuries)', add_team_news)):
+        try:
+            a_, b_ = fn(fixtures)
+            STATUS[label] = 'ok: %d matches filled, %d without' % (a_, b_) if fn is add_weather else 'ok: %d matches, %d failed' % (a_, b_)
+        except Exception as e:
+            STATUS[label] = 'FAILED: %s (the app still works without it)' % e
     out = {'version': 3, 'asOf': NOW.strftime('%Y-%m-%dT%H:%M:00Z'), 'season': CUR, 'status': STATUS, 'notes': NOTES[:20],
            'leagues': leagues, 'teams': teams, 'fixtures': fixtures}
     with open(out_path, 'w') as f:
