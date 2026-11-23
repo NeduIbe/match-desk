@@ -2,7 +2,7 @@ name: Daily update
 
 on:
   schedule:
-    - cron: "30 5,17 * * *"   # 06:30 and 18:30 Nigerian time
+    - cron: "30 4,10,16,22 * * *"   # 05:30, 11:30, 17:30 and 23:30 Nigerian time
   workflow_dispatch:           # lets you press "Run workflow" by hand
   push:
     branches: [main]
