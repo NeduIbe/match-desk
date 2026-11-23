@@ -61,7 +61,7 @@ h1{margin:0;font-weight:800;font-size:clamp(32px,7vw,48px);line-height:1}
   .layout{grid-template-columns:340px minmax(0,1fr)}
   #board{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto}
 }
-@media (max-width:899px){#board{max-height:440px;overflow-y:auto}}
+@media (max-width:899px){#board{max-height:min(78vh,640px);overflow-y:auto}}
 #board{padding:4px 0 8px;scroll-margin-top:12px}
 .day{font-family:var(--f-display);font-weight:800;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:12px 14px 4px;position:sticky;top:0;background:var(--surface);z-index:1}
 .fx{display:grid;grid-template-columns:50px minmax(0,1fr);gap:2px 10px;width:calc(100% - 20px);margin:6px 10px;text-align:left;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);padding:10px 12px;cursor:pointer;min-height:44px;transition:transform .08s}
@@ -366,6 +366,15 @@ button.sc-row{cursor:pointer}
 #picksBody>.empty{grid-column:1 / -1}
 #pickPane .hint,#scoreBody .hint{max-width:75ch}
 .wrap{padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+
+.bf{display:grid;gap:8px;padding:12px 12px 4px}
+.bf input[type=search]{width:100%;min-height:44px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:inherit;padding:8px 12px;font:inherit;font-size:15px}
+.bf-lab{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:800;color:var(--muted);margin-top:2px}
+.chips.scroll{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+.chips.scroll .chip-b{flex:0 0 auto;min-height:38px;padding:6px 12px;font-size:13px}
+.bf-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;font-size:13px;color:var(--muted)}
+.bf-row select{min-height:38px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:inherit;font:inherit;padding:0 8px}
+.tag.ok{color:var(--accent);border-color:var(--accent)}
 </style></head><body>
 <div class="wrap">
   <header class="head paper">
@@ -375,7 +384,6 @@ button.sc-row{cursor:pointer}
     <p class="lead">Know the game before you bet. See the chances, goals, corners and cards for each match.</p>
     <div class="stamp" id="stamp">Loading matches...</div>
     <div id="banners"></div>
-    <div class="chips" id="leagueChips" role="group" aria-label="Pick a league"></div>
     <details class="src"><summary>Where does the data come from?</summary><ul id="sources"></ul></details>
   </header>
 
@@ -401,7 +409,16 @@ button.sc-row{cursor:pointer}
   </section>
 
   <div class="layout">
-    <aside class="paper" id="board" aria-label="Matches"><div class="loading">Loading matches...</div></aside>
+    <aside class="paper" id="board" aria-label="Matches">
+      <div class="bf">
+        <input id="bfQ" type="search" placeholder="Search a team or league" autocomplete="off" aria-label="Search matches">
+        <div class="bf-lab">Day</div><div class="chips scroll" id="dayChips" role="group" aria-label="Pick a day"></div>
+        <div class="bf-lab">League</div><div class="chips scroll" id="leagueChips" role="group" aria-label="Pick a league"></div>
+        <div class="bf-lab">Only show matches that have</div><div class="chips scroll" id="flagChips" role="group" aria-label="Filters"></div>
+        <div class="bf-row"><label>Sort <select id="bfSort"><option value="time">Kick-off time</option><option value="picks">Most picks first</option></select></label><span id="bfCount" aria-live="polite"></span><button type="button" class="btn small" id="bfClear">Clear filters</button></div>
+      </div>
+      <div id="bList"><div class="loading">Loading matches...</div></div>
+    </aside>
     <main class="desk" id="desk" hidden>
       <section class="paper mh" id="mhCard">
         <div class="mh-top"><span>Match ticket</span><span id="ticketLg"></span></div>
@@ -908,19 +925,56 @@ function selectFixture(id, scroll){
 }
 
 /* ---------- match list ---------- */
+const LG_PRIORITY = ['E0','SP1','I1','D1','F1','CL','UEL','UECL','E1','NPFL','N1','P1','SC0','T1','B1','MLS'];
+const BF = {day: 'all', q: '', flags: {fin: true}, sort: 'time'};
+let PKN = {};
+function wxFlag(f){ const w = f.wx; return !!(w && (w.rain >= 1 || w.t >= 31 || w.gust >= 45)); }
+function outN(f){ let n = 0; ((f && f.inj) || []).forEach(x => { if ((x.s === 'home' || x.s === 'away') && OUTRX.test(x.st || '') && !/doubt|day/i.test(x.st || '')) n++; }); return n; }
+const BF_FLAGS = [['fin','Hide finished', f => !(f.koKnown && Date.now() >= new Date(f.ko).getTime() + 3.3 * 3600e3)],
+  ['odds','Bookmaker odds', f => !!f.mkt], ['model','Our numbers', f => !!f.model], ['picks','Picks', f => (PKN[f.id] || 0) > 0],
+  ['news','Players out', f => outN(f) > 0], ['wx','Rain, heat or wind', wxFlag], ['live','Live now', f => { const sc = (typeof SCORES !== 'undefined' && f.espn) ? SCORES[f.espn.id] : null; return !!(sc && sc.state === 'in'); }]];
+function bfMatch(f, skip){
+  if (skip !== 'day' && BF.day !== 'all' && fmtDay.format(new Date(f.ko)) !== BF.day) return false;
+  if (skip !== 'lg' && filter !== 'all' && f.league !== filter) return false;
+  if (BF.q){
+    const hay = (T(f.home).name + ' ' + T(f.away).name + ' ' + ((DATA.leagues[f.league] || {}).name || '') + ' ' + ((DATA.leagues[f.league] || {}).short || '')).toLowerCase();
+    if (!BF.q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.indexOf(w) >= 0)) return false;
+  }
+  for (const fl of BF_FLAGS){ if (skip !== 'flags' && BF.flags[fl[0]] && !fl[2](f)) return false; }
+  return true;
+}
 function renderChips(){
-  const counts = {all: DATA.fixtures.length}; DATA.fixtures.forEach(f => counts[f.league] = (counts[f.league] || 0) + 1);
-  const order = ['all','E0','SP1','I1','D1','F1','CL','NPFL'].filter(k => counts[k]);
-  $('leagueChips').innerHTML = order.map(k => '<button type="button" class="chip-b" data-lg="' + k + '" aria-pressed="' + (filter === k) + '">' + (k === 'all' ? 'All' : DATA.leagues[k].short) + '<small>' + counts[k] + '</small></button>').join('');
+  if (!DATA) return;
+  const fx = DATA.fixtures, now = Date.now(), today = fmtDay.format(new Date(now)), tom = fmtDay.format(new Date(now + 864e5));
+  // day chips
+  const dc = {}, dorder = [];
+  fx.filter(f => bfMatch(f, 'day')).forEach(f => { const k = fmtDay.format(new Date(f.ko)); if (!(k in dc)){ dc[k] = 0; dorder.push(k); } dc[k]++; });
+  if (BF.day !== 'all' && !(BF.day in dc)) BF.day = 'all';
+  const tot = fx.filter(f => bfMatch(f, 'day')).length;
+  $('dayChips').innerHTML = '<button type="button" class="chip-b" data-bday="all" aria-pressed="' + (BF.day === 'all') + '">All days<small>' + tot + '</small></button>' +
+    dorder.map(k => '<button type="button" class="chip-b" data-bday="' + esc(k) + '" aria-pressed="' + (BF.day === k) + '">' + esc(k === today ? 'Today' : k === tom ? 'Tomorrow' : k) + '<small>' + dc[k] + '</small></button>').join('');
+  // league chips (counts follow the other filters)
+  const counts = {}; let allN = 0;
+  fx.filter(f => bfMatch(f, 'lg')).forEach(f => { counts[f.league] = (counts[f.league] || 0) + 1; allN++; });
+  const keys = Object.keys(counts).sort((a, b) => { const pa = LG_PRIORITY.indexOf(a), pb = LG_PRIORITY.indexOf(b); return (pa < 0 ? 99 : pa) - (pb < 0 ? 99 : pb) || counts[b] - counts[a]; });
+  if (filter !== 'all' && !(filter in counts)) keys.push(filter);
+  $('leagueChips').innerHTML = '<button type="button" class="chip-b" data-lg="all" aria-pressed="' + (filter === 'all') + '">All<small>' + allN + '</small></button>' +
+    keys.map(k => '<button type="button" class="chip-b" data-lg="' + esc(k) + '" aria-pressed="' + (filter === k) + '">' + esc((DATA.leagues[k] || {}).short || k) + '<small>' + (counts[k] || 0) + '</small></button>').join('');
+  $('flagChips').innerHTML = BF_FLAGS.map(fl => '<button type="button" class="chip-b" data-flag="' + fl[0] + '" aria-pressed="' + !!BF.flags[fl[0]] + '">' + fl[1] + '<small>' + fx.filter(f => bfMatch(f, 'flags') && fl[2](f)).length + '</small></button>').join('');
 }
 function renderBoard(){
-  const now = Date.now(), list = DATA.fixtures.filter(f => filter === 'all' || f.league === filter);
+  const box = $('board'), keep = box.scrollTop, now = Date.now();
+  let list = DATA.fixtures.filter(f => bfMatch(f));
+  if (BF.sort === 'picks') list = list.slice().sort((a, b) => (PKN[b.id] || 0) - (PKN[a.id] || 0) || new Date(a.ko) - new Date(b.ko));
+  const nAll = DATA.fixtures.length;
+  $('bfCount').textContent = list.length === nAll ? nAll + ' matches' : list.length + ' of ' + nAll + ' matches';
   let html = '', day = '';
   list.forEach(f => {
     const d = new Date(f.ko), dk = fmtDay.format(d), H = T(f.home), A = T(f.away), tags = [];
-    if (day !== dk){ day = dk; html += '<div class="day">' + dk + '</div>'; }
+    if (BF.sort === 'time' && day !== dk){ day = dk; html += '<div class="day">' + dk + '</div>'; }
     const probs = f.mkt ? f.mkt.fair : (f.model ? f.model.p1x2 : null);
-    if (filter === 'all') tags.push('<span class="tag">' + esc((DATA.leagues[f.league] || {}).short || f.league) + '</span>');
+    if (filter === 'all' || BF.sort === 'picks') tags.push('<span class="tag">' + esc((DATA.leagues[f.league] || {}).short || f.league) + '</span>');
+    if (BF.sort === 'picks') tags.push('<span class="tag">' + fmtDay.format(d) + '</span>');
     if (f.ahead){ const fv = probs && probs[0] >= probs[2] ? f.ahead.home : f.ahead.away; if (fv) tags.push('<span class="tag rot">UCL soon</span>'); }
     const sc = (typeof SCORES !== 'undefined' && f.espn) ? SCORES[f.espn.id] : null;
     if (sc && sc.state === 'in') tags.push('<span class="tag live"><b>' + sc.gh + '-' + sc.ga + '</b> ' + esc(sc.when || 'Live') + '</span>');
@@ -928,10 +982,15 @@ function renderBoard(){
     else if (f.koKnown && now > d.getTime() && now < d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag live">Live</span>');
     else if (f.koKnown && now >= d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag">Finished?</span>');
     if (!f.koKnown) tags.push('<span class="tag">Time not set</span>');
+    if (PKN[f.id]) tags.push('<span class="tag ok">' + PKN[f.id] + (PKN[f.id] === 1 ? ' pick' : ' picks') + '</span>');
+    if (f.mkt) tags.push('<span class="tag">odds</span>');
+    const on = outN(f); if (on) tags.push('<span class="tag rot">' + on + ' out</span>');
+    if (wxFlag(f)) tags.push('<span class="tag">' + (f.wx.rain >= 1 ? 'rain' : f.wx.t >= 31 ? 'hot' : 'wind') + '</span>');
     const bar = probs ? '<span class="pbar" aria-hidden="true"><i class="ph" style="width:' + (probs[0] * 100) + '%"></i><i class="pd" style="width:' + (probs[1] * 100) + '%"></i><i class="pa" style="width:' + (probs[2] * 100) + '%"></i></span><span class="fx-meta mono">' + pc(probs[0]) + ' &middot; ' + pc(probs[1]) + ' &middot; ' + pc(probs[2]) + tags.join('') + '</span>' : '<span class="fx-meta">' + tags.join('') + '</span>';
     html += '<button type="button" class="fx" data-id="' + esc(f.id) + '" aria-pressed="' + (FX && FX.id === f.id) + '"><span class="fx-time">' + (f.koKnown ? fmtTime.format(d) : '--:--') + '</span><span class="fx-teams">' + esc(H.name) + '<i>v</i>' + esc(A.name) + '</span>' + bar + '</button>';
   });
-  $('board').innerHTML = html || '<div class="loading">No matches for this league.</div>';
+  $('bList').innerHTML = html || '<div class="loading">No matches fit these filters. Tap "Clear filters" to see everything.</div>';
+  box.scrollTop = keep;
 }
 
 
@@ -1563,6 +1622,8 @@ function computePicks(){
 function renderPicks(){
   if (!DATA) return;
   PKCACHE = computePicks(); logPicks();
+  const pkn = {}; PKCACHE.forEach(x => { pkn[x.f.id] = x.picks.length; });
+  if (JSON.stringify(pkn) !== JSON.stringify(PKN)){ PKN = pkn; renderChips(); renderBoard(); }
   const now = Date.now(), today = fmtDay.format(new Date(now)), tom = fmtDay.format(new Date(now + 864e5));
   const dayOf = x => fmtDay.format(new Date(x.f.ko));
   const tomN = DATA.fixtures.filter(f => fmtDay.format(new Date(f.ko)) === tom).length;
@@ -1570,8 +1631,8 @@ function renderPicks(){
   PKCACHE.slice().sort((a, b) => new Date(a.f.ko) - new Date(b.f.ko)).forEach(x => { const k = dayOf(x); if (!(k in counts)){ counts[k] = 0; order.push(k); } counts[k] += x.picks.length; if (new Date(x.f.ko).getTime() > now) upcoming[k] = true; });
   if (!PDAY || !(PDAY in counts)) PDAY = (counts[today] && upcoming[today]) ? today : counts[tom] ? tom : order[0] || today;
   const label = k => k === today ? 'Today' : k === tom ? 'Tomorrow' : k;
-  $('pickDays').innerHTML = order.slice(0, 7).map(k => '<button type="button" class="chip-b" data-day="' + esc(k) + '" aria-pressed="' + (PDAY === k) + '">' + esc(label(k)) + '<small>' + counts[k] + '</small></button>').join('');
-  $('pickNext').innerHTML = counts[tom] ? 'Tomorrow (' + tom + '): <b>' + counts[tom] + ' ' + (counts[tom] === 1 ? 'pick' : 'picks') + '</b> are ready. ' + (PDAY === tom ? '' : '<button type="button" class="btn small" data-day="' + esc(tom) + '">See tomorrow\'s picks</button> ') + 'Come back tomorrow morning to see the day after. Lineups and news are not known yet, so check them on match day.' : (tomN ? 'Tomorrow (' + tom + '): ' + tomN + (tomN === 1 ? ' match is' : ' matches are') + ' listed, but none has a strong signal yet. Signals grow when lineups, weather and team news arrive. You can still open any match from the list below. The list refreshes at about 6:30 AM and 6:30 PM.' : 'No matches are listed for tomorrow (' + tom + ') yet. The list refreshes at about 6:30 AM and 6:30 PM, and covers about the next 9 days, so look again later.');
+  $('pickDays').innerHTML = order.slice(0, 7).map(k => '<button type="button" class="chip-b" data-day="' + esc(k) + '" aria-pressed="' + (PDAY === k) + '">' + esc(label(k)) + '<small>' + counts[k] + (counts[k] === 1 ? ' pick' : ' picks') + '</small></button>').join('');
+  $('pickNext').innerHTML = counts[tom] ? 'Tomorrow (' + tom + '): <b>' + counts[tom] + ' ' + (counts[tom] === 1 ? 'pick' : 'picks') + '</b> are ready, out of ' + tomN + (tomN === 1 ? ' match' : ' matches') + ' listed. All of them are in the Matches list below, where you can filter them yourself. ' + (PDAY === tom ? '' : '<button type="button" class="btn small" data-day="' + esc(tom) + '">See tomorrow\'s picks</button> ') + 'The day after appears by itself. Lineups and news are not known yet, so check them on match day.' : (tomN ? 'Tomorrow (' + tom + '): ' + tomN + (tomN === 1 ? ' match is' : ' matches are') + ' listed, but none has a strong signal yet. Signals grow when lineups, weather and team news arrive. You can still open any match from the list below. The list refreshes by itself 4 times a day.' : 'No matches are listed for tomorrow (' + tom + ') yet. The list refreshes by itself 4 times a day (about 5:30 AM, 11:30 AM, 5:30 PM and 11:30 PM) and covers about the next 9 days, so look again later.');
   const list = PKCACHE.filter(x => dayOf(x) === PDAY);
   // slip: every pick marked OK, any day
   const slip = []; PKCACHE.forEach(x => x.picks.forEach(p => { if (PKS[p.id] === 'ok') slip.push([x, p]); }));
@@ -2018,6 +2079,11 @@ $('cmpModel').addEventListener('click', () => { CMP = 'model'; $('cmpModel').set
 $('cmpMkt').addEventListener('click', () => { CMP = 'market'; $('cmpModel').setAttribute('aria-pressed', 'false'); $('cmpMkt').setAttribute('aria-pressed', 'true'); updateEdges(); persist(); });
 $('board').addEventListener('click', e => { const b = e.target.closest('.fx'); if (b) selectFixture(b.dataset.id, true); });
 $('leagueChips').addEventListener('click', e => { const b = e.target.closest('.chip-b'); if (!b) return; filter = b.dataset.lg; renderChips(); renderBoard(); });
+$('dayChips').addEventListener('click', e => { const b = e.target.closest('[data-bday]'); if (!b) return; BF.day = b.dataset.bday; renderChips(); renderBoard(); });
+$('flagChips').addEventListener('click', e => { const b = e.target.closest('[data-flag]'); if (!b) return; const k = b.dataset.flag; BF.flags[k] = !BF.flags[k]; renderChips(); renderBoard(); });
+$('bfQ').addEventListener('input', () => { BF.q = $('bfQ').value.trim(); renderChips(); renderBoard(); });
+$('bfSort').addEventListener('change', () => { BF.sort = $('bfSort').value; renderBoard(); });
+$('bfClear').addEventListener('click', () => { BF.day = 'all'; BF.q = ''; BF.flags = {}; BF.sort = 'time'; filter = 'all'; $('bfQ').value = ''; $('bfSort').value = 'time'; renderChips(); renderBoard(); });
 $('reset').addEventListener('click', () => { const all = lsRead(); delete all[FX.id]; lsWrite(all); const id = FX.id; selectFixture(id, false); $('saved').textContent = 'Started again from the data.'; });
 $('liveNow').addEventListener('click', () => pollLive());
 $('copy').addEventListener('click', () => {
@@ -2135,8 +2201,7 @@ function startScores(){
 }
 
 /* ---------- start ---------- */
-fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new Error('status ' + r.status); return r.json(); }).then(d => {
-  DATA = d;
+function renderMeta(d){
   const asof = new Date(d.asOf), ageH = (Date.now() - asof.getTime()) / 3600e3;
   $('stamp').innerHTML = '<span><span class="sdot' + (ageH > 30 ? ' old' : '') + '"></span>Updated <b id="asof">' + fmtDay.format(asof) + ', ' + fmtTime.format(asof) + ' WAT</b></span><span><b>' + d.fixtures.length + '</b> matches</span><span>Lineups come live from ESPN</span>';
   let ban = '';
@@ -2145,16 +2210,40 @@ fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new
   if (bad.length) ban += '<p class="banner">Some data could not load in the last update: ' + bad.map(k => esc(k + ' (' + d.status[k].replace(/^FAILED: /, '').slice(0, 90) + ')')).join('; ') + '. The rest still works.</p>';
   $('banners').innerHTML = ban;
   $('sources').innerHTML = [
-    '<li><b>Past results, corners, cards, referees and odds:</b> football-data.co.uk (free). Updated twice a day. Their odds file is uploaded once a week, so some matches have no odds.</li>',
+    '<li><b>Past results, corners, cards, referees and odds:</b> football-data.co.uk (free). Updated several times a day. Their odds file is uploaded once a week, so some matches have no odds.</li>',
     '<li><b>Match list and live lineups:</b> ESPN. This is an unofficial feed and can change without notice.</li>',
     '<li><b>Update status:</b> ' + Object.keys(d.status || {}).map(k => esc(k + ': ' + d.status[k])).join('. ') + '</li>',
     '<li><b>Weather:</b> forecast for the stadium city from Open-Meteo (free). Checked at each update and again when you open a match. Forecasts can be wrong.</li>','<li><b>Injury lists:</b> ESPN, up to 2 days before the match. Lineups come about 1 hour before kick-off.</li>','<li><b>Not here:</b> player stats and Nigerian bookmaker odds. Type your own odds in the Odds checker.</li>'].join('');
+}
+
+/* ---------- the page refreshes its own data ---------- */
+let RF_BUSY = false, RF_AT = Date.now();
+async function refreshData(force){
+  if (RF_BUSY || !DATA) return; RF_BUSY = true;
+  try {
+    const r = await fetch('data/fixtures.json?t=' + Date.now(), {cache: 'no-store'});
+    if (!r.ok) throw new Error('status ' + r.status);
+    const d = await r.json(); RF_AT = Date.now();
+    if (d.asOf !== DATA.asOf || force){
+      DATA = d; renderMeta(d);
+      if (FX){ const nf = d.fixtures.find(f => f.id === FX.id); if (nf) FX = nf; }
+      renderChips(); renderBoard(); renderPicks();
+    }
+  } catch (e) { /* keep showing what we have */ }
+  RF_BUSY = false;
+}
+setInterval(() => { if (!document.hidden && Date.now() - RF_AT > 20 * 60e3) refreshData(); }, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - RF_AT > 10 * 60e3) refreshData(); });
+
+fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new Error('status ' + r.status); return r.json(); }).then(d => {
+  DATA = d;
+  renderMeta(d);
   try { const sv = lsRead(); if (sv._cmp === 'market'){ CMP = 'market'; $('cmpModel').setAttribute('aria-pressed', 'false'); $('cmpMkt').setAttribute('aria-pressed', 'true'); } } catch (e) {}
   renderChips();
   const now = Date.now();
   const lastId = lsRead()._last;
   const first = d.fixtures.find(f => f.id === lastId && (!f.koKnown || new Date(f.ko).getTime() + 3 * 3600e3 > now)) || d.fixtures.find(f => f.koKnown && new Date(f.ko).getTime() + 3 * 3600e3 > now) || d.fixtures[0];
-  if (!first){ $('board').innerHTML = '<div class="loading">No matches in the data file yet.</div>'; return; }
+  if (!first){ $('bList').innerHTML = '<div class="loading">No matches in the data file yet.</div>'; return; }
   selectFixture(first.id, false);
   renderPicks();
   loadResults(true);
@@ -2163,7 +2252,7 @@ fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new
 }).catch(err => {
   startScores();
   $('stamp').textContent = 'Could not load the match data.';
-  $('board').innerHTML = '<div class="loading">The data file did not load (' + esc(err.message) + '). If this is a new setup, open GitHub, click Actions, and run "Daily update" once.</div>';
+  $('bList').innerHTML = '<div class="loading">The data file did not load (' + esc(err.message) + '). If this is a new setup, open GitHub, click Actions, and run "Daily update" once.</div>';
 });
 </script>
 </body>

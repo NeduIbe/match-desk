@@ -43,6 +43,20 @@ LEAGUES = {
     'I1': {'name': 'Serie A', 'short': 'Serie A', 'org': 'SA'},
     'D1': {'name': 'Bundesliga', 'short': 'Bundesliga', 'org': 'BL1'},
     'F1': {'name': 'Ligue 1', 'short': 'Ligue 1', 'org': 'FL1'},
+    # more leagues from football-data.co.uk (same free files, same stats)
+    'E1': {'name': 'English Championship', 'short': 'Champ', 'org': ''},
+    'E2': {'name': 'English League One', 'short': 'League 1', 'org': ''},
+    'E3': {'name': 'English League Two', 'short': 'League 2', 'org': ''},
+    'SC0': {'name': 'Scottish Premiership', 'short': 'Scotland', 'org': ''},
+    'D2': {'name': 'German 2. Bundesliga', 'short': '2. Bundesliga', 'org': ''},
+    'I2': {'name': 'Italian Serie B', 'short': 'Serie B', 'org': ''},
+    'SP2': {'name': 'Spanish Segunda', 'short': 'La Liga 2', 'org': ''},
+    'F2': {'name': 'French Ligue 2', 'short': 'Ligue 2', 'org': ''},
+    'N1': {'name': 'Dutch Eredivisie', 'short': 'Eredivisie', 'org': ''},
+    'B1': {'name': 'Belgian Pro League', 'short': 'Belgium', 'org': ''},
+    'P1': {'name': 'Portuguese Primeira Liga', 'short': 'Portugal', 'org': ''},
+    'T1': {'name': 'Turkish Super Lig', 'short': 'Turkey', 'org': ''},
+    'G1': {'name': 'Greek Super League', 'short': 'Greece', 'org': ''},
 }
 _y = NOW.year if NOW.month >= 7 else NOW.year - 1
 CUR = '%02d%02d' % (_y % 100, (_y + 1) % 100)
@@ -476,6 +490,39 @@ def odds_fixtures(built):
 
 
 ESPN = {'E0': 'eng.1', 'SP1': 'esp.1', 'I1': 'ita.1', 'D1': 'ger.1', 'F1': 'fra.1'}
+ESPN_MORE = {'E1': 'eng.2', 'E2': 'eng.3', 'E3': 'eng.4', 'SC0': 'sco.1', 'D2': 'ger.2', 'I2': 'ita.2', 'SP2': 'esp.2',
+             'F2': 'fra.2', 'N1': 'ned.1', 'B1': 'bel.1', 'P1': 'por.1', 'T1': 'tur.1', 'G1': 'gre.1'}
+ESPN_ALL = dict(ESPN, **ESPN_MORE)      # ESPN itself is kept to the big five for the lineup history (it is slow to read)
+# competitions with a match list from ESPN only (no free stats): code -> (ESPN name, display name, short name, country code or '', kind)
+ESPN_LIST = {
+    'UEL': ('uefa.europa', 'Europa League', 'UEL', '', 'europe'),
+    'UECL': ('uefa.europa.conf', 'Conference League', 'UECL', '', 'europe'),
+    'FAC': ('eng.fa', 'FA Cup', 'FA Cup', 'GB', 'europe'),
+    'EFL': ('eng.league_cup', 'EFL Cup', 'EFL Cup', 'GB', 'europe'),
+    'CDR': ('esp.copa_del_rey', 'Copa del Rey', 'Copa del Rey', 'ES', 'europe'),
+    'DFB': ('ger.dfb_pokal', 'DFB Pokal', 'DFB Pokal', 'DE', 'europe'),
+    'CIT': ('ita.coppa_italia', 'Coppa Italia', 'Coppa Italia', 'IT', 'europe'),
+    'CDF': ('fra.coupe_de_france', 'Coupe de France', 'Coupe de France', 'FR', 'europe'),
+    'UNL': ('uefa.nations', 'Nations League', 'Nations League', '', 'europe'),
+    'FRI': ('fifa.friendly', 'International friendlies', 'Friendlies', '', 'other'),
+    'CAFCL': ('caf.champions', 'CAF Champions League', 'CAF CL', '', 'other'),
+    'CAFCC': ('caf.confed', 'CAF Confederation Cup', 'CAF CC', '', 'other'),
+    'MLS': ('usa.1', 'MLS (USA)', 'MLS', 'US', 'other'),
+    'MEX': ('mex.1', 'Liga MX (Mexico)', 'Liga MX', 'MX', 'other'),
+    'BRA': ('bra.1', 'Brazil Serie A', 'Brazil', 'BR', 'other'),
+    'ARG': ('arg.1', 'Argentina Primera', 'Argentina', 'AR', 'other'),
+    'JPN': ('jpn.1', 'J1 League (Japan)', 'J1', 'JP', 'other'),
+    'KOR': ('kor.1', 'K League 1 (Korea)', 'K League', 'KR', 'other'),
+    'SAU': ('sau.1', 'Saudi Pro League', 'Saudi', 'SA', 'other'),
+    'AUS': ('aus.1', 'A-League (Australia)', 'A-League', 'AU', 'other'),
+    'RSA': ('rsa.1', 'South Africa Premiership', 'S. Africa', 'ZA', 'other'),
+    'EGY': ('egy.1', 'Egypt Premier League', 'Egypt', 'EG', 'other'),
+    'LIB': ('conmebol.libertadores', 'Copa Libertadores', 'Libertadores', '', 'other'),
+    'SUD': ('conmebol.sudamericana', 'Copa Sudamericana', 'Sudamericana', '', 'other'),
+    'ACL': ('afc.champions', 'AFC Champions League', 'AFC CL', '', 'other'),
+    'CCC': ('concacaf.champions', 'CONCACAF Champions Cup', 'CONCACAF', '', 'other'),
+}
+LISTONLY_TEAMS = {}
 ESPN_CL = 'uefa.champions'
 ESPN_NPFL = 'nga.1'
 
@@ -522,6 +569,8 @@ def espn_board(slug, d0, d1):
             return {'events': events}
         except Exception as e:
             last = e
+            if '404' in str(e):
+                break           # this competition does not exist on ESPN: no point trying other date forms
     raise last or RuntimeError('no usable ESPN date form')
 
 
@@ -565,7 +614,7 @@ def espn_fixtures(built, have):
     """Links each odds-file fixture to its ESPN match (for live data) and adds fixtures the odds file lacks."""
     extra, cl, attached = [], [], 0
     all_names = {c: B['names'] for c, B in built.items()}
-    for code, slug in ESPN.items():
+    for code, slug in ESPN_ALL.items():
         if code not in built:
             continue
         try:
@@ -578,7 +627,15 @@ def espn_fixtures(built, have):
         for ev in evs:
             h, a = espn_name(ev['h'], names), espn_name(ev['a'], names)
             if not h or not a:
-                NOTES.append('ESPN: could not match %s v %s in %s' % (ev['h'].get('displayName'), ev['a'].get('displayName'), code))
+                # a club name the odds file spells differently: still list the match, with no numbers
+                hn_, an_ = ev['h'].get('displayName') or ev['h'].get('name') or '?', ev['a'].get('displayName') or ev['a'].get('name') or '?'
+                for nm_ in (hn_, an_):
+                    LISTONLY_TEAMS['%s:%s' % (code, nm_)] = {'name': nm_, 'raw': nm_, 'league': code, 'stats': None}
+                extra.append({'id': '%s-%s' % (code, ev['id']), 'league': code, 'ko': ev['ko'].strftime('%Y-%m-%dT%H:%M:00Z'), 'koKnown': True,
+                              'home': '%s:%s' % (code, hn_), 'away': '%s:%s' % (code, an_), 'source': 'ESPN',
+                              'espn': {'slug': slug, 'id': ev['id']}, 'ref': None, 'mkt': None, 'ou': None, 'ah': None, 'model': None,
+                              'venue': ev.get('venue')})
+                attached += 1
                 continue
             hit = None
             for f in have + extra:
@@ -613,6 +670,47 @@ def espn_fixtures(built, have):
     except Exception as e:
         NOTES.append('ESPN Champions League: %s' % e)
     return extra, cl, attached
+
+
+def espn_other(built, teams, leagues, fixtures):
+    """Match lists for competitions the free stats files do not cover: ESPN only (kick-off, weather, news, live score)."""
+    all_names = {c: B['names'] for c, B in built.items()}
+    ok = bad = n = 0
+    have = {((f.get('espn') or {}).get('slug'), (f.get('espn') or {}).get('id')) for f in fixtures if f.get('espn')}
+    for code, (slug, name, short, cc, kind) in ESPN_LIST.items():
+        try:
+            evs = espn_events(slug)
+        except Exception as e:
+            bad += 1
+            continue
+        ok += 1
+        added = 0
+        for ev in evs:
+            if (slug, ev['id']) in have:
+                continue
+            keys = []
+            for tm in (ev['h'], ev['a']):
+                nm = tm.get('displayName') or tm.get('name') or '?'
+                key = None
+                if kind == 'europe':        # link to the club's league entry when we know the club, so lineups history is shared
+                    for c, names in all_names.items():
+                        m = espn_name(tm, names)
+                        if m:
+                            key = '%s:%s' % (c, m)
+                            break
+                if not key:
+                    key = '%s:%s' % (code, nm)
+                    teams.setdefault(key, {'name': nm, 'raw': nm, 'league': code, 'stats': None})
+                keys.append(key)
+            fixtures.append({'id': '%s-%s' % (code, ev['id']), 'league': code, 'ko': ev['ko'].strftime('%Y-%m-%dT%H:%M:00Z'), 'koKnown': True,
+                             'home': keys[0], 'away': keys[1], 'source': 'ESPN', 'espn': {'slug': slug, 'id': ev['id']},
+                             'ref': None, 'mkt': None, 'ou': None, 'ah': None, 'model': None, 'venue': ev.get('venue')})
+            have.add((slug, ev['id']))
+            added += 1
+        n += added
+        if added:
+            leagues[code] = {'name': name, 'short': short, 'comp': 'europe' if kind == 'europe' else 'other', 'avg': {}}
+    return n, ok, bad
 
 
 def espn_npfl(fixtures, teams, leagues):
@@ -827,7 +925,7 @@ def build_results(built, prev_results):
                       'league': code, 'ko': m['d'].strftime('%Y-%m-%dT%H:%M:00Z'), 'home': '%s:%s' % (code, m['h']), 'away': '%s:%s' % (code, m['a']),
                       'hg': m['hg'], 'ag': m['ag'], 'hhg': m['hhg'], 'hag': m['hag'], 'hc': m['hc'], 'ac': m['ac'], 'cards': tc}
     all_names = {c: B['names'] for c, B in built.items()}
-    for code, slug in ESPN.items():
+    for code, slug in ESPN_ALL.items():
         if code not in built:
             continue
         try:
@@ -897,7 +995,11 @@ CLUBCITY = {
            'lorient': 'Lorient', 'lyon': 'Lyon', 'marseille': 'Marseille', 'metz': 'Metz', 'monaco': 'Monaco', 'nantes': 'Nantes',
            'nice': 'Nice', 'paris fc': 'Paris', 'paris sg': 'Paris', 'rennes': 'Rennes', 'strasbourg': 'Strasbourg', 'toulouse': 'Toulouse'},
 }
-CCODE = {'E0': 'GB', 'SP1': 'ES', 'I1': 'IT', 'D1': 'DE', 'F1': 'FR'}
+CCODE = {'E0': 'GB', 'SP1': 'ES', 'I1': 'IT', 'D1': 'DE', 'F1': 'FR', 'E1': 'GB', 'E2': 'GB', 'E3': 'GB', 'SC0': 'GB', 'D2': 'DE', 'I2': 'IT',
+         'SP2': 'ES', 'F2': 'FR', 'N1': 'NL', 'B1': 'BE', 'P1': 'PT', 'T1': 'TR', 'G1': 'GR'}
+for _c, _v in ESPN_LIST.items():
+    if _v[3]:
+        CCODE[_c] = _v[3]
 
 
 def geocode(place, cc, cache):
@@ -998,7 +1100,7 @@ def add_team_news(fixtures):
     ok = fail = 0
     for f in fixtures:
         es = f.get('espn')
-        if not es or not f.get('koKnown'):
+        if not es or not f.get('koKnown') or ok + fail >= 150:
             continue
         ko = datetime.strptime(f['ko'][:16], '%Y-%m-%dT%H:%M').replace(tzinfo=timezone.utc)
         if ko < NOW - timedelta(hours=1) or ko > NOW + timedelta(hours=60):
@@ -1444,6 +1546,14 @@ def main():
             STATUS['ESPN (NPFL fixtures)'] = 'ok: %d fixtures, no stats' % n_
         except Exception as e:
             STATUS['ESPN (NPFL fixtures)'] = 'FAILED: %s' % e
+
+    for k_, v_ in LISTONLY_TEAMS.items():
+        teams.setdefault(k_, v_)
+    try:
+        n_o, ok_o, bad_o = espn_other(built, teams, leagues, fixtures)
+        STATUS['ESPN (other competitions)'] = 'ok: %d more fixtures from %d competitions (%d had no feed right now)' % (n_o, ok_o, bad_o)
+    except Exception as e:
+        STATUS['ESPN (other competitions)'] = 'FAILED: %s' % e
 
     if not fixtures and not teams:
         log('Nothing could be fetched. The old data file is left untouched.')
