@@ -375,19 +375,122 @@ button.sc-row{cursor:pointer}
 .bf-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;font-size:13px;color:var(--muted)}
 .bf-row select{min-height:38px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);color:inherit;font:inherit;padding:0 8px}
 .tag.ok{color:var(--accent);border-color:var(--accent)}
+
+/* ======== app shell: one screen at a time ======== */
+.wrap{gap:14px}
+.head{padding:2px 2px 0;display:grid;gap:4px;position:static;border:0;background:none;box-shadow:none}
+.head-row{display:flex;align-items:center;gap:8px}
+.head h1{font-size:clamp(20px,5.4vw,26px);margin-right:auto;white-space:nowrap}
+.ibtn{width:40px;height:40px;min-height:40px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font-weight:800;font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0}
+.themeBtn{position:static}
+.stamp{font-size:12.5px;gap:2px 12px}
+.tabsrc{display:none}
+.view{min-width:0}
+body[data-view="picks"] .view:not([data-v~="picks"]),
+body[data-view="record"] .view:not([data-v~="record"]),
+body[data-view="matches"] .view:not([data-v~="matches"]),
+body[data-view="match"] .view:not([data-v~="match"]),
+body[data-view="scores"] .view:not([data-v~="scores"]),
+body[data-view="help"] .view:not([data-v~="help"]){display:none}
+#desk[data-tab="ov"]>:not(.t-ov):not(.mtabs),
+#desk[data-tab="news"]>:not(.t-news):not(.mtabs),
+#desk[data-tab="odds"]>:not(.t-odds):not(.mtabs),
+#desk[data-tab="chk"]>:not(.t-chk):not(.mtabs),
+#desk[data-tab="live"]>:not(.t-live):not(.mtabs){display:none}
+.desk{gap:14px}
+.layout{gap:14px}
+
+/* match tabs */
+.mtabs{position:sticky;top:0;z-index:20;background:var(--bg);margin:0 -2px;padding:6px 2px 8px;display:grid;gap:6px;border-bottom:1px solid var(--line)}
+.mtabs-in{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.mtabs-in button{flex:1 0 auto;min-height:42px;padding:6px 14px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);font-weight:800;font-size:14px;cursor:pointer}
+.mtabs-in button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.mback{justify-self:start;border:0;background:none;color:var(--accent);font-weight:800;font-size:15px;padding:6px 4px;min-height:36px;cursor:pointer}
+
+/* matches list: filters stay light */
+.bf{padding:12px 12px 8px;gap:10px;position:sticky;top:0;background:var(--surface);z-index:3;border-bottom:1px solid var(--line);border-radius:10px 10px 0 0}
+.bf-more{border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.bf-more summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;min-height:42px;padding:0 12px;font-weight:700;font-size:14px}
+.bf-more summary::-webkit-details-marker{display:none}
+.bf-more summary::after{content:"+";font-weight:800;margin-left:8px}
+.bf-more[open] summary::after{content:"\2212"}
+.bf-more>*:not(summary){margin:0 12px 12px}
+.bf-more .chips{flex-wrap:wrap}
+.bf-more .chip-b{min-height:38px;padding:6px 12px;font-size:13px}
+#bfBadge{margin-left:auto;background:var(--accent);color:var(--accent-ink);border-radius:999px;font-size:12px;min-width:22px;height:22px;display:grid;place-items:center;padding:0 6px}
+.bf-count{font-size:12.5px;color:var(--muted)}
+.bf-lab{margin-top:8px}
+.fx{margin:8px 10px}
+.fx-meta{row-gap:4px}
+
+/* picks / scores / help */
+.view>h2,.view h2{font-size:18px}
+.helpv{display:grid;gap:14px}
+.helpv .foot{padding:16px;font-size:14px}
+
+/* bottom bar on phones, top bar on bigger screens */
+#bnav button span{line-height:1.1}
+@media (max-width:899px){
+  body{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px));padding-top:10px}
+  #board{max-height:none;overflow:visible;position:static}
+  .bf{position:sticky;top:0}
+  .sec{padding:16px}
+  .paper{border-radius:12px}
+  #desk .mh{border-radius:12px}
+  .mtabs{top:0}
+}
+@media (min-width:900px){
+  #bnav{display:flex;position:sticky;top:0;z-index:40;gap:6px;justify-content:center;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--line);margin:-18px auto 14px;max-width:1380px}
+  #bnav button{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);border-radius:999px;padding:0 18px;min-height:42px;font-weight:800;font-size:14px;cursor:pointer}
+  #bnav button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  #bnav button[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  #navMatch{display:none!important}
+  .mback{display:none}
+  body[data-view="matches"] #desk.view:not([hidden]){display:grid}
+  .mtabs{top:62px}
+  #board{top:70px;max-height:calc(100vh - 86px)}
+  .bf{border-radius:10px 10px 0 0}
+}
+@media (max-width:899px){#bnav{padding-top:6px}}
+
+.lnk{border:0;background:none;color:var(--accent);font-weight:800;text-decoration:underline;padding:0;cursor:pointer;font-size:inherit}
+.banner{font-size:13.5px;padding:7px 10px}
+.how{border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.how summary{cursor:pointer;min-height:40px;display:flex;align-items:center;padding:0 12px;font-weight:700;font-size:14px}
+.how .hint{margin:0 12px 12px}
+#failList ul{margin:6px 0 0;padding-left:18px;font-size:14px;display:grid;gap:4px}
+@media (max-width:899px){.bf{position:static}}
+.mtabs-in button{flex:1 1 auto;padding:6px 10px;font-size:13.5px}
+
+.seg3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.seg3 button{min-height:46px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font-weight:800;font-size:14px;cursor:pointer;display:grid;place-items:center;padding:4px 6px;line-height:1.15}
+.seg3 button small{font-family:var(--f-mono);font-weight:600;opacity:.75;font-size:12px}
+.seg3 button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.lgsel{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;font-weight:700;font-size:14px}
+.lgsel select{min-height:44px;width:100%;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:inherit;font:inherit;padding:0 10px}
+.bf-count{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.bf-key{margin:0;font-size:12.5px;color:var(--muted);line-height:1.4}
 </style></head><body>
+<nav id="bnav" aria-label="Main sections">
+  <button type="button" data-view="picks" aria-current="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg><span>Picks</span></button>
+  <button type="button" data-view="matches"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Matches</span></button>
+  <button type="button" data-view="match" id="navMatch" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16"/><circle cx="9" cy="14.5" r="1"/></svg><span>Match</span></button>
+  <button type="button" data-view="scores"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M6 6a8 8 0 000 12M18 6a8 8 0 010 12"/></svg><span>Scores</span></button>
+  <button type="button" data-view="record"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V9M12 19V5M19 19v-7"/></svg><span>Record</span></button>
+</nav>
+
 <div class="wrap">
-  <header class="head paper">
-    <button type="button" class="btn small themeBtn" id="themeBtn">Dark mode</button>
-    <div class="eyebrow">Free football tips tool</div>
-    <h1>Naija Match Desk</h1>
-    <p class="lead">Know the game before you bet. See the chances, goals, corners and cards for each match.</p>
+  <header class="head">
+    <div class="head-row">
+      <h1>Naija Match Desk</h1>
+      <button type="button" class="ibtn" id="helpBtn" aria-label="Help and data sources" title="Help and data sources">?</button>
+      <button type="button" class="ibtn themeBtn" id="themeBtn" aria-label="Switch dark and light mode" title="Dark mode">&#9790;</button>
+    </div>
     <div class="stamp" id="stamp">Loading matches...</div>
     <div id="banners"></div>
-    <details class="src"><summary>Where does the data come from?</summary><ul id="sources"></ul></details>
   </header>
 
-  <section class="paper sec" id="scoreSec">
+  <section class="paper sec view" data-v="scores" id="scoreSec">
     <h2>Live scores <span id="scoreSub"></span></h2>
     <div id="scoreBody"><p class="hint">Loading live scores...</p></div>
     <div class="actions"><button type="button" class="btn" id="scoreNow">Refresh now</button>
@@ -395,11 +498,10 @@ button.sc-row{cursor:pointer}
       <span class="status" id="scoreStamp"></span></div>
   </section>
 
-  <section class="paper sec" id="picks">
-    <h2>Picks and record
-      <span class="seg" role="group" aria-label="Choose a view"><button type="button" id="tabPicks" aria-pressed="true">Today's picks</button><button type="button" id="tabTrack" aria-pressed="false">Track record</button></span></h2>
+  <section class="paper sec view" data-v="picks record" id="picks">
+    <h2 id="picksH">Picks</h2><span class="seg tabsrc" role="group" aria-label="Choose a view"><button type="button" id="tabPicks" aria-pressed="true">Today's picks</button><button type="button" id="tabTrack" aria-pressed="false">Track record</button></span>
     <div id="pickPane">
-      <p class="hint">These are the bets your guide's signals point to. Next to each bet is the <b>lowest odds worth taking</b>. Open your bookmaker, look at the price, then come back and tap. If the bookmaker pays less than the number shown, skip it. Every pick you see here is saved in the Track record before kick-off, so you can see later if the picks really paid.</p>
+      <details class="how"><summary>How to use these picks</summary><p class="hint">Next to each bet is the <b>lowest odds worth taking</b>. Open your bookmaker and look at the price. If it pays less than the number shown, skip it. Every pick you see here is saved in the Record before kick-off, so you can check later if the picks really paid.</p></details>
       <p class="hint" id="pickNext" aria-live="polite"></p>
       <div class="chips" id="pickDays" role="group" aria-label="Pick a day"></div>
       <div id="slip"></div>
@@ -408,91 +510,13 @@ button.sc-row{cursor:pointer}
     <div id="trackPane" hidden></div>
   </section>
 
-  <div class="layout">
-    <aside class="paper" id="board" aria-label="Matches">
-      <div class="bf">
-        <input id="bfQ" type="search" placeholder="Search a team or league" autocomplete="off" aria-label="Search matches">
-        <div class="bf-lab">Day</div><div class="chips scroll" id="dayChips" role="group" aria-label="Pick a day"></div>
-        <div class="bf-lab">League</div><div class="chips scroll" id="leagueChips" role="group" aria-label="Pick a league"></div>
-        <div class="bf-lab">Only show matches that have</div><div class="chips scroll" id="flagChips" role="group" aria-label="Filters"></div>
-        <div class="bf-row"><label>Sort <select id="bfSort"><option value="time">Kick-off time</option><option value="picks">Most picks first</option></select></label><span id="bfCount" aria-live="polite"></span><button type="button" class="btn small" id="bfClear">Clear filters</button></div>
-      </div>
-      <div id="bList"><div class="loading">Loading matches...</div></div>
-    </aside>
-    <main class="desk" id="desk" hidden>
-      <section class="paper mh" id="mhCard">
-        <div class="mh-top"><span>Match ticket</span><span id="ticketLg"></span></div>
-        <div class="fixture" id="fixture"></div>
-        <div class="perf" aria-hidden="true"></div>
-        <div class="tagline" id="tagline"></div>
-      </section>
-
-      <section class="paper sec" id="quick"><h2>Quick read <span id="quickSrc"></span></h2><div id="quickBody"></div></section>
-
-      <section class="paper sec" id="findSec">
-        <h2>Type what you found <span>the app reads it for you</span></h2>
-        <p class="hint">Write your findings about this match in plain words, like you would send in a message. The app ticks the checklist and the team news from what it reads. Say which team each fact is about, using the team name.</p>
-        <textarea id="findTxt" rows="5" aria-label="Your findings about this match" placeholder="Example: Heavy rain expected. Kano Pillars travelled 14 hours by road. Their striker is injured and players have not been paid. The pitch is worn artificial turf. No VAR."></textarea>
-        <div class="actions"><button type="button" class="btn primary" id="findGo">Read my notes</button><button type="button" class="btn" id="findClear">Clear notes</button></div>
-        <div id="findOut" aria-live="polite"></div>
-      </section>
-
-      <section class="paper sec" id="liveSec" hidden>
-        <h2>Live now <span id="liveSub"></span></h2>
-        <div class="live-top" id="liveTop"></div>
-        <div class="actions"><button type="button" class="btn" id="liveNow">Refresh now</button>
-          <label class="chk" style="gap:8px;min-height:0"><input type="checkbox" id="liveAuto" checked><span class="box" aria-hidden="true"></span><span class="chk-t">Update by itself every 45 seconds</span></label>
-          <span class="status" id="liveStamp"></span></div>
-        <div id="liveBody"></div>
-      </section>
-
-      <section class="paper sec"><h2>The two teams <span id="confNote"></span></h2>
-        <div class="twocol" id="teams"></div><p class="gap" id="gapNote"></p></section>
-
-      <section class="paper sec" id="newsSec">
-        <h2>Team news: injuries and lineups <span id="newsSub"></span></h2>
-        <p class="hint" id="newsHint"></p>
-        <div id="newsInfo"></div>
-        <div class="twocol" id="newsBody"></div>
-        <div id="newsSug"></div>
-        <div id="newsUsual"></div>
-        <div id="newsInj"></div>
-      </section>
-
-      <section class="paper sec" id="mkSec">
-        <h2>Odds checker <span id="mkSub"></span></h2>
-        <p class="hint" id="mkHint"></p>
-        <div class="tcard" id="qoCard"><div class="tn">Quick odds entry <span>type the odds from your bookmaker</span></div><div id="qo"></div></div>
-        <details class="grp" id="pasteBox"><summary>Or paste odds from your bookmaker</summary><div class="paste">
-          <textarea id="pasteTxt" rows="5" aria-label="Paste odds here" placeholder="Paste or type lines like this:&#10;1 1.50   X 4.20   2 6.00&#10;Over 2.5 1.85   Under 2.5 1.95&#10;GG 1.72   NG 2.05&#10;1X 1.15   X2 2.40"></textarea>
-          <div class="actions"><button type="button" class="btn primary" id="pasteGo">Read the odds</button><span class="status" id="pasteRes"></span></div>
-          <p class="hint">Copy the odds from the match page on Bet9ja, SportyBet or any site and paste them here. We read what we can and tell you what we missed. Always check the numbers in the boxes above.</p>
-        </div></details>
-        <div class="mk-tools">
-          <input type="search" id="mkFilter" placeholder="Search a bet: corners, GG, HT/FT" aria-label="Search a bet">
-          <span class="seg" role="group" aria-label="Compare your odds with"><button type="button" id="cmpModel" aria-pressed="true">Our chance</button><button type="button" id="cmpMkt" aria-pressed="false">Bookmaker view</button></span>
-        </div>
-        <div class="board" id="vboard" aria-live="polite"></div>
-        <div id="groups"></div>
-      </section>
-
-      <section class="paper sec"><h2>What we filled in for you</h2><ul class="prov" id="prov"></ul>
-        <p class="hint">These are not in any data, so you set them: weather, pitch, club money problems, and what the lineup tells you.</p>
-        <div class="actions"><button type="button" class="btn" id="reset">Start again</button><span class="status" id="saved"></span></div></section>
-
-      <div class="split" id="checklist">
-        <form id="form" autocomplete="off" onsubmit="return false" aria-label="Match checklist"></form>
-        <div class="paper" id="results" aria-live="polite">
-          <section class="res-sec"><h3>Combo check</h3><div class="list" id="stacks"></div></section>
-          <section class="res-sec"><h3>Good for these bets <span id="favN"></span></h3><ul class="list" id="favored"></ul></section>
-          <section class="res-sec"><h3>Bad for these bets <span id="againstN"></span></h3><ul class="list" id="against"></ul></section>
-          <section class="res-sec" id="notesSec"><h3>Match-day tip</h3><div class="list" id="notes"></div></section>
-          <section class="res-sec"><h3>Share</h3>
-            <div class="actions"><button type="button" class="btn primary" id="copy">Copy summary</button><span class="status" id="copyStatus"></span></div>
-            <textarea id="fallback" hidden readonly aria-label="Summary text"></textarea></section>
-        </div>
-      </div>
-
+  <section class="view helpv" data-v="help" id="helpSec">
+    <button type="button" class="btn small" id="helpBack">&lsaquo; Back</button>
+    <section class="paper sec"><h2>About this app</h2>
+      <p class="lead">Know the game before you bet. See the chances, goals, corners and cards for each match.</p>
+      <div id="failList"></div>
+      <details class="src" open><summary>Where does the data come from?</summary><ul id="sources"></ul></details>
+    </section>
       <section class="paper sec"><h2>What this app covers</h2><div class="cov" id="cov"></div></section>
 
       <section class="paper sec"><h2>Betting words in plain English</h2>
@@ -509,25 +533,119 @@ button.sc-row{cursor:pointer}
           <div><dt>Fair odds</dt><dd>What a bet should pay if our chance is right. Fair odds = 1 divided by the chance. If your bookmaker pays more than fair odds, that is a good price.</dd></div>
           <div><dt>Value</dt><dd>On average, how much you win or lose for every 1 you stake. +5% is good. -5% is bad. It is only as good as our chance, so check the team news.</dd></div>
         </dl></section>
-    </main>
-  </div>
-
-  <footer class="foot paper">
+      <footer class="foot paper">
     <p><b>Our numbers are estimates.</b> They come from recent results and a simple goals formula. They are not bookmaker prices, and they do not know about injuries or lineups. If our number is very different from the bookmaker's, we are probably missing news.</p>
     <p><b>Checklist scores are rough weights</b> from your match-day guide. They show which bets the conditions point to. They are not chances.</p>
     <p><b>Bet responsibly.</b> 18+ only. You can lose money. Never stake what you cannot afford to lose.</p>
   </footer>
+  </section>
+
+  <div class="layout view" data-v="matches match">
+    <aside class="paper view" data-v="matches" id="board" aria-label="Matches">
+      <div class="bf">
+        <input id="bfQ" type="search" placeholder="Search a team" autocomplete="off" aria-label="Search a team">
+        <div class="seg3" id="modeChips" role="group" aria-label="What to show">
+          <button type="button" data-mode="all" aria-pressed="true">All games</button>
+          <button type="button" data-mode="best" aria-pressed="false">Best bets</button>
+          <button type="button" data-mode="live" aria-pressed="false">Live now</button>
+        </div>
+        <div class="chips scroll" id="dayChips" role="group" aria-label="Pick a day"></div>
+        <label class="lgsel"><span>League</span><select id="lgSel" aria-label="Pick a league"></select></label>
+        <div class="bf-count"><span id="bfCount" aria-live="polite"></span><button type="button" class="lnk" id="bfReset" hidden>Show everything</button></div>
+        <p class="bf-key">Under each game: the chance out of 100 that the home team wins, it is a draw, or the away team wins.</p>
+      </div>
+      <div id="bList"><div class="loading">Loading matches...</div></div>
+    </aside>
+    <main class="desk view" data-v="match" id="desk" data-tab="ov" hidden>
+      <div class="mtabs" id="mtabs" role="tablist" aria-label="Parts of this match">
+        <button type="button" class="mback" id="mBack">&lsaquo; Matches</button>
+        <div class="mtabs-in">
+          <button type="button" role="tab" data-tab="ov" aria-selected="true">Overview</button>
+          <button type="button" role="tab" data-tab="news" aria-selected="false">News</button>
+          <button type="button" role="tab" data-tab="odds" aria-selected="false">Odds</button>
+          <button type="button" role="tab" data-tab="chk" aria-selected="false">Checklist</button>
+          <button type="button" role="tab" data-tab="live" aria-selected="false" id="navLive" hidden>Live</button>
+        </div>
+      </div>
+      <section class="paper mh t-ov" id="mhCard">
+        <div class="mh-top"><span>Match ticket</span><span id="ticketLg"></span></div>
+        <div class="fixture" id="fixture"></div>
+        <div class="perf" aria-hidden="true"></div>
+        <div class="tagline" id="tagline"></div>
+      </section>
+
+      <section class="paper sec t-ov" id="quick"><h2>Quick read <span id="quickSrc"></span></h2><div id="quickBody"></div></section>
+
+      <section class="paper sec t-ov" id="notesSec"><h2>Match-day tips</h2><div class="list" id="notes"></div></section>
+
+      <section class="paper sec t-live" id="liveSec" hidden>
+        <h2>Live now <span id="liveSub"></span></h2>
+        <div class="live-top" id="liveTop"></div>
+        <div class="actions"><button type="button" class="btn" id="liveNow">Refresh now</button>
+          <label class="chk" style="gap:8px;min-height:0"><input type="checkbox" id="liveAuto" checked><span class="box" aria-hidden="true"></span><span class="chk-t">Update by itself every 45 seconds</span></label>
+          <span class="status" id="liveStamp"></span></div>
+        <div id="liveBody"></div>
+      </section>
+
+      <section class="paper sec t-ov"><h2>The two teams <span id="confNote"></span></h2>
+        <div class="twocol" id="teams"></div><p class="gap" id="gapNote"></p></section>
+
+      <section class="paper sec t-news" id="newsSec">
+        <h2>Team news: injuries and lineups <span id="newsSub"></span></h2>
+        <p class="hint" id="newsHint"></p>
+        <div id="newsInfo"></div>
+        <div class="twocol" id="newsBody"></div>
+        <div id="newsSug"></div>
+        <div id="newsUsual"></div>
+        <div id="newsInj"></div>
+      </section>
+
+      <section class="paper sec t-news" id="findSec">
+        <h2>Type what you found <span>the app reads it for you</span></h2>
+        <p class="hint">Write your findings about this match in plain words, like you would send in a message. The app ticks the checklist and the team news from what it reads. Say which team each fact is about, using the team name.</p>
+        <textarea id="findTxt" rows="5" aria-label="Your findings about this match" placeholder="Example: Heavy rain expected. Kano Pillars travelled 14 hours by road. Their striker is injured and players have not been paid. The pitch is worn artificial turf. No VAR."></textarea>
+        <div class="actions"><button type="button" class="btn primary" id="findGo">Read my notes</button><button type="button" class="btn" id="findClear">Clear notes</button></div>
+        <div id="findOut" aria-live="polite"></div>
+      </section>
+
+      <section class="paper sec t-odds" id="mkSec">
+        <h2>Odds checker <span id="mkSub"></span></h2>
+        <p class="hint" id="mkHint"></p>
+        <div class="tcard" id="qoCard"><div class="tn">Quick odds entry <span>type the odds from your bookmaker</span></div><div id="qo"></div></div>
+        <details class="grp" id="pasteBox"><summary>Or paste odds from your bookmaker</summary><div class="paste">
+          <textarea id="pasteTxt" rows="5" aria-label="Paste odds here" placeholder="Paste or type lines like this:&#10;1 1.50   X 4.20   2 6.00&#10;Over 2.5 1.85   Under 2.5 1.95&#10;GG 1.72   NG 2.05&#10;1X 1.15   X2 2.40"></textarea>
+          <div class="actions"><button type="button" class="btn primary" id="pasteGo">Read the odds</button><span class="status" id="pasteRes"></span></div>
+          <p class="hint">Copy the odds from the match page on Bet9ja, SportyBet or any site and paste them here. We read what we can and tell you what we missed. Always check the numbers in the boxes above.</p>
+        </div></details>
+        <div class="mk-tools">
+          <input type="search" id="mkFilter" placeholder="Search a bet: corners, GG, HT/FT" aria-label="Search a bet">
+          <span class="seg" role="group" aria-label="Compare your odds with"><button type="button" id="cmpModel" aria-pressed="true">Our chance</button><button type="button" id="cmpMkt" aria-pressed="false">Bookmaker view</button></span>
+        </div>
+        <div class="board" id="vboard" aria-live="polite"></div>
+        <div id="groups"></div>
+      </section>
+
+      <section class="paper sec t-chk"><h2>What we filled in for you</h2><ul class="prov" id="prov"></ul>
+        <p class="hint">These are not in any data, so you set them: weather, pitch, club money problems, and what the lineup tells you.</p>
+        <div class="actions"><button type="button" class="btn" id="reset">Start again</button><span class="status" id="saved"></span></div></section>
+
+      <div class="split t-chk" id="checklist">
+        <form id="form" autocomplete="off" onsubmit="return false" aria-label="Match checklist"></form>
+        <div class="paper" id="results" aria-live="polite">
+          <section class="res-sec"><h3>Combo check</h3><div class="list" id="stacks"></div></section>
+          <section class="res-sec"><h3>Good for these bets <span id="favN"></span></h3><ul class="list" id="favored"></ul></section>
+          <section class="res-sec"><h3>Bad for these bets <span id="againstN"></span></h3><ul class="list" id="against"></ul></section>
+          <section class="res-sec"><h3>Share</h3>
+            <div class="actions"><button type="button" class="btn primary" id="copy">Copy summary</button><span class="status" id="copyStatus"></span></div>
+            <textarea id="fallback" hidden readonly aria-label="Summary text"></textarea></section>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+
 </div>
-
-<nav id="bnav" aria-label="Jump to a part of the page">
-  <button type="button" data-to="scoreSec"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M12 5v14M4 12h16"/></svg>Scores</button>
-  <button type="button" data-to="picks" aria-current="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg>Picks</button>
-  <button type="button" data-to="board"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Matches</button>
-  <button type="button" data-to="liveSec" id="navLive" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M6 6a8 8 0 000 12M18 6a8 8 0 010 12"/></svg>Live</button>
-  <button type="button" data-to="mkSec"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/></svg>Odds</button>
-  <button type="button" data-to="checklist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Checklist</button>
-</nav>
-
 <script>
 // ENGINE START
 const M = {
@@ -921,75 +1039,80 @@ function selectFixture(id, scroll){
   $('findTxt').value = S.notes || ''; $('findOut').innerHTML = '';
   try { const all = lsRead(); all._last = FX.id; lsWrite(all); } catch (e) {}
   const mh = $('mhCard'); mh.classList.remove('stamp-on'); void mh.offsetWidth; mh.classList.add('stamp-on');
-  if (scroll && window.matchMedia('(max-width: 899px)').matches) mh.scrollIntoView({behavior:'smooth', block:'start'});
+  if (typeof openMatchView === 'function'){ if (scroll) openMatchView(); else syncNav(); }
 }
 
 /* ---------- match list ---------- */
 const LG_PRIORITY = ['E0','SP1','I1','D1','F1','CL','UEL','UECL','E1','NPFL','N1','P1','SC0','T1','B1','MLS'];
-const BF = {day: 'all', q: '', flags: {fin: true}, sort: 'time'};
+const BF = {day: 'all', q: '', mode: 'all'};
 let PKN = {};
 function wxFlag(f){ const w = f.wx; return !!(w && (w.rain >= 1 || w.t >= 31 || w.gust >= 45)); }
 function outN(f){ let n = 0; ((f && f.inj) || []).forEach(x => { if ((x.s === 'home' || x.s === 'away') && OUTRX.test(x.st || '') && !/doubt|day/i.test(x.st || '')) n++; }); return n; }
-const BF_FLAGS = [['fin','Hide finished', f => !(f.koKnown && Date.now() >= new Date(f.ko).getTime() + 3.3 * 3600e3)],
-  ['odds','Bookmaker odds', f => !!f.mkt], ['model','Our numbers', f => !!f.model], ['picks','Picks', f => (PKN[f.id] || 0) > 0],
-  ['news','Players out', f => outN(f) > 0], ['wx','Rain, heat or wind', wxFlag], ['live','Live now', f => { const sc = (typeof SCORES !== 'undefined' && f.espn) ? SCORES[f.espn.id] : null; return !!(sc && sc.state === 'in'); }]];
+function isLive(f){ const sc = (typeof SCORES !== 'undefined' && f.espn) ? SCORES[f.espn.id] : null; if (sc) return sc.state === 'in'; const k = new Date(f.ko).getTime(), n = Date.now(); return !!(f.koKnown && n >= k && n < k + 2.2 * 3600e3); }
+function isDone(f){ const sc = (typeof SCORES !== 'undefined' && f.espn) ? SCORES[f.espn.id] : null; if (sc && sc.state === 'post') return true; return !!(f.koKnown && Date.now() >= new Date(f.ko).getTime() + 3.3 * 3600e3); }
 function bfMatch(f, skip){
+  if (isDone(f)) return false;
   if (skip !== 'day' && BF.day !== 'all' && fmtDay.format(new Date(f.ko)) !== BF.day) return false;
   if (skip !== 'lg' && filter !== 'all' && f.league !== filter) return false;
   if (BF.q){
     const hay = (T(f.home).name + ' ' + T(f.away).name + ' ' + ((DATA.leagues[f.league] || {}).name || '') + ' ' + ((DATA.leagues[f.league] || {}).short || '')).toLowerCase();
     if (!BF.q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.indexOf(w) >= 0)) return false;
   }
-  for (const fl of BF_FLAGS){ if (skip !== 'flags' && BF.flags[fl[0]] && !fl[2](f)) return false; }
+  if (skip !== 'mode'){
+    if (BF.mode === 'best' && !((PKN[f.id] || 0) > 0)) return false;
+    if (BF.mode === 'live' && !isLive(f)) return false;
+  }
   return true;
 }
 function renderChips(){
   if (!DATA) return;
   const fx = DATA.fixtures, now = Date.now(), today = fmtDay.format(new Date(now)), tom = fmtDay.format(new Date(now + 864e5));
-  // day chips
+  const mc = {all: 0, best: 0, live: 0};
+  fx.filter(f => bfMatch(f, 'mode')).forEach(f => { mc.all++; if ((PKN[f.id] || 0) > 0) mc.best++; if (isLive(f)) mc.live++; });
+  $('modeChips').querySelectorAll('[data-mode]').forEach(b => { b.setAttribute('aria-pressed', String(BF.mode === b.dataset.mode)); const lab = {all: 'All games', best: 'Best bets', live: 'Live now'}[b.dataset.mode]; b.innerHTML = lab + '<small>' + mc[b.dataset.mode] + '</small>'; });
   const dc = {}, dorder = [];
   fx.filter(f => bfMatch(f, 'day')).forEach(f => { const k = fmtDay.format(new Date(f.ko)); if (!(k in dc)){ dc[k] = 0; dorder.push(k); } dc[k]++; });
   if (BF.day !== 'all' && !(BF.day in dc)) BF.day = 'all';
   const tot = fx.filter(f => bfMatch(f, 'day')).length;
-  $('dayChips').innerHTML = '<button type="button" class="chip-b" data-bday="all" aria-pressed="' + (BF.day === 'all') + '">All days<small>' + tot + '</small></button>' +
+  $('dayChips').innerHTML = '<button type="button" class="chip-b" data-bday="all" aria-pressed="' + (BF.day === 'all') + '">Any day<small>' + tot + '</small></button>' +
     dorder.map(k => '<button type="button" class="chip-b" data-bday="' + esc(k) + '" aria-pressed="' + (BF.day === k) + '">' + esc(k === today ? 'Today' : k === tom ? 'Tomorrow' : k) + '<small>' + dc[k] + '</small></button>').join('');
-  // league chips (counts follow the other filters)
   const counts = {}; let allN = 0;
   fx.filter(f => bfMatch(f, 'lg')).forEach(f => { counts[f.league] = (counts[f.league] || 0) + 1; allN++; });
   const keys = Object.keys(counts).sort((a, b) => { const pa = LG_PRIORITY.indexOf(a), pb = LG_PRIORITY.indexOf(b); return (pa < 0 ? 99 : pa) - (pb < 0 ? 99 : pb) || counts[b] - counts[a]; });
   if (filter !== 'all' && !(filter in counts)) keys.push(filter);
-  $('leagueChips').innerHTML = '<button type="button" class="chip-b" data-lg="all" aria-pressed="' + (filter === 'all') + '">All<small>' + allN + '</small></button>' +
-    keys.map(k => '<button type="button" class="chip-b" data-lg="' + esc(k) + '" aria-pressed="' + (filter === k) + '">' + esc((DATA.leagues[k] || {}).short || k) + '<small>' + (counts[k] || 0) + '</small></button>').join('');
-  $('flagChips').innerHTML = BF_FLAGS.map(fl => '<button type="button" class="chip-b" data-flag="' + fl[0] + '" aria-pressed="' + !!BF.flags[fl[0]] + '">' + fl[1] + '<small>' + fx.filter(f => bfMatch(f, 'flags') && fl[2](f)).length + '</small></button>').join('');
+  $('lgSel').innerHTML = '<option value="all">All leagues (' + allN + ')</option>' + keys.map(k => '<option value="' + esc(k) + '">' + esc((DATA.leagues[k] || {}).name || k) + ' (' + (counts[k] || 0) + ')</option>').join('');
+  $('lgSel').value = filter;
 }
 function renderBoard(){
   const box = $('board'), keep = box.scrollTop, now = Date.now();
   let list = DATA.fixtures.filter(f => bfMatch(f));
-  if (BF.sort === 'picks') list = list.slice().sort((a, b) => (PKN[b.id] || 0) - (PKN[a.id] || 0) || new Date(a.ko) - new Date(b.ko));
-  const nAll = DATA.fixtures.length;
-  $('bfCount').textContent = list.length === nAll ? nAll + ' matches' : list.length + ' of ' + nAll + ' matches';
+  if (BF.mode === 'best') list = list.slice().sort((a, b) => (PKN[b.id] || 0) - (PKN[a.id] || 0) || new Date(a.ko) - new Date(b.ko));
+  const filt = BF.day !== 'all' || filter !== 'all' || BF.q || BF.mode !== 'all';
+  $('bfCount').textContent = list.length + (list.length === 1 ? ' match' : ' matches') + (BF.mode === 'best' ? ', best bets first' : '');
+  $('bfReset').hidden = !filt;
   let html = '', day = '';
   list.forEach(f => {
-    const d = new Date(f.ko), dk = fmtDay.format(d), H = T(f.home), A = T(f.away), tags = [];
-    if (BF.sort === 'time' && day !== dk){ day = dk; html += '<div class="day">' + dk + '</div>'; }
+    const d = new Date(f.ko), dk = fmtDay.format(d), H = T(f.home), A = T(f.away), tl = [], tg = (p, h) => tl.push([p, h]);
+    if (BF.mode !== 'best' && day !== dk){ day = dk; html += '<div class="day">' + dk + '</div>'; }
     const probs = f.mkt ? f.mkt.fair : (f.model ? f.model.p1x2 : null);
-    if (filter === 'all' || BF.sort === 'picks') tags.push('<span class="tag">' + esc((DATA.leagues[f.league] || {}).short || f.league) + '</span>');
-    if (BF.sort === 'picks') tags.push('<span class="tag">' + fmtDay.format(d) + '</span>');
-    if (f.ahead){ const fv = probs && probs[0] >= probs[2] ? f.ahead.home : f.ahead.away; if (fv) tags.push('<span class="tag rot">UCL soon</span>'); }
+    if (filter === 'all') tg(3, '<span class="tag">' + esc((DATA.leagues[f.league] || {}).short || f.league) + '</span>');
+    if (BF.mode === 'best') tg(5, '<span class="tag">' + fmtDay.format(d) + '</span>');
+    if (f.ahead){ const fv = probs && probs[0] >= probs[2] ? f.ahead.home : f.ahead.away; if (fv) tg(6, '<span class="tag rot">UCL soon</span>'); }
     const sc = (typeof SCORES !== 'undefined' && f.espn) ? SCORES[f.espn.id] : null;
-    if (sc && sc.state === 'in') tags.push('<span class="tag live"><b>' + sc.gh + '-' + sc.ga + '</b> ' + esc(sc.when || 'Live') + '</span>');
-    else if (sc && sc.state === 'post') tags.push('<span class="tag"><b>' + sc.gh + '-' + sc.ga + '</b> FT</span>');
-    else if (f.koKnown && now > d.getTime() && now < d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag live">Live</span>');
-    else if (f.koKnown && now >= d.getTime() + 3.3 * 3600e3) tags.push('<span class="tag">Finished?</span>');
-    if (!f.koKnown) tags.push('<span class="tag">Time not set</span>');
-    if (PKN[f.id]) tags.push('<span class="tag ok">' + PKN[f.id] + (PKN[f.id] === 1 ? ' pick' : ' picks') + '</span>');
-    if (f.mkt) tags.push('<span class="tag">odds</span>');
-    const on = outN(f); if (on) tags.push('<span class="tag rot">' + on + ' out</span>');
-    if (wxFlag(f)) tags.push('<span class="tag">' + (f.wx.rain >= 1 ? 'rain' : f.wx.t >= 31 ? 'hot' : 'wind') + '</span>');
+    if (sc && sc.state === 'in') tg(0, '<span class="tag live"><b>' + sc.gh + '-' + sc.ga + '</b> ' + esc(sc.when || 'Live') + '</span>');
+    else if (sc && sc.state === 'post') tg(0, '<span class="tag"><b>' + sc.gh + '-' + sc.ga + '</b> FT</span>');
+    else if (f.koKnown && now > d.getTime() && now < d.getTime() + 3.3 * 3600e3) tg(0, '<span class="tag live">Live</span>');
+    else if (f.koKnown && now >= d.getTime() + 3.3 * 3600e3) tg(0, '<span class="tag">Finished?</span>');
+    if (!f.koKnown) tg(0, '<span class="tag">Time not set</span>');
+    if (PKN[f.id]) tg(1, '<span class="tag ok">' + PKN[f.id] + (PKN[f.id] === 1 ? ' pick' : ' picks') + '</span>');
+    if (f.mkt) tg(7, '<span class="tag">odds</span>');
+    const on = outN(f); if (on) tg(2, '<span class="tag rot">' + on + ' out</span>');
+    if (wxFlag(f)) tg(4, '<span class="tag">' + (f.wx.rain >= 1 ? 'rain' : f.wx.t >= 31 ? 'hot' : 'wind') + '</span>');
+    const tags = tl.sort((x, y) => x[0] - y[0]).slice(0, 4).map(x => x[1]);
     const bar = probs ? '<span class="pbar" aria-hidden="true"><i class="ph" style="width:' + (probs[0] * 100) + '%"></i><i class="pd" style="width:' + (probs[1] * 100) + '%"></i><i class="pa" style="width:' + (probs[2] * 100) + '%"></i></span><span class="fx-meta mono">' + pc(probs[0]) + ' &middot; ' + pc(probs[1]) + ' &middot; ' + pc(probs[2]) + tags.join('') + '</span>' : '<span class="fx-meta">' + tags.join('') + '</span>';
     html += '<button type="button" class="fx" data-id="' + esc(f.id) + '" aria-pressed="' + (FX && FX.id === f.id) + '"><span class="fx-time">' + (f.koKnown ? fmtTime.format(d) : '--:--') + '</span><span class="fx-teams">' + esc(H.name) + '<i>v</i>' + esc(A.name) + '</span>' + bar + '</button>';
   });
-  $('bList').innerHTML = html || '<div class="loading">No matches fit these filters. Tap "Clear filters" to see everything.</div>';
+  $('bList').innerHTML = html || '<div class="loading">' + (BF.mode === 'live' ? 'No game is on right now.' : BF.mode === 'best' ? 'No match has a strong bet for these choices.' : 'No match found.') + ' <button type="button" class="lnk" data-reset="1">Show everything</button></div>';
   box.scrollTop = keep;
 }
 
@@ -1160,7 +1283,7 @@ function stopLive(){ if (liveTimer){ clearInterval(liveTimer); liveTimer = null;
 function startLive(){
   const sec = $('liveSec');
   sec.hidden = !(FX && FX.espn);
-  $('navLive').hidden = sec.hidden;
+  syncLiveTab();
   if (sec.hidden) return;
   renderLive();
   if (liveWindowOpen()) pollLive(); else pollLive(true);
@@ -1218,6 +1341,7 @@ function applyLiveToSetup(){
   S.live = v; syncForm();
 }
 function renderLive(){
+  setTimeout(syncLiveTab, 0);
   const top = $('liveTop'), body = $('liveBody');
   const open = liveWindowOpen();
   $('liveSub').textContent = open ? '(updates every 45 seconds)' : '(starts 2 hours before kick-off)';
@@ -1632,7 +1756,8 @@ function renderPicks(){
   if (!PDAY || !(PDAY in counts)) PDAY = (counts[today] && upcoming[today]) ? today : counts[tom] ? tom : order[0] || today;
   const label = k => k === today ? 'Today' : k === tom ? 'Tomorrow' : k;
   $('pickDays').innerHTML = order.slice(0, 7).map(k => '<button type="button" class="chip-b" data-day="' + esc(k) + '" aria-pressed="' + (PDAY === k) + '">' + esc(label(k)) + '<small>' + counts[k] + (counts[k] === 1 ? ' pick' : ' picks') + '</small></button>').join('');
-  $('pickNext').innerHTML = counts[tom] ? 'Tomorrow (' + tom + '): <b>' + counts[tom] + ' ' + (counts[tom] === 1 ? 'pick' : 'picks') + '</b> are ready, out of ' + tomN + (tomN === 1 ? ' match' : ' matches') + ' listed. All of them are in the Matches list below, where you can filter them yourself. ' + (PDAY === tom ? '' : '<button type="button" class="btn small" data-day="' + esc(tom) + '">See tomorrow\'s picks</button> ') + 'The day after appears by itself. Lineups and news are not known yet, so check them on match day.' : (tomN ? 'Tomorrow (' + tom + '): ' + tomN + (tomN === 1 ? ' match is' : ' matches are') + ' listed, but none has a strong signal yet. Signals grow when lineups, weather and team news arrive. You can still open any match from the list below. The list refreshes by itself 4 times a day.' : 'No matches are listed for tomorrow (' + tom + ') yet. The list refreshes by itself 4 times a day (about 5:30 AM, 11:30 AM, 5:30 PM and 11:30 PM) and covers about the next 9 days, so look again later.');
+  $('pickNext').innerHTML = counts[tom] ? '' : (tomN ? 'Tomorrow (' + tom + '): ' + tomN + (tomN === 1 ? ' match is' : ' matches are') + ' listed, but none has a strong signal yet. Signals grow when lineups, weather and news arrive. Open any match from the Matches screen.' : 'No matches are listed for tomorrow (' + tom + ') yet. The list refreshes by itself 4 times a day and covers about the next 9 days.');
+  $('pickNext').hidden = !$('pickNext').innerHTML;
   const list = PKCACHE.filter(x => dayOf(x) === PDAY);
   // slip: every pick marked OK, any day
   const slip = []; PKCACHE.forEach(x => x.picks.forEach(p => { if (PKS[p.id] === 'ok') slip.push([x, p]); }));
@@ -1650,7 +1775,7 @@ function renderPicks(){
 }
 $('picks').addEventListener('click', e => {
   const d = e.target.closest('[data-day]'); if (d){ PDAY = d.dataset.day; renderPicks(); return; }
-  const o = e.target.closest('[data-open]'); if (o){ selectFixture(o.dataset.open, false); $('mhCard').scrollIntoView({behavior:'smooth', block:'start'}); return; }
+  const o = e.target.closest('[data-open]'); if (o){ selectFixture(o.dataset.open, true); return; }
   const p = e.target.closest('[data-pick]');
   if (p){ if (p.disabled) return; const id = p.dataset.pick, v = p.dataset.v; if (PKS[id] === v) delete PKS[id]; else PKS[id] = v; pkWrite(PKS); renderPicks(); return; }
   if (e.target.id === 'slipClear'){ Object.keys(PKS).forEach(k => { if (PKS[k] === 'ok') delete PKS[k]; }); pkWrite(PKS); renderPicks(); return; }
@@ -2078,12 +2203,13 @@ $('mkFilter').addEventListener('input', () => renderMarkets());
 $('cmpModel').addEventListener('click', () => { CMP = 'model'; $('cmpModel').setAttribute('aria-pressed', 'true'); $('cmpMkt').setAttribute('aria-pressed', 'false'); updateEdges(); persist(); });
 $('cmpMkt').addEventListener('click', () => { CMP = 'market'; $('cmpModel').setAttribute('aria-pressed', 'false'); $('cmpMkt').setAttribute('aria-pressed', 'true'); updateEdges(); persist(); });
 $('board').addEventListener('click', e => { const b = e.target.closest('.fx'); if (b) selectFixture(b.dataset.id, true); });
-$('leagueChips').addEventListener('click', e => { const b = e.target.closest('.chip-b'); if (!b) return; filter = b.dataset.lg; renderChips(); renderBoard(); });
 $('dayChips').addEventListener('click', e => { const b = e.target.closest('[data-bday]'); if (!b) return; BF.day = b.dataset.bday; renderChips(); renderBoard(); });
-$('flagChips').addEventListener('click', e => { const b = e.target.closest('[data-flag]'); if (!b) return; const k = b.dataset.flag; BF.flags[k] = !BF.flags[k]; renderChips(); renderBoard(); });
+$('modeChips').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; BF.mode = b.dataset.mode; renderChips(); renderBoard(); });
+$('lgSel').addEventListener('change', () => { filter = $('lgSel').value; renderChips(); renderBoard(); });
 $('bfQ').addEventListener('input', () => { BF.q = $('bfQ').value.trim(); renderChips(); renderBoard(); });
-$('bfSort').addEventListener('change', () => { BF.sort = $('bfSort').value; renderBoard(); });
-$('bfClear').addEventListener('click', () => { BF.day = 'all'; BF.q = ''; BF.flags = {}; BF.sort = 'time'; filter = 'all'; $('bfQ').value = ''; $('bfSort').value = 'time'; renderChips(); renderBoard(); });
+function bfReset(){ BF.day = 'all'; BF.q = ''; BF.mode = 'all'; filter = 'all'; $('bfQ').value = ''; renderChips(); renderBoard(); }
+$('bfReset').addEventListener('click', bfReset);
+$('bList').addEventListener('click', e => { if (e.target.closest('[data-reset]')) bfReset(); });
 $('reset').addEventListener('click', () => { const all = lsRead(); delete all[FX.id]; lsWrite(all); const id = FX.id; selectFixture(id, false); $('saved').textContent = 'Started again from the data.'; });
 $('liveNow').addEventListener('click', () => pollLive());
 $('copy').addEventListener('click', () => {
@@ -2092,15 +2218,49 @@ $('copy').addEventListener('click', () => {
   try { navigator.clipboard.writeText(lastText).then(() => { fb.hidden = true; st.textContent = 'Copied.'; }, show); } catch (err) { show(); }
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && FX && liveWindowOpen()) pollLive(); });
-$('bnav').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  let t = $(b.dataset.to); if (!t || t.hidden || $('desk').hidden && b.dataset.to !== 'board') t = $('board');
-  t.scrollIntoView({behavior:'smooth', block:'start'});
-  $('bnav').querySelectorAll('button').forEach(x => x.setAttribute('aria-current', x === b ? 'true' : 'false'));
+/* ---------- screens: one at a time ---------- */
+const WIDE = window.matchMedia('(min-width: 900px)');
+const ALLMODE = /[?&]all=1/.test(location.search);
+let VIEW = 'picks', PREV = 'picks';
+function setTab(tab){
+  const d = $('desk');
+  if (tab === 'live' && $('navLive').hidden) tab = 'ov';
+  d.dataset.tab = ALLMODE ? 'all' : tab;
+  document.querySelectorAll('#mtabs [data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+}
+function syncNav(){
+  const v = document.body.dataset.view || VIEW;
+  $('navMatch').hidden = !FX || WIDE.matches;
+  $('bnav').querySelectorAll('button').forEach(b => b.setAttribute('aria-current', String(b.dataset.view === v || (WIDE.matches && v === 'matches' && b.dataset.view === 'match'))));
+}
+function setView(v, keepScroll){
+  if (ALLMODE){ document.body.dataset.view = 'all'; if (v === 'record') showTab('track'); else if (v === 'picks') showTab('picks'); return; }
+  if (v === 'match' && (!FX || WIDE.matches)) v = 'matches';
+  if (v !== 'help') PREV = v;
+  VIEW = v; document.body.dataset.view = v;
+  if (v === 'picks') showTab('picks'); else if (v === 'record') showTab('track');
+  $('picksH').textContent = v === 'record' ? 'Track record' : "Today's picks";
+  syncNav();
+  if (!keepScroll) window.scrollTo(0, 0);
+}
+function openMatchView(){ setTab('ov'); setView('match'); }
+function syncLiveTab(){
+  const sec = $('liveSec'), on = !sec.hidden && (liveWindowOpen() || (LIVE && LIVE.state && LIVE.state !== 'pre'));
+  $('navLive').hidden = !on;
+  if (!on && $('desk').dataset.tab === 'live') setTab('ov');
+}
+$('bnav').addEventListener('click', e => { const b = e.target.closest('button[data-view]'); if (b) setView(b.dataset.view); });
+$('mtabs').addEventListener('click', e => {
+  if (e.target.closest('#mBack')){ setView('matches'); return; }
+  const b = e.target.closest('[data-tab]'); if (b){ setTab(b.dataset.tab); const r = $('mtabs').getBoundingClientRect(); if (r.top < 0 || window.scrollY > 0 && !WIDE.matches) window.scrollTo(0, 0); }
 });
+document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) setView(g.dataset.go); });
+$('helpBtn').addEventListener('click', () => setView(VIEW === 'help' ? PREV : 'help'));
+$('helpBack').addEventListener('click', () => setView(PREV));
+WIDE.addEventListener('change', () => { if (WIDE.matches && VIEW === 'match') setView('matches', true); else syncNav(); });
 /* light / dark switch */
 function effectiveDark(){ const t = document.documentElement.dataset.theme; return t ? t === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches; }
-function paintThemeBtn(){ $('themeBtn').textContent = effectiveDark() ? 'Light mode' : 'Dark mode'; }
+function paintThemeBtn(){ $('themeBtn').innerHTML = effectiveDark() ? '&#9728;' : '&#9790;'; $('themeBtn').title = effectiveDark() ? 'Switch to light mode' : 'Switch to dark mode'; }
 try { const t = localStorage.getItem('naija-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 paintThemeBtn();
 $('themeBtn').addEventListener('click', () => {
@@ -2164,7 +2324,7 @@ async function pollScores(){
   SC_AT = new Date();
   SC_LIST = all.filter(e => e.state === 'in' || fmtDay.format(new Date(e.ko)) === today);
   SCORES = {}; all.forEach(e => { SCORES[e.id] = e; });
-  renderScores(); if (DATA) renderBoard();
+  renderScores(); if (DATA){ renderChips(); renderBoard(); }
 }
 function renderScores(){
   const sec = $('scoreSec'); if (!sec) return;
@@ -2205,10 +2365,12 @@ function renderMeta(d){
   const asof = new Date(d.asOf), ageH = (Date.now() - asof.getTime()) / 3600e3;
   $('stamp').innerHTML = '<span><span class="sdot' + (ageH > 30 ? ' old' : '') + '"></span>Updated <b id="asof">' + fmtDay.format(asof) + ', ' + fmtTime.format(asof) + ' WAT</b></span><span><b>' + d.fixtures.length + '</b> matches</span><span>Lineups come live from ESPN</span>';
   let ban = '';
-  if (ageH > 30) ban += '<p class="banner bad">This data is ' + Math.round(ageH) + ' hours old. The daily update may have failed. Open your GitHub repository, click Actions and look at the last run.</p>';
+  if (ageH > 30) ban += '<p class="banner bad">This data is ' + Math.round(ageH) + ' hours old. The update may have failed. Open GitHub, tap Actions and look at the last run.</p>';
   const bad = Object.keys(d.status || {}).filter(k => /FAILED/.test(d.status[k]));
-  if (bad.length) ban += '<p class="banner">Some data could not load in the last update: ' + bad.map(k => esc(k + ' (' + d.status[k].replace(/^FAILED: /, '').slice(0, 90) + ')')).join('; ') + '. The rest still works.</p>';
+  if (bad.length) ban += '<p class="banner">' + bad.length + (bad.length === 1 ? ' data source' : ' data sources') + ' did not load in the last update. The rest still works. <button type="button" class="lnk" data-go="help">See details</button></p>';
   $('banners').innerHTML = ban;
+  const fl = Object.keys(d.status || {}).filter(k => /FAILED/.test(d.status[k])).map(k => '<li><b>' + esc(k) + ':</b> ' + esc(d.status[k].replace(/^FAILED: /, '').slice(0, 160)) + '</li>').join('');
+  $('failList').innerHTML = fl ? '<p class="hint"><b>Did not load last time:</b></p><ul>' + fl + '</ul>' : '';
   $('sources').innerHTML = [
     '<li><b>Past results, corners, cards, referees and odds:</b> football-data.co.uk (free). Updated several times a day. Their odds file is uploaded once a week, so some matches have no odds.</li>',
     '<li><b>Match list and live lineups:</b> ESPN. This is an unofficial feed and can change without notice.</li>',
@@ -2249,6 +2411,7 @@ fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new
   loadResults(true);
   loadSquads();
   startScores();
+  setView(ALLMODE ? 'all' : (VIEW || 'picks'), true); setTab('ov');
 }).catch(err => {
   startScores();
   $('stamp').textContent = 'Could not load the match data.';
