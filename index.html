@@ -470,6 +470,9 @@ body[data-view="help"] .view:not([data-v~="help"]){display:none}
 .lgsel select{min-height:44px;width:100%;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:inherit;font:inherit;padding:0 10px}
 .bf-count{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
 .bf-key{margin:0;font-size:12.5px;color:var(--muted);line-height:1.4}
+.seg3.two{grid-template-columns:repeat(2,1fr)}
+.chip-b.wrapb{white-space:normal;text-align:left;line-height:1.25;min-height:40px;padding:8px 12px;font-size:13.5px}
+.bf-more summary small{font-weight:600;color:var(--muted)}
 </style></head><body>
 <nav id="bnav" aria-label="Main sections">
   <button type="button" data-view="picks" aria-current="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg><span>Picks</span></button>
@@ -551,6 +554,15 @@ body[data-view="help"] .view:not([data-v~="help"]){display:none}
         </div>
         <div class="chips scroll" id="dayChips" role="group" aria-label="Pick a day"></div>
         <label class="lgsel"><span>League</span><select id="lgSel" aria-label="Pick a league"></select></label>
+        <details class="bf-more" id="bfMore"><summary><span>Narrow it down <small>(optional)</small></span><b id="bfBadge" hidden></b></summary>
+          <div class="bf-lab">Only show games where</div>
+          <div class="chips" id="flagChips" role="group" aria-label="Narrow the list"></div>
+          <div class="bf-lab">Put the list in order of</div>
+          <div class="seg3 two" id="orderChips" role="group" aria-label="Order of the list">
+            <button type="button" data-order="time" aria-pressed="true">Kick-off time</button>
+            <button type="button" data-order="best" aria-pressed="false">Strongest bets first</button>
+          </div>
+        </details>
         <div class="bf-count"><span id="bfCount" aria-live="polite"></span><button type="button" class="lnk" id="bfReset" hidden>Show everything</button></div>
         <p class="bf-key">Under each game: the chance out of 100 that the home team wins, it is a draw, or the away team wins.</p>
       </div>
@@ -574,7 +586,7 @@ body[data-view="help"] .view:not([data-v~="help"]){display:none}
         <div class="tagline" id="tagline"></div>
       </section>
 
-      <section class="paper sec t-ov" id="quick"><h2>Quick read <span id="quickSrc"></span></h2><div id="quickBody"></div></section>
+      <section class="paper sec t-ov" id="quick"><h2>Quick summary <span id="quickSrc"></span></h2><div id="quickBody"></div></section>
 
       <section class="paper sec t-ov" id="notesSec"><h2>Match-day tips</h2><div class="list" id="notes"></div></section>
 
@@ -632,9 +644,9 @@ body[data-view="help"] .view:not([data-v~="help"]){display:none}
       <div class="split t-chk" id="checklist">
         <form id="form" autocomplete="off" onsubmit="return false" aria-label="Match checklist"></form>
         <div class="paper" id="results" aria-live="polite">
-          <section class="res-sec"><h3>Combo check</h3><div class="list" id="stacks"></div></section>
-          <section class="res-sec"><h3>Good for these bets <span id="favN"></span></h3><ul class="list" id="favored"></ul></section>
-          <section class="res-sec"><h3>Bad for these bets <span id="againstN"></span></h3><ul class="list" id="against"></ul></section>
+          <section class="res-sec"><h3>Bet combos <small>(bets that tend to win together)</small></h3><div class="list" id="stacks"></div></section>
+          <section class="res-sec"><h3>Bets these conditions help <span id="favN"></span></h3><ul class="list" id="favored"></ul></section>
+          <section class="res-sec"><h3>Bets these conditions hurt <span id="againstN"></span></h3><ul class="list" id="against"></ul></section>
           <section class="res-sec"><h3>Share</h3>
             <div class="actions"><button type="button" class="btn primary" id="copy">Copy summary</button><span class="status" id="copyStatus"></span></div>
             <textarea id="fallback" hidden readonly aria-label="Summary text"></textarea></section>
@@ -649,18 +661,18 @@ body[data-view="help"] .view:not([data-v~="help"]){display:none}
 <script>
 // ENGINE START
 const M = {
-  home_win:['Home Win (1)','Result'], home_win_u35:['Home Win & Under 3.5 Goals','Result'], home_win_u25:['Home Win & Under 2.5 Goals','Result'],
-  home_win_nil:['Home Win to Nil (wins, lets in none)','Result'], home_cs:['Home Clean Sheet','Result'], away_u05:['Away Team Under 0.5 Goals (scores nothing)','Result'],
-  home_dnb:['Home Draw No Bet','Result'], away_dnb:['Away Draw No Bet','Result'], underdog_ah:['Weaker team +1.5 Handicap','Result'],
-  ht_draw_ft_home:['HT/FT: Draw / Home','Halves'], over25:['Over 2.5 Goals','Goals'], under25:['Under 2.5 Goals','Goals'],
-  gg:['GG (both teams score)','Goals'], under15:['Under 1.5 Goals','Goals'], cs_draw:['Correct Score 0-0 or 1-1','Goals'],
-  o15_1h:['Over 1.5 Goals in 1st Half','Halves'], h1_draw:['1st Half Draw','Halves'], h2_most:['2nd Half has the most goals','Halves'],
+  home_win:['Home Win (1) (home team wins)','Result'], home_win_u35:['Home Win & Under 3.5 Goals (home wins, 3 goals or fewer in total)','Result'], home_win_u25:['Home Win & Under 2.5 Goals (home wins, 2 goals or fewer in total)','Result'],
+  home_win_nil:['Home Win to Nil (wins, lets in none)','Result'], home_cs:['Home Clean Sheet (home team lets in no goal)','Result'], away_u05:['Away Team Under 0.5 Goals (scores nothing)','Result'],
+  home_dnb:['Home Draw No Bet (home wins = you win, draw = money back)','Result'], away_dnb:['Away Draw No Bet (away wins = you win, draw = money back)','Result'], underdog_ah:['Weaker team +1.5 Handicap (weaker team wins, draws, or loses by 1 goal only)','Result'],
+  ht_draw_ft_home:['HT/FT: Draw / Home (level at half-time, home team wins at the end)','Halves'], over25:['Over 2.5 Goals (3 or more goals in the game)','Goals'], under25:['Under 2.5 Goals (2 goals or fewer in the game)','Goals'],
+  gg:['GG (both teams score)','Goals'], under15:['Under 1.5 Goals (0 or 1 goal in the game)','Goals'], cs_draw:['Correct Score 0-0 or 1-1 (the game ends 0-0 or 1-1)','Goals'],
+  o15_1h:['Over 1.5 Goals in 1st Half (2 or more goals before half-time)','Halves'], h1_draw:['1st Half Draw (level at half-time)','Halves'], h2_most:['2nd Half has the most goals','Halves'],
   home_2h:['Home team scores in 2nd Half','Halves'], team_corners:['Favourite Team Corners Over 6.5 / 7.5','Props'],
-  over_corners:['Total Corners Over 9.5','Props'], under_corners:['Total Corners Under 9.5','Props'], offsides:['Offsides Over','Props'],
-  opp_cards:['Cards for the team that defends deep','Props'], over_cards:['Over 3.5 Cards','Props'], under_cards:['Under 3.5 Cards','Props'],
-  sot:['Player shots on target (wingers, midfielders)','Props'], penalty:['Penalty in the match: Yes','Props'],
+  over_corners:['Total Corners Over 9.5 (10 or more corners in the game)','Props'], under_corners:['Total Corners Under 9.5 (9 or fewer corners in the game)','Props'], offsides:['Offsides Over (many offside calls)','Props'],
+  opp_cards:['Cards for the team that defends deep','Props'], over_cards:['Over 3.5 Cards (4 or more yellow/red cards)','Props'], under_cards:['Under 3.5 Cards (3 or fewer yellow/red cards)','Props'],
+  sot:['Player shots on target (wingers, midfielders)','Props'], penalty:['Penalty in the match: Yes (a penalty is given)','Props'],
   next_chaser:['Next goal: the team that is losing','In-play'], late_goal:['Late goal (after minute 75)','In-play'],
-  late_corners:['Late corners','In-play'], live_home_tied:['Live: Home win (if level at half-time)','In-play'], next_away:['Next goal: Away team','In-play']
+  late_corners:['Late corners','In-play'], live_home_tied:['Live: Home win (bet at half-time if it is level)','In-play'], next_away:['Next goal: Away team','In-play']
 };
 const STACK_BONUS = 25;
 
@@ -925,7 +937,7 @@ const GROUPS = [
     {t:'seg', key:'style', label:'How will the game be played?', opts:[['press_block','Strong team attacks, other team defends deep'],['open','Both teams attack, lots of space'],['balanced','Normal or not sure']]},
     {t:'checks', items:[
       {key:'physical', label:'Home team is strong and rough', hint:'Wins duels, plays long balls, likes bad pitches'},
-      {key:'rotKey', label:'A key defensive midfielder or the goalkeeper is out', hint:'Check the Live section for the lineup, about 1 hour before kick-off'},
+      {key:'rotKey', label:'A key defensive midfielder or the goalkeeper is out', hint:'Check the lineup in the Live tab, about 1 hour before kick-off'},
       {key:'contAhead', label:'Favourite plays a big European game within 4 days', hint:'Filled in for you from the match list. They may rest players.'},
       {key:'natDuty', label:'Players are away with the national team (CHAN, Super Eagles B, youth teams)'},
       {key:'midweek', label:'A team just came back from a midweek European or away trip'}]}]},
@@ -1044,20 +1056,28 @@ function selectFixture(id, scroll){
 
 /* ---------- match list ---------- */
 const LG_PRIORITY = ['E0','SP1','I1','D1','F1','CL','UEL','UECL','E1','NPFL','N1','P1','SC0','T1','B1','MLS'];
-const BF = {day: 'all', q: '', mode: 'all'};
+const BF = {day: 'all', q: '', mode: 'all', flags: {}, order: 'time', over: false};
 let PKN = {};
 function wxFlag(f){ const w = f.wx; return !!(w && (w.rain >= 1 || w.t >= 31 || w.gust >= 45)); }
 function outN(f){ let n = 0; ((f && f.inj) || []).forEach(x => { if ((x.s === 'home' || x.s === 'away') && OUTRX.test(x.st || '') && !/doubt|day/i.test(x.st || '')) n++; }); return n; }
 function isLive(f){ const sc = (typeof SCORES !== 'undefined' && f.espn) ? SCORES[f.espn.id] : null; if (sc) return sc.state === 'in'; const k = new Date(f.ko).getTime(), n = Date.now(); return !!(f.koKnown && n >= k && n < k + 2.2 * 3600e3); }
 function isDone(f){ const sc = (typeof SCORES !== 'undefined' && f.espn) ? SCORES[f.espn.id] : null; if (sc && sc.state === 'post') return true; return !!(f.koKnown && Date.now() >= new Date(f.ko).getTime() + 3.3 * 3600e3); }
+const BF_FLAGS = [['over','Also show games that are over', null],
+  ['live','The game is on right now', f => isLive(f)],
+  ['picks','There is a bet that stands out', f => (PKN[f.id] || 0) > 0],
+  ['odds','Bookmaker prices were found', f => !!f.mkt],
+  ['model','We have chances for win, goals, corners', f => !!f.model],
+  ['news','Some players are out injured', f => outN(f) > 0],
+  ['wx','The weather may matter (rain, heat or wind)', wxFlag]];
 function bfMatch(f, skip){
-  if (isDone(f)) return false;
+  if (!BF.over && isDone(f)) return false;
   if (skip !== 'day' && BF.day !== 'all' && fmtDay.format(new Date(f.ko)) !== BF.day) return false;
   if (skip !== 'lg' && filter !== 'all' && f.league !== filter) return false;
   if (BF.q){
     const hay = (T(f.home).name + ' ' + T(f.away).name + ' ' + ((DATA.leagues[f.league] || {}).name || '') + ' ' + ((DATA.leagues[f.league] || {}).short || '')).toLowerCase();
     if (!BF.q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.indexOf(w) >= 0)) return false;
   }
+  if (skip !== 'flags'){ for (const fl of BF_FLAGS){ if (fl[2] && BF.flags[fl[0]] && !fl[2](f)) return false; } }
   if (skip !== 'mode'){
     if (BF.mode === 'best' && !((PKN[f.id] || 0) > 0)) return false;
     if (BF.mode === 'live' && !isLive(f)) return false;
@@ -1082,31 +1102,35 @@ function renderChips(){
   if (filter !== 'all' && !(filter in counts)) keys.push(filter);
   $('lgSel').innerHTML = '<option value="all">All leagues (' + allN + ')</option>' + keys.map(k => '<option value="' + esc(k) + '">' + esc((DATA.leagues[k] || {}).name || k) + ' (' + (counts[k] || 0) + ')</option>').join('');
   $('lgSel').value = filter;
+  const nAct = BF_FLAGS.filter(fl => (fl[0] === 'over' ? BF.over : BF.flags[fl[0]])).length + (BF.order !== 'time' ? 1 : 0);
+  $('bfBadge').hidden = !nAct; $('bfBadge').textContent = nAct;
+  $('flagChips').innerHTML = BF_FLAGS.map(fl => { const on = fl[0] === 'over' ? BF.over : !!BF.flags[fl[0]]; return '<button type="button" class="chip-b wrapb" data-flag="' + fl[0] + '" aria-pressed="' + on + '">' + (on ? '&#10003; ' : '') + fl[1] + (fl[2] ? '<small>' + fx.filter(f => bfMatch(f, 'flags') && fl[2](f)).length + '</small>' : '') + '</button>'; }).join('');
+  $('orderChips').querySelectorAll('[data-order]').forEach(b => b.setAttribute('aria-pressed', String(BF.order === b.dataset.order)));
 }
 function renderBoard(){
   const box = $('board'), keep = box.scrollTop, now = Date.now();
   let list = DATA.fixtures.filter(f => bfMatch(f));
-  if (BF.mode === 'best') list = list.slice().sort((a, b) => (PKN[b.id] || 0) - (PKN[a.id] || 0) || new Date(a.ko) - new Date(b.ko));
-  const filt = BF.day !== 'all' || filter !== 'all' || BF.q || BF.mode !== 'all';
-  $('bfCount').textContent = list.length + (list.length === 1 ? ' match' : ' matches') + (BF.mode === 'best' ? ', best bets first' : '');
+  if (BF.mode === 'best' || BF.order === 'best') list = list.slice().sort((a, b) => (PKN[b.id] || 0) - (PKN[a.id] || 0) || new Date(a.ko) - new Date(b.ko));
+  const filt = BF.day !== 'all' || filter !== 'all' || BF.q || BF.mode !== 'all' || BF.over || BF.order !== 'time' || Object.keys(BF.flags).some(k => BF.flags[k]);
+  $('bfCount').textContent = list.length + (list.length === 1 ? ' match' : ' matches') + ((BF.mode === 'best' || BF.order === 'best') ? ', strongest bets first' : '');
   $('bfReset').hidden = !filt;
   let html = '', day = '';
   list.forEach(f => {
     const d = new Date(f.ko), dk = fmtDay.format(d), H = T(f.home), A = T(f.away), tl = [], tg = (p, h) => tl.push([p, h]);
-    if (BF.mode !== 'best' && day !== dk){ day = dk; html += '<div class="day">' + dk + '</div>'; }
+    if (!(BF.mode === 'best' || BF.order === 'best') && day !== dk){ day = dk; html += '<div class="day">' + dk + '</div>'; }
     const probs = f.mkt ? f.mkt.fair : (f.model ? f.model.p1x2 : null);
     if (filter === 'all') tg(3, '<span class="tag">' + esc((DATA.leagues[f.league] || {}).short || f.league) + '</span>');
-    if (BF.mode === 'best') tg(5, '<span class="tag">' + fmtDay.format(d) + '</span>');
-    if (f.ahead){ const fv = probs && probs[0] >= probs[2] ? f.ahead.home : f.ahead.away; if (fv) tg(6, '<span class="tag rot">UCL soon</span>'); }
+    if (BF.mode === 'best' || BF.order === 'best') tg(5, '<span class="tag">' + fmtDay.format(d) + '</span>');
+    if (f.ahead){ const fv = probs && probs[0] >= probs[2] ? f.ahead.home : f.ahead.away; if (fv) tg(6, '<span class="tag rot">Big Europe game soon</span>'); }
     const sc = (typeof SCORES !== 'undefined' && f.espn) ? SCORES[f.espn.id] : null;
     if (sc && sc.state === 'in') tg(0, '<span class="tag live"><b>' + sc.gh + '-' + sc.ga + '</b> ' + esc(sc.when || 'Live') + '</span>');
     else if (sc && sc.state === 'post') tg(0, '<span class="tag"><b>' + sc.gh + '-' + sc.ga + '</b> FT</span>');
     else if (f.koKnown && now > d.getTime() && now < d.getTime() + 3.3 * 3600e3) tg(0, '<span class="tag live">Live</span>');
-    else if (f.koKnown && now >= d.getTime() + 3.3 * 3600e3) tg(0, '<span class="tag">Finished?</span>');
+    else if (f.koKnown && now >= d.getTime() + 3.3 * 3600e3) tg(0, '<span class="tag">Over</span>');
     if (!f.koKnown) tg(0, '<span class="tag">Time not set</span>');
-    if (PKN[f.id]) tg(1, '<span class="tag ok">' + PKN[f.id] + (PKN[f.id] === 1 ? ' pick' : ' picks') + '</span>');
+    if (PKN[f.id]) tg(1, '<span class="tag ok">' + PKN[f.id] + (PKN[f.id] === 1 ? ' bet stands out' : ' bets stand out') + '</span>');
     if (f.mkt) tg(7, '<span class="tag">odds</span>');
-    const on = outN(f); if (on) tg(2, '<span class="tag rot">' + on + ' out</span>');
+    const on = outN(f); if (on) tg(2, '<span class="tag rot">' + on + (on === 1 ? ' player out' : ' players out') + '</span>');
     if (wxFlag(f)) tg(4, '<span class="tag">' + (f.wx.rain >= 1 ? 'rain' : f.wx.t >= 31 ? 'hot' : 'wind') + '</span>');
     const tags = tl.sort((x, y) => x[0] - y[0]).slice(0, 4).map(x => x[1]);
     const bar = probs ? '<span class="pbar" aria-hidden="true"><i class="ph" style="width:' + (probs[0] * 100) + '%"></i><i class="pd" style="width:' + (probs[1] * 100) + '%"></i><i class="pa" style="width:' + (probs[2] * 100) + '%"></i></span><span class="fx-meta mono">' + pc(probs[0]) + ' &middot; ' + pc(probs[1]) + ' &middot; ' + pc(probs[2]) + tags.join('') + '</span>' : '<span class="fx-meta">' + tags.join('') + '</span>';
@@ -1172,7 +1196,7 @@ function renderQuick(){
     h += '<div class="q-4">' + t4(pc(m.goals.o25) + '%', '3 or more goals (Over 2.5)') + t4(pc(m.goals.btts) + '%', 'Both teams score (GG)') + (m.corners ? t4(f1(m.corners.exp), 'corners we expect') : '') + (m.cards ? t4(f1(m.cards.exp), 'cards we expect') : '') + '</div>';
   }
   if (m && m.adj) h += '<p class="gap">With the team news you entered, our numbers are: ' + esc(H.name) + ' ' + pc(m.p1x2[0]) + '%, draw ' + pc(m.p1x2[1]) + '%, ' + esc(A.name) + ' ' + pc(m.p1x2[2]) + '%. ' + (FX.mkt ? 'The big bars above are the bookmakers, who already know the news.' : 'The big bars above include it.') + '</p>';
-  h += '<p class="hint">These are chances, not promises. Tap "Odds checker" to compare with your bookmaker.</p>';
+  h += '<p class="hint">These are chances, not promises. Open the Odds tab to compare with your bookmaker.</p>';
   $('quickBody').innerHTML = h;
 }
 function teamCard(k, side){
@@ -1183,10 +1207,10 @@ function teamCard(k, side){
   if (st){
     h += '<div class="form5" aria-label="Last five results">' + st.form.map(x => '<span class="pill ' + x.res + '" title="' + esc(x.score + (x.venue === 'H' ? ' v ' : ' at ') + x.opp) + '">' + x.res + '</span>').join('') + '</div>';
     h += '<div class="stats">' +
-      '<div class="st"><b>' + f2(st.gf) + ' / ' + f2(st.ga) + '</b><span>goals scored / let in</span></div>' +
+      '<div class="st"><b>' + f2(st.gf) + ' / ' + f2(st.ga) + '</b><span>goals scored / let in a game</span></div>' +
       '<div class="st"><b>' + Math.round(st.o25) + '%</b><span>games with 3+ goals</span></div><div class="st"><b>' + Math.round(st.btts) + '%</b><span>games both teams scored</span></div>' +
-      '<div class="st"><b>' + Math.round(st.cs) + '%</b><span>clean sheets</span></div>' +
-      (st.n_c >= 3 ? '<div class="st"><b>' + f1(st.cf) + ' / ' + f1(st.ca) + '</b><span>corners won / given</span></div>' : '') +
+      '<div class="st"><b>' + Math.round(st.cs) + '%</b><span>games with no goal let in</span></div>' +
+      (st.n_c >= 3 ? '<div class="st"><b>' + f1(st.cf) + ' / ' + f1(st.ca) + '</b><span>corners won / given a game</span></div>' : '') +
       (st.n_k >= 3 ? '<div class="st"><b>' + f1(st.kf) + '</b><span>cards a game</span></div>' : '') + '</div>';
     h += '<div class="tl">From the last ' + st.n + ' games' + (st.n < 8 ? ' <b>(few games, so be careful)</b>' : '') + (st.n_c && st.n_c < st.n ? '. Corners and cards from ' + st.n_c + ' games' : '') + '.</div>';
   }
@@ -1212,13 +1236,13 @@ function renderMarkets(){
   const gs = allGroups(); ROWS = []; ROWMAP = {}; const q = ($('mkFilter').value || '').trim().toLowerCase();
   const m = FX.model;
   $('mkSub').textContent = m ? '(our chances come from recent results' + (FX.mkt ? '; bookmaker view shown too)' : ')') : (FX.mkt ? '(bookmaker view only)' : '');
-  $('mkHint').innerHTML = gs.length ? 'Type the odds you see on Bet9ja, SportyBet, BetKing or any other site in the boxes below, or paste them. We show the <b>value</b>: what you win or lose on average for every 1 you stake, if our chance is right. A plus is good. <b>Fair odds</b> are what the bet should pay.' : 'No prices for this match: there are no bookmaker odds and too few past results.';
+  $('mkHint').innerHTML = gs.length ? 'Type the odds you see on Bet9ja, SportyBet, BetKing or any other site in the boxes below, or paste them. We show the <b>expected profit</b>: what you win or lose on average for every 1 you stake, if our chance is right. A plus is good. The <b>fair price</b> is what the bet should pay.' : 'No prices for this match: there are no bookmaker odds and too few past results.';
   $('groups').innerHTML = gs.map((g, gi) => {
     const rows = g.rows.filter(r => !q || (g.title + ' ' + r.name).toLowerCase().includes(q));
     if (!rows.length) return '';
     return '<details class="grp mk"' + (q || gi < 2 || g.id === 'live' ? ' open' : '') + '><summary>' + esc(g.title) + ' <small>' + rows.length + ' bets</small></summary><div class="tbl-wrap">' +
       (g.note ? '<p class="hint" style="padding:0 8px">' + esc(g.note) + '</p>' : '') +
-      '<table><thead><tr><th>Bet</th><th class="num">Our chance</th><th class="num">Fair odds</th><th class="num">Bookies\' fair odds</th><th>Your odds</th><th class="num">Value</th></tr></thead><tbody>' +
+      '<table><thead><tr><th>Bet</th><th class="num">Our chance</th><th class="num">Fair price</th><th class="num">Bookies\' fair price</th><th>Your odds</th><th class="num">Expected profit</th></tr></thead><tbody>' +
       rows.map(r => {
         const idx = ROWS.push(r) - 1, key = g.id + ':' + r.k, cur = ODDS[key] || ''; ROWMAP[key] = r;
         const fair = r.p > 0 ? (1 - (r.push || 0)) / r.p : null;
@@ -1249,7 +1273,7 @@ function renderQuickOdds(gs){
   QO.forEach(g => {
     const items = g[1].filter(i => map[i[0]]);
     if (!items.length) return;
-    h += '<div class="qo-g"><h4>' + g[0] + '</h4><div class="qo-row">' + items.map(i => '<label class="qo-i"><span>' + i[1] + '</span><input type="text" inputmode="decimal" data-key="' + i[0] + '" placeholder="odds" value="' + esc(ODDS[i[0]] || '') + '" aria-label="Your odds for ' + esc(i[1]) + '"><span class="qo-ch">our chance ' + (map[i[0]].p * 100).toFixed(0) + '%' + (map[i[0]].p > 0.02 && 1.05 / map[i[0]].p < 60 ? ' &middot; take at ' + (1.05 / map[i[0]].p).toFixed(2) + '+' : '') + '</span><span class="qo-val" data-v="' + i[0] + '">-</span></label>').join('') + '</div></div>';
+    h += '<div class="qo-g"><h4>' + g[0] + '</h4><div class="qo-row">' + items.map(i => '<label class="qo-i"><span>' + i[1] + '</span><input type="text" inputmode="decimal" data-key="' + i[0] + '" placeholder="odds" value="' + esc(ODDS[i[0]] || '') + '" aria-label="Your odds for ' + esc(i[1]) + '"><span class="qo-ch">we think ' + (map[i[0]].p * 100).toFixed(0) + ' in 100' + (map[i[0]].p > 0.02 && 1.05 / map[i[0]].p < 60 ? ' &middot; only bet at ' + (1.05 / map[i[0]].p).toFixed(2) + ' or more' : '') + '</span><span class="qo-val" data-v="' + i[0] + '">-</span></label>').join('') + '</div></div>';
   });
   $('qo').innerHTML = h || '<p class="empty">No prices for this match yet, so there is nothing to compare.</p>';
   $('pasteBox').hidden = !h;
@@ -1270,7 +1294,7 @@ function updateEdges(){
     } else { cell.textContent = '-'; cell.className = 'num val'; }
   });
   best.sort((a, b) => b[0] - a[0]);
-  $('vboard').innerHTML = best.length ? '<span class="hint" style="flex-basis:100%">Your best values so far:</span>' + best.slice(0, 6).map(b => '<span class="vchip">' + esc(b[1]) + ' @ ' + b[2] + '<b>+' + (b[0] * 100).toFixed(1) + '%</b></span>').join('') + (best[0][0] > 0.12 ? '<p class="warn" style="flex-basis:100%">Value this big usually means we are missing news, like lineups or injuries. Check the Live section and the team news before you stake.</p>' : '') : '';
+  $('vboard').innerHTML = best.length ? '<span class="hint" style="flex-basis:100%">Your best prices so far:</span>' + best.slice(0, 6).map(b => '<span class="vchip">' + esc(b[1]) + ' @ ' + b[2] + '<b>+' + (b[0] * 100).toFixed(1) + '%</b></span>').join('') + (best[0][0] > 0.12 ? '<p class="warn" style="flex-basis:100%">A profit this big usually means we are missing news, like lineups or injuries. Check the Live and News tabs before you bet.</p>' : '') : '';
 }
 
 /* ---------- live ---------- */
@@ -1400,13 +1424,13 @@ function renderContext(){
   $('gapNote').innerHTML = g;
 }
 function renderProv(){
-  const label = {data:'From data', assumed:'Guess', estimate:'Estimate'};
+  const label = {data:'Filled in for you', assumed:'Our guess', estimate:'Rough estimate'};
   $('prov').innerHTML = PROV.map(p => '<li><span class="k">' + esc(p[0]) + '</span><span class="src-t ' + (p[2] === 'data' ? 'data' : '') + '">' + label[p[2]] + '</span><span>' + esc(p[1]) + '</span></li>').join('');
 }
 const strength = n => n >= 40 ? 'Strong' : n >= 25 ? 'Good' : 'Small';
 function row(r, neg){
   const w = Math.min(Math.abs(r.score), 70) / 70 * 100;
-  return '<li class="mkr' + (neg ? ' neg' : '') + '"><div class="mk-top"><div class="mk-name">' + esc(r.label) + '</div><span class="chip">' + r.group + '</span><span class="scr">' + (r.score > 0 ? '+' : '') + r.score + '</span></div><div class="bar" aria-hidden="true"><i style="width:' + w.toFixed(0) + '%"></i></div><p class="why"><b>' + (neg ? 'Against.' : strength(r.score) + ' sign.') + '</b> ' + r.reasons.map(esc).join(' &middot; ') + '</p></li>';
+  return '<li class="mkr' + (neg ? ' neg' : '') + '"><div class="mk-top"><div class="mk-name">' + esc(r.label) + '</div><span class="chip">' + r.group + '</span><span class="scr">' + (r.score > 0 ? '+' : '') + r.score + '</span></div><div class="bar" aria-hidden="true"><i style="width:' + w.toFixed(0) + '%"></i></div><p class="why"><b>' + (neg ? 'Against:' : strength(r.score) + ' reason:') + '</b> ' + r.reasons.map(esc).join(' &middot; ') + '</p></li>';
 }
 /* ---------- match-day tips: always filled from what we know about this match ---------- */
 function matchTips(R){
@@ -1422,8 +1446,8 @@ function matchTips(R){
     tips.push('Kick-off ' + fmtDay.format(new Date(ko)) + ' at ' + fmtTime.format(new Date(ko)) + ' WAT' + (hrs < 1 ? ' (in under 1 hour)' : hrs < 48 ? ' (in about ' + Math.round(hrs) + (Math.round(hrs) === 1 ? ' hour)' : ' hours)') : '') + '. ' + (hrs > 3 ? 'Lineups usually show about 1 hour before. Check them before you bet.' : 'Lineups should be out about now. Open the Live section and check who is starting.'));
   } else if (ko + 3.3 * 3600e3 < now) tips.push('This game has probably finished.');
   const wx = FX.wx;
-  if (S.weather === 'rain') tips.push('Heavy rain is expected' + (wx ? ' (about ' + wx.rain + ' mm in the hour)' : '') + '. A wet pitch makes passing and shooting harder. The checklist above counts this.');
-  else if (S.weather === 'heat') tips.push('Very hot and humid' + (wx ? ' (about ' + Math.round(wx.t) + ' degrees)' : '') + '. Players tire in the second half. The checklist above counts this.');
+  if (S.weather === 'rain') tips.push('Heavy rain is expected' + (wx ? ' (about ' + wx.rain + ' mm in the hour)' : '') + '. A wet pitch makes passing and shooting harder. The Checklist tab counts this.');
+  else if (S.weather === 'heat') tips.push('Very hot and humid' + (wx ? ' (about ' + Math.round(wx.t) + ' degrees)' : '') + '. Players tire in the second half. The Checklist tab counts this.');
   else if (wx) tips.push('Weather looks fine: about ' + Math.round(wx.t) + ' degrees' + (wx.rain > 0.2 ? ' with light rain' : ', no heavy rain') + '.');
   if (S.wind) tips.push('Strong wind is marked. It makes long passes, crosses and shots less accurate.');
   if (S.pitch === 'worn' || S.pitch === 'bumpy') tips.push('The pitch is marked as ' + (S.pitch === 'worn' ? 'worn artificial' : 'bumpy') + '. That can mean mistakes and fewer clean passing moves.');
@@ -1435,21 +1459,21 @@ function matchTips(R){
     Object.keys(who).forEach(k => { const w = who[k]; if (!w) return; const lab = k === '__multi__' ? 'Two or more regular starters are out' : k + ' (' + w.role + ') is out'; const bits = []; if (w.att && Math.abs(w.att - 1) >= 0.02) bits.push((w.att < 1 ? 'their goals down ' : 'their goals up ') + Math.round(Math.abs(1 - w.att) * 100) + '%'); if (w.def && Math.abs(w.def - 1) >= 0.02) bits.push((w.def > 1 ? 'goals against up ' : 'goals against down ') + Math.round(Math.abs(w.def - 1) * 100) + '%'); tips.push(nm + ': ' + lab + (bits.length ? '. Effect in our numbers: ' + bits.join(', ') + '.' : '. Our numbers do not change for this.')); });
   });
   const out = {home: 0, away: 0}; injList().forEach(p => { if ((p.side === 'home' || p.side === 'away') && OUTRX.test(p.status || '') && !/doubt|day/i.test(p.status || '')) out[p.side]++; });
-  if (out.home || out.away) tips.push('ESPN lists ' + (out.home ? out.home + ' out for ' + H : '') + (out.home && out.away ? ' and ' : '') + (out.away ? out.away + ' out for ' + A : '') + '. See the team news section for names.');
-  else if (!hasWho(S) && !newsOn()) tips.push('No team news found yet. Look at the club pages or X before you bet.');
-  if (S.rotKey) tips.push('A key goalkeeper or defensive midfielder is out. The favourite can be weaker than the odds think.');
-  if (S.contAhead) tips.push('The favourite has a big European game within 4 days. It may rest players.');
-  if (S.natDuty) tips.push('Some main players were away with national teams. They may be tired or rusty.');
-  if (S.midweek) tips.push('A team played or travelled in midweek. Tiredness can show late.');
+  if (out.home || out.away) tips.push('ESPN lists ' + (out.home ? out.home + ' out for ' + H : '') + (out.home && out.away ? ' and ' : '') + (out.away ? out.away + ' out for ' + A : '') + '. Open the News tab to see the names.');
+  else if (!hasWho(S) && !newsOn()) tips.push('No team news found yet. Check the clubs\' pages on social media before you bet.');
+  if (S.rotKey) tips.push('The goalkeeper or a key midfielder who protects the defence is out. The favourite may be weaker than the odds say.');
+  if (S.contAhead) tips.push('The favourite has a big European game within 4 days, so it may rest some players.');
+  if (S.natDuty) tips.push('Some main players were away with their national teams. They may be tired.');
+  if (S.midweek) tips.push('A team played or travelled in midweek. Tired legs can show late in the game.');
   const pk = (typeof PKCACHE !== 'undefined' && PKCACHE) ? PKCACHE.find(x => x.f.id === FX.id) : null;
-  if (pk && pk.picks.length) tips.push('Bets that stand out here: ' + pk.picks.map(p => p.label + (p.target ? ' (only at ' + p.target.toFixed(2) + ' or more)' : '')).join('; ') + '. If your bookmaker pays less than that number, skip it.');
-  else tips.push('No bet stands out strongly for this match yet. Skipping is a fine choice.');
+  if (pk && pk.picks.length) tips.push('Bets that stand out for this game: ' + pk.picks.map(p => p.label + (p.target ? ' (take it only if the price is ' + p.target.toFixed(2) + ' or more)' : '')).join('; ') + '. If your bookmaker pays less than that, skip the bet.');
+  else tips.push('No bet stands out for this game yet. It is fine to skip it.');
   return R.notes.concat(tips);
 }
 let lastText = '';
 function renderResults(){
   const R = analyze(S);
-  $('stacks').innerHTML = R.stacks.map(k => '<div class="stack' + (k.full ? ' full' : '') + '"><div class="stack-top"><span class="stack-name">' + k.name + '</span><span class="stack-n">' + (k.full ? 'All ' + k.total + ' ticks done' : k.met + ' of ' + k.total + ' ticks') + '</span></div><ul class="conds">' + k.conds.map(c => '<li class="' + (c[1] ? 'on' : '') + '">' + c[0] + '</li>').join('') + '</ul><p class="stack-bets"><b>' + (k.full ? 'Bets for this combo:' : 'If all ticks are done:') + '</b> ' + k.markets.map(m => esc(M[m][0])).join(' &middot; ') + '</p></div>').join('');
+  $('stacks').innerHTML = R.stacks.map(k => '<div class="stack' + (k.full ? ' full' : '') + '"><div class="stack-top"><span class="stack-name">' + k.name + '</span><span class="stack-n">' + (k.full ? 'All ' + k.total + ' ticks done' : k.met + ' of ' + k.total + ' ticks') + '</span></div><ul class="conds">' + k.conds.map(c => '<li class="' + (c[1] ? 'on' : '') + '">' + c[0] + '</li>').join('') + '</ul><p class="stack-bets"><b>' + (k.full ? 'Bets in this combo:' : 'If all ticks are done:') + '</b> ' + k.markets.map(m => esc(M[m][0])).join(' &middot; ') + '</p></div>').join('');
   $('favored').innerHTML = R.pos.length ? R.pos.map(r => row(r, false)).join('') : '<li class="empty">Nothing stands out yet. Add the weather, pitch and lineup news.</li>';
   $('favN').textContent = R.pos.length ? '(' + R.pos.length + ')' : '';
   $('against').innerHTML = R.neg.length ? R.neg.map(r => row(r, true)).join('') : '<li class="empty">Nothing is clearly against a bet.</li>';
@@ -1458,25 +1482,25 @@ function renderResults(){
   const H = T(FX.home), A = T(FX.away), full = R.stacks.filter(k => k.full).map(k => k.name);
   lastText = ['Naija Match Desk: ' + H.name + ' v ' + A.name + ' (' + ((DATA.leagues[FX.league] || {}).name || FX.league) + ', ' + fmtDay.format(new Date(FX.ko)) + ')']
     .concat(modelNow() ? ['Our chances: home ' + pc(modelNow().p1x2[0]) + '%, draw ' + pc(modelNow().p1x2[1]) + '%, away ' + pc(modelNow().p1x2[2]) + '%. Goals we expect: ' + f2(modelNow().exp_total) + (newsOn() ? ' (with team news)' : '')] : [])
-    .concat(['', 'Good for these bets:']).concat(R.pos.length ? R.pos.map(r => '+' + r.score + ' ' + r.label) : ['(nothing stands out)'])
-    .concat(['', 'Bad for these bets:']).concat(R.neg.length ? R.neg.map(r => r.score + ' ' + r.label) : ['(nothing)'])
-    .concat(full.length ? ['', 'Combos ready: ' + full.join(', ')] : [])
+    .concat(['', 'Bets these conditions help:']).concat(R.pos.length ? R.pos.map(r => '+' + r.score + ' ' + r.label) : ['(nothing stands out)'])
+    .concat(['', 'Bets these conditions hurt:']).concat(R.neg.length ? R.neg.map(r => r.score + ' ' + r.label) : ['(nothing)'])
+    .concat(full.length ? ['', 'Bet combos ready: ' + full.join(', ')] : [])
     .concat(['', 'Scores are rough weights, not chances. Data as of ' + $('asof').textContent + '. 18+ only. Bet responsibly.']).join('\n');
 }
 function renderCoverage(){
   const model = !!FX.model, np = FX.league === 'NPFL';
   const L = (c, t) => '<span class="lvl ' + c + '">' + t + '</span>';
   const rows = [
-    ['Win, draw, double chance, draw no bet', model ? L('d', 'Our numbers') + 'From recent results' + (FX.mkt ? ', next to the bookmaker view.' : '.') : (FX.mkt ? L('d', 'Bookies only') + 'Bookmaker view only.' : L('r', 'No data') + 'No prices for this match.')],
-    ['Over/under goals, GG/NG, odd/even, multigoal, exact goals, team goals, win to nil, clean sheet, two-in-one bets', model ? L('d', 'Our numbers') + 'All from one goals formula, so they agree with each other.' : L('r', 'No data') + 'Needs past results for both teams.'],
-    ['First half, second half, highest scoring half, HT/FT', model ? L('d', 'Our numbers') + 'Uses how many goals this league scores before half-time.' : L('r', 'No data') + 'Needs our numbers.'],
-    ['Correct score, handicap', model ? L('d', 'Our numbers') + 'Top scorelines and handicap lines, with money-back handled.' : L('r', 'No data') + 'Needs our numbers.'],
-    ['Total corners, team corners, most corners', FX.model && FX.model.corners ? L('d', 'Our numbers') + 'From corners in each team\'s recent games.' : L('r', 'No data') + (np ? 'No corner data for NPFL.' : 'Not enough corner data for this match.')],
-    ['Total cards and bookings', FX.model && FX.model.cards ? L('d', 'Our numbers') + 'From each team\'s cards' + (FX.ref && FX.ref.avg_cards ? ' and the referee\'s record.' : '.') : L('r', 'No data') + 'Not enough card data for this match.'],
-    ['Live bets: next goal, goals from now, late goal', FX.model ? L('d', 'Our numbers') + 'Turns on while the Live section sees a game in play.' : L('r', 'No data') + 'Needs our numbers.'],
+    ['Win, draw, double chance, draw no bet', model ? L('d', 'We calculate') + 'From recent results' + (FX.mkt ? ', next to the bookmaker view.' : '.') : (FX.mkt ? L('d', 'Bookies only') + 'Bookmaker view only.' : L('r', 'No data') + 'No prices for this match.')],
+    ['Over/under goals, GG/NG, odd/even, multigoal, exact goals, team goals, win to nil, clean sheet, two-in-one bets', model ? L('d', 'We calculate') + 'All from one goals formula, so they agree with each other.' : L('r', 'No data') + 'Needs past results for both teams.'],
+    ['First half, second half, highest scoring half, HT/FT', model ? L('d', 'We calculate') + 'Uses how many goals this league scores before half-time.' : L('r', 'No data') + 'Needs our numbers.'],
+    ['Correct score, handicap', model ? L('d', 'We calculate') + 'Top scorelines and handicap lines, with money-back handled.' : L('r', 'No data') + 'Needs our numbers.'],
+    ['Total corners, team corners, most corners', FX.model && FX.model.corners ? L('d', 'We calculate') + 'From corners in each team\'s recent games.' : L('r', 'No data') + (np ? 'No corner data for NPFL.' : 'Not enough corner data for this match.')],
+    ['Total cards and bookings', FX.model && FX.model.cards ? L('d', 'We calculate') + 'From each team\'s cards' + (FX.ref && FX.ref.avg_cards ? ' and the referee\'s record.' : '.') : L('r', 'No data') + 'Not enough card data for this match.'],
+    ['Live bets: next goal, goals from now, late goal', FX.model ? L('d', 'We calculate') + 'Turns on while the Live section sees a game in play.' : L('r', 'No data') + 'Needs our numbers.'],
     ['Lineups, subs, cards, corners and shots during the game', FX.espn ? L('d', 'Live') + 'From ESPN, every 45 seconds. Lineups usually show about 1 hour before kick-off.' : L('r', 'No feed') + 'This match has no live link.'],
-    ['Anytime goalscorer, first scorer, player shots, player cards', L('n', 'Not here') + 'This needs player data that no free source gives. Use the lineup in the Live section as a start.'],
-    ['Minute of goal, VAR, bet builder', L('n', 'Not here') + 'Not covered.']
+    ['Anytime goalscorer, first scorer, player shots, player cards', L('n', 'Not covered') + 'This needs player data that no free source gives. Use the lineup in the Live section as a start.'],
+    ['Minute of goal, VAR, bet builder', L('n', 'Not covered') + 'Not covered.']
   ];
   $('cov').innerHTML = rows.map(r => '<div class="cov-r"><b>' + r[0] + '</b><span>' + r[1] + '</span></div>').join('');
 }
@@ -1492,7 +1516,7 @@ function renderNewsBody(){
   const H = T(FX.home), A = T(FX.away);
   const side = (sd, name) => '<div class="tcard"><div class="tn">' + esc(name) + '<span>' + sd + '</span></div><div class="checks">' + NEWS.map(n => '<label class="chk"><input type="checkbox" data-side="' + sd + '" data-k="' + n[0] + '"' + (S.news[sd][n[0]] ? ' checked' : '') + '><span class="box" aria-hidden="true"></span><span class="chk-t">' + n[1] + '</span></label>').join('') + '</div></div>';
   $('newsBody').innerHTML = side('home', H.name) + side('away', A.name);
-  $('newsHint').innerHTML = 'Our numbers change only from a player\'s own record: how the team did in games he started and in games he did not. Use "Tick it" under a player below, or type his name in the notes box. Ticking a box by hand only marks the news, and the numbers stay the same. Bookmakers already know the news, so their odds usually move first.';
+  $('newsHint').innerHTML = 'Our numbers change only when we have proof from past games: how the team did when this player played and when he did not. To use it, tap "Tick it" under a player below, or type his name in the notes box. Ticking a box by hand only marks the news and does not change our numbers. Bookmakers already know the news, so their prices usually move first.';
   renderNewsInfo();
 }
 function renderNewsInfo(){
@@ -1589,12 +1613,12 @@ function poolKEff(k){
   return {att: bt.useAtt === false ? 1 : p.att, def: bt.useDef === false ? 1 : p.def, n: p.n, rawAtt: p.att, rawDef: p.def};
 }
 function btLine(){
-  const b = sqBt(); if (!b || !b.n) return 'Back-test: not enough past games yet, so these numbers are <b>unproven</b>.';
+  const b = sqBt(); if (!b || !b.n) return '<b>Not tested yet.</b> We do not have enough past games to check these numbers, so treat them as a rough guide.';
   const w = v => (v >= 0 ? 'better by ' : 'worse by ') + Math.abs(Math.round(v * 1000) / 10) + '%';
-  let s = 'Back-test on <b>' + b.n + '</b> past games where one regular starter was missing (each game predicted using only earlier games): our attack prediction was ' + w(b.impAtt) + ' and our defence prediction was ' + w(b.impDef) + ', compared with simply using the team average.';
+  let s = '<b>Tested:</b> we checked this on <b>' + b.n + '</b> past games where a regular starter was missing, predicting each game using only the games before it. Our guess of goals scored was ' + w(b.impAtt) + ' and our guess of goals let in was ' + w(b.impDef) + ', compared with just using the team average.';
   if (!b.enough) s += ' That is too few games to be sure.';
-  if (b.enough && !b.useAtt) s += ' The attack part did not help, so it is <b>switched off</b>.';
-  if (b.enough && !b.useDef) s += ' The defence part did not help, so it is <b>switched off</b>.';
+  if (b.enough && !b.useAtt) s += ' The goals-scored part did not help, so we <b>do not use it</b>.';
+  if (b.enough && !b.useDef) s += ' The goals-let-in part did not help, so we <b>do not use it</b>.';
   return s;
 }
 function replacementFor(key, info, outNames){
@@ -1607,15 +1631,15 @@ function explainOut(side, info, outNames){
   const f2n = v => v == null ? '-' : Number(v).toFixed(2);
   L.push('<b>' + esc(info.name) + '</b> (' + (ROLENAME[info.role] || 'player') + '): started ' + info.st + ' of the last ' + info.n + ' games' + (info.g || info.a ? ', scored ' + info.g + ' and set up ' + info.a : ', no goals or set-ups') + '.');
   if (info.wo > 0){
-    L.push('<b>His own record.</b> In the ' + info.st + ' games he started, ' + esc(nm) + ' scored <b>' + f2n(info.rGfW) + '</b> and let in <b>' + f2n(info.rGaW) + '</b> a game. In the ' + info.wo + ' games he did not start: scored <b>' + f2n(info.rGfO) + '</b> and let in <b>' + f2n(info.rGaO) + '</b> a game.');
-    L.push('<b>Fair comparison.</b> We adjust each game for how strong the other team was and for home or away. Then: with him ' + f2n(info.aGfW) + ' scored and ' + f2n(info.aGaW) + ' let in; without him ' + f2n(info.aGfO) + ' scored and ' + f2n(info.aGaO) + ' let in.');
-  } else L.push('<b>His own record.</b> He started all ' + info.n + ' games, so there are no games without him to compare.');
-  if (pl && pl.ok) L.push('<b>All teams.</b> In ' + pl.n + ' games across the leagues where exactly one regular ' + ROLENAME[info.role] + ' was missing, those teams scored ' + pctOf(pl.att) + ' and let in ' + pctOf(pl.def) + ' of their normal amount.');
-  else L.push('<b>All teams.</b> Not enough games yet across the leagues for this kind of player, so we cannot add a league-wide pattern.');
-  L.push('<b>Result.</b> ' + esc(nm) + '\'s goals <b>' + pctTxt(info.att) + '</b> (x' + info.att.toFixed(2) + ') and the other team\'s goals <b>' + pctTxt(info.def) + '</b> (x' + info.def.toFixed(2) + '). ' + (info.src ? 'This uses the all-teams pattern only.' : 'This mixes his own record with the all-teams pattern. The fewer games he missed, the more the all-teams pattern counts.') + (b.enough && (!b.useAtt || !b.useDef) ? ' A part that the back-test switched off shows x1.00.' : ''));
+    L.push('<b>With him and without him.</b> In the ' + info.st + ' games he started, ' + esc(nm) + ' scored <b>' + f2n(info.rGfW) + '</b> and let in <b>' + f2n(info.rGaW) + '</b> a game. In the ' + info.wo + ' games he did not start, they scored <b>' + f2n(info.rGfO) + '</b> and let in <b>' + f2n(info.rGaO) + '</b> a game.');
+    L.push('<b>Fairer comparison.</b> We allow for how strong the other team was and whether the game was home or away. Then: with him ' + f2n(info.aGfW) + ' scored and ' + f2n(info.aGaW) + ' let in; without him ' + f2n(info.aGfO) + ' scored and ' + f2n(info.aGaO) + ' let in.');
+  } else L.push('<b>With him and without him.</b> He started all ' + info.n + ' games, so we have no games without him to compare.');
+  if (pl && pl.ok) L.push('<b>Other teams in the same case.</b> In ' + pl.n + ' games where a team was missing one regular ' + ROLENAME[info.role] + ', those teams scored ' + pctOf(pl.att) + ' of their normal goals and let in ' + pctOf(pl.def) + ' of their normal goals against.');
+  else L.push('<b>Other teams in the same case.</b> We do not have enough games yet to see what usually happens to other teams.');
+  L.push('<b>What we use.</b> ' + esc(nm) + '\'s goals <b>' + pctTxt(info.att) + '</b> and the other team\'s goals <b>' + pctTxt(info.def) + '</b>. ' + (info.src ? 'This is based only on what happens to other teams.' : 'We blend his own record with what happens to other teams. The fewer games he has missed, the more we trust the other teams.') + (b.enough && (!b.useAtt || !b.useDef) ? ' A part that did not pass our test shows no change.' : ''));
   const rep = replacementFor(side === 'home' ? FX.home : FX.away, info, outNames);
   if (rep) L.push('Likely replacement: ' + esc(rep) + '.');
-  L.push(ROLEWHY[info.role] + ' <small>(general football sense, not measured)</small>');
+  L.push(ROLEWHY[info.role] + ' <small>(football common sense, not measured)</small>');
   return L;
 }
 /* everyone we think is out: ESPN injury list plus regular starters missing from a published lineup */
@@ -1653,7 +1677,7 @@ function adviceFor(){
         who['__multi__'] = {role: 'multi', att: pm.att, def: pm.def};
         const mb = (sqBt() || {}).multi || {};
         lines.push('<b>Why one combined number.</b> When two or more regulars are out, adding up each player would count the same games twice. So we use all teams in the same situation instead: in ' + pm.n + ' games where ' + (regs.length >= 3 ? 'three or more' : 'exactly two') + ' regular starters were missing, teams scored ' + pctOf(pm.rawAtt) + ' and let in ' + pctOf(pm.rawDef) + ' of their normal amount.');
-        lines.push('<b>Result.</b> Their goals <b>' + pctTxt(pm.att) + '</b> (x' + pm.att.toFixed(2) + ') and the other team\'s goals <b>' + pctTxt(pm.def) + '</b> (x' + pm.def.toFixed(2) + ').' + (mb.n ? ' Back-test on ' + mb.n + ' such past games: attack ' + (mb.impAtt >= 0 ? 'better' : 'worse') + ' by ' + Math.abs(Math.round(mb.impAtt * 1000) / 10) + '%, defence ' + (mb.impDef >= 0 ? 'better' : 'worse') + ' by ' + Math.abs(Math.round(mb.impDef * 1000) / 10) + '%.' : ''));
+        lines.push('<b>Result.</b> Their goals <b>' + pctTxt(pm.att) + '</b> and the other team\'s goals <b>' + pctTxt(pm.def) + '</b>.' + (mb.n ? ' Tested on ' + mb.n + ' such past games: attack ' + (mb.impAtt >= 0 ? 'better' : 'worse') + ' by ' + Math.abs(Math.round(mb.impAtt * 1000) / 10) + '%, defence ' + (mb.impDef >= 0 ? 'better' : 'worse') + ' by ' + Math.abs(Math.round(mb.impDef * 1000) / 10) + '%.' : ''));
       } else {
         const best = regs.map(x => ({x, d: dataFactors(x.info)})).filter(z => z.d).sort((a, b) => (Math.abs(Math.log(b.d.att)) + Math.abs(Math.log(b.d.def))) - (Math.abs(Math.log(a.d.att)) + Math.abs(Math.log(a.d.def))))[0];
         if (best){ who[best.x.info.name] = {role: best.x.info.role, att: best.d.att, def: best.d.def}; lines.push('<b>Result.</b> Not enough league-wide games for this many missing players. To avoid counting the same games twice, we use only the biggest single effect, ' + esc(best.x.info.name) + ': goals <b>' + pctTxt(best.d.att) + '</b>, other team\'s goals <b>' + pctTxt(best.d.def) + '</b>.'); }
@@ -1680,7 +1704,7 @@ function renderAdvice(){
     const on = x.keys.every(k => S.news[x.side][k]) && Object.keys(x.who).every(k => nw[k]);
     h += '<div class="tcard"><div class="tn">' + esc(nmOf(x.side)) + ': ' + esc(x.say) + '<span>' + esc(x.why) + '</span></div><ul class="inj plain">' + x.lines.map(l => '<li>' + l + '</li>').join('') + '</ul>' + (on ? '<p class="status">Ticked in the team news above.</p>' : '<div class="actions"><button type="button" class="btn small primary" data-sg="' + ix + '">' + (Object.keys(x.who).length ? 'Tick it and use these numbers' : 'Mark it (numbers stay the same)') + '</button></div>') + '</div>';
   });
-  if (ad.sug.length) h += '<p class="hint">' + btLine() + ' It ignores lineups and tactics we cannot see, and the all-teams numbers include this same history, so treat the back-test as a guide, not a guarantee.</p>';
+  if (ad.sug.length) h += '<p class="hint">' + btLine() + ' It ignores lineups and tactics we cannot see, and the all-teams numbers include this same history, so treat this test as a guide, not a guarantee.</p>';
   if (ad.unknown.length) h += '<div class="tcard"><div class="tn">Out, but we have no history for them <span>check if they are regular starters</span></div><ul class="inj">' + ad.unknown.map(u => '<li><b>' + esc(u.name) + '</b> (' + esc(nmOf(u.side)) + (u.pos ? ', ' + esc(u.pos) : '') + '): ' + esc(u.why) + '</li>').join('') + '</ul></div>';
   if (ad.ignored.length) h += '<p class="hint">No change for: ' + ad.ignored.map(u => esc(u.name) + ' (' + esc(u.note) + ')').join('; ') + '.</p>';
   $('newsSug').innerHTML = h;
@@ -1766,9 +1790,9 @@ function renderPicks(){
     const f = x.f, H = T(f.home).name, A = T(f.away).name, lg = (DATA.leagues[f.league] || {}).short || f.league;
     const locked = f.koKnown && new Date(f.ko).getTime() <= now;
     return '<div class="pk-m"><div class="pk-h"><div><b>' + esc(H) + ' v ' + esc(A) + '</b><br><span>' + (f.koKnown ? fmtTime.format(new Date(f.ko)) + ' WAT' : 'time not set') + ' &middot; ' + esc(lg) + injTag(f) + (f.wx ? ' &middot; ' + (f.wx.rain >= 1 ? 'rain likely' : f.wx.t >= 31 ? 'hot' : f.wx.gust >= 45 ? 'windy' : '') : '') + '</span></div><button type="button" class="btn small" data-open="' + esc(f.id) + '">Open match</button></div><ul class="pk-l">' +
-      x.picks.map(p => '<li class="pk' + (PKS[p.id] === 'low' ? ' done-low' : '') + '"><div class="pk-b"><b>' + esc(p.label) + '</b><small>' + strength(p.score) + ' sign. ' + esc(p.why) + '</small></div><div class="pk-t">' +
-        (p.target ? '<small>Take it at</small><big>' + p.target.toFixed(2) + ' or more</big><small>our chance ' + pc(p.p) + '%</small>' : '<small>No numbers for this match yet</small><big>Check the price</big>') +
-        '</div><div class="pk-a"><button type="button" data-pick="' + esc(p.id) + '" data-v="ok" aria-pressed="' + (PKS[p.id] === 'ok') + '"' + (locked ? ' disabled' : '') + '>Price OK</button><button type="button" data-pick="' + esc(p.id) + '" data-v="low" aria-pressed="' + (PKS[p.id] === 'low') + '"' + (locked ? ' disabled' : '') + '>Too low</button></div>' +
+      x.picks.map(p => '<li class="pk' + (PKS[p.id] === 'low' ? ' done-low' : '') + '"><div class="pk-b"><b>' + esc(p.label) + '</b><small>' + strength(p.score) + ' reason: ' + esc(p.why) + '</small></div><div class="pk-t">' +
+        (p.target ? '<small>Only bet if your bookmaker pays</small><big>' + p.target.toFixed(2) + ' or more</big><small>we think it wins ' + pc(p.p) + ' times in 100</small>' : '<small>No price guide for this match yet</small><big>Check the price yourself</big>') +
+        '</div><div class="pk-a"><button type="button" data-pick="' + esc(p.id) + '" data-v="ok" aria-pressed="' + (PKS[p.id] === 'ok') + '"' + (locked ? ' disabled' : '') + '>Price is fine</button><button type="button" data-pick="' + esc(p.id) + '" data-v="low" aria-pressed="' + (PKS[p.id] === 'low') + '"' + (locked ? ' disabled' : '') + '>Price too low</button></div>' +
         (PKS[p.id] === 'ok' && !locked ? '<div class="pk-oddsrow"><label for="od-' + esc(p.id) + '">Odds you got (optional)</label><input class="pk-odds" id="od-' + esc(p.id) + '" inputmode="decimal" autocomplete="off" placeholder="e.g. 1.85" data-oddsfor="' + esc(p.id) + '" value="' + esc((TK.e[p.id] && TK.e[p.id].odds) || '') + '"></div>' : '') +
         (locked ? '<div class="pk-oddsrow">Game has started. This pick is saved in your Track record.</div>' : '') + '</li>').join('') + '</ul></div>';
   }).join('') : '<p class="empty">No bets stand out for ' + (order.length ? 'this day' : 'the matches in the data') + '. Open a match and add the pitch, weather and team news. That can bring bets up.</p>';
@@ -2205,9 +2229,11 @@ $('cmpMkt').addEventListener('click', () => { CMP = 'market'; $('cmpModel').setA
 $('board').addEventListener('click', e => { const b = e.target.closest('.fx'); if (b) selectFixture(b.dataset.id, true); });
 $('dayChips').addEventListener('click', e => { const b = e.target.closest('[data-bday]'); if (!b) return; BF.day = b.dataset.bday; renderChips(); renderBoard(); });
 $('modeChips').addEventListener('click', e => { const b = e.target.closest('[data-mode]'); if (!b) return; BF.mode = b.dataset.mode; renderChips(); renderBoard(); });
+$('flagChips').addEventListener('click', e => { const b = e.target.closest('[data-flag]'); if (!b) return; const k = b.dataset.flag; if (k === 'over') BF.over = !BF.over; else BF.flags[k] = !BF.flags[k]; renderChips(); renderBoard(); });
+$('orderChips').addEventListener('click', e => { const b = e.target.closest('[data-order]'); if (!b) return; BF.order = b.dataset.order; renderChips(); renderBoard(); });
 $('lgSel').addEventListener('change', () => { filter = $('lgSel').value; renderChips(); renderBoard(); });
 $('bfQ').addEventListener('input', () => { BF.q = $('bfQ').value.trim(); renderChips(); renderBoard(); });
-function bfReset(){ BF.day = 'all'; BF.q = ''; BF.mode = 'all'; filter = 'all'; $('bfQ').value = ''; renderChips(); renderBoard(); }
+function bfReset(){ BF.day = 'all'; BF.q = ''; BF.mode = 'all'; BF.flags = {}; BF.order = 'time'; BF.over = false; filter = 'all'; $('bfQ').value = ''; renderChips(); renderBoard(); }
 $('bfReset').addEventListener('click', bfReset);
 $('bList').addEventListener('click', e => { if (e.target.closest('[data-reset]')) bfReset(); });
 $('reset').addEventListener('click', () => { const all = lsRead(); delete all[FX.id]; lsWrite(all); const id = FX.id; selectFixture(id, false); $('saved').textContent = 'Started again from the data.'; });
