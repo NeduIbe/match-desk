@@ -391,7 +391,8 @@ body[data-view="record"] .view:not([data-v~="record"]),
 body[data-view="matches"] .view:not([data-v~="matches"]),
 body[data-view="match"] .view:not([data-v~="match"]),
 body[data-view="scores"] .view:not([data-v~="scores"]),
-body[data-view="help"] .view:not([data-v~="help"]){display:none}
+body[data-view="help"] .view:not([data-v~="help"]),
+body[data-view="bball"] .view:not([data-v~="bball"]){display:none}
 #desk[data-tab="ov"]>:not(.t-ov):not(.mtabs),
 #desk[data-tab="news"]>:not(.t-news):not(.mtabs),
 #desk[data-tab="odds"]>:not(.t-odds):not(.mtabs),
@@ -473,6 +474,35 @@ body[data-view="help"] .view:not([data-v~="help"]){display:none}
 .seg3.two{grid-template-columns:repeat(2,1fr)}
 .chip-b.wrapb{white-space:normal;text-align:left;line-height:1.25;min-height:40px;padding:8px 12px;font-size:13.5px}
 .bf-more summary small{font-weight:600;color:var(--muted)}
+
+/* basketball screen */
+.sportsw{margin-bottom:2px}
+.bb-g{border:1.5px solid var(--line);border-radius:10px;background:var(--bg);margin:8px 0;overflow:hidden}
+.bb-g>summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:54px minmax(0,1fr);gap:10px;padding:10px 12px;align-items:start}
+.bb-g>summary::-webkit-details-marker{display:none}
+.bb-t{font-family:var(--f-mono);font-weight:700;display:grid;font-size:15px}
+.bb-t small{font-size:10.5px;font-weight:600;color:var(--muted);line-height:1.2}
+.bb-m{display:grid;gap:3px;min-width:0}
+.bb-m b{font-family:var(--f-display);font-size:15.5px;overflow-wrap:anywhere}
+.bb-m em{font-style:normal;color:var(--muted);font-size:12px}
+.bb-bar{height:8px;background:var(--away);border-radius:4px;overflow:hidden;display:block;margin-top:3px}
+.bb-bar i{display:block;height:100%;background:var(--accent)}
+.bb-ch{font-size:12.5px;color:var(--muted)}
+.bb-tags{display:flex;flex-wrap:wrap;gap:4px}
+.bb-body{padding:4px 14px 14px;border-top:1px dashed var(--line);display:grid;gap:10px}
+.bb-big{margin:8px 0 0;display:grid;font-size:18px}
+.bb-big span{font-size:12.5px;color:var(--muted)}
+.bb-l{margin:0;padding-left:18px;font-size:14px;display:grid;gap:4px}
+.bb-line{display:grid;gap:8px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface)}
+.bb-line label{display:grid;gap:4px;font-size:13.5px;font-weight:700}
+.bb-line input{min-height:44px;border:1.5px solid var(--line);border-radius:8px;background:var(--bg);padding:6px 10px;width:100%}
+.bb-out{font-size:13.5px}
+.bb-lab{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800}
+.bb-inj{margin:0;font-size:14px}
+.bb-two{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+@media (min-width:640px){.bb-two{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.bb-trust{margin:8px 0;padding-left:18px;display:grid;gap:8px;font-size:14px}
+#bbSec{max-width:860px;width:100%;margin-inline:auto}
 </style></head><body>
 <nav id="bnav" aria-label="Main sections">
   <button type="button" data-view="picks" aria-current="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg><span>Picks</span></button>
@@ -538,14 +568,32 @@ body[data-view="help"] .view:not([data-v~="help"]){display:none}
         </dl></section>
       <footer class="foot paper">
     <p><b>Our numbers are estimates.</b> They come from recent results and a simple goals formula. They are not bookmaker prices, and they do not know about injuries or lineups. If our number is very different from the bookmaker's, we are probably missing news.</p>
-    <p><b>Checklist scores are rough weights</b> from your match-day guide. They show which bets the conditions point to. They are not chances.</p>
+    <p><b>Checklist points are not chances.</b> The reasons marked "From recent results" come from real numbers. The reasons marked "From your guide (not measured)" are rules from your match-day guide. Their point sizes were set by the guide and have not been tested on results here, so treat them as ideas to check, not facts.</p>
+    <p><b>What is measured and what is chosen.</b> Measured from real results: league goals, corners and cards averages, home advantage, how much to trust a team's own record, and how spread out corners and cards are. Chosen by us: the "only bet if the price is at least" line adds a 5% cushion to the fair price, because our numbers are not perfect. Nothing else in our chances is typed in by hand.</p>
     <p><b>Bet responsibly.</b> 18+ only. You can lose money. Never stake what you cannot afford to lose.</p>
   </footer>
   </section>
 
+  <section class="paper sec view" data-v="bball" id="bbSec">
+    <div class="bf">
+      <div class="seg3 two sportsw" role="group" aria-label="Pick a sport"><button type="button" data-sport="fb" aria-pressed="false">Football</button><button type="button" data-sport="bb" aria-pressed="true">Basketball</button></div>
+    </div>
+    <h2>Basketball <span id="bbStamp"></span></h2>
+    <p class="hint">Games are from ESPN (NBA, WNBA and US college). The numbers are ours, worked out from real scores this season. There are no bookmaker prices here, so type a line from your bookmaker to check it.</p>
+    <div class="bf">
+      <div class="chips scroll" id="bbDays" role="group" aria-label="Pick a day"></div>
+      <label class="lgsel"><span>League</span><select id="bbLg" aria-label="Pick a basketball league"></select></label>
+    </div>
+    <div id="bbList"><div class="loading">Loading basketball...</div></div>
+    <details class="how" open><summary>How far can you trust these numbers?</summary>
+      <ul id="bbTrust" class="bb-trust"></ul>
+      <p class="hint">What we do: we read the real scores of every finished game this season. From them we work out how many points each team scores and lets in, and how much the home team gains. That gives an expected score, and the chance each team wins. We do not know about injuries, rest days, trades or the lineup, and a few games early in a season is not much to go on. This is a simple model and it has not been proven to make money.</p>
+    </details>
+  </section>
   <div class="layout view" data-v="matches match">
     <aside class="paper view" data-v="matches" id="board" aria-label="Matches">
       <div class="bf">
+        <div class="seg3 two sportsw" role="group" aria-label="Pick a sport"><button type="button" data-sport="fb" aria-pressed="true">Football</button><button type="button" data-sport="bb" aria-pressed="false">Basketball</button></div>
         <input id="bfQ" type="search" placeholder="Search a team" autocomplete="off" aria-label="Search a team">
         <div class="seg3" id="modeChips" role="group" aria-label="What to show">
           <button type="button" data-mode="all" aria-pressed="true">All games</button>
@@ -894,7 +942,7 @@ function buildMarkets(model, share, mkt, ou, ah){
   if (ah && ah.line != null && ![-1.5, -1, -0.5, 0, 0.5, 1, 1.5].includes(ah.line)){ const r = ahProb(G, ah.line); hc.push(R('ahf', 'Asian handicap home ' + (ah.line > 0 ? '+' : '') + ah.line + ' (bookmaker line)', r[0], {push: r[1]})); }
   groups.push({id:'handicap', title:'Handicap (head start)', rows:hc});
   if (model.corners){
-    const cm = model.corners, K2 = 40, pt = nbPmf(cm.exp, 1.15, K2), ch = nbPmf(cm.home, 1.2, K2), ca = nbPmf(cm.away, 1.2, K2);
+    const cm = model.corners, K2 = 40, dsp = cm.disp || 1, pt = nbPmf(cm.exp, dsp, K2), ch = nbPmf(cm.home, dsp, K2), ca = nbPmf(cm.away, dsp, K2);
     const r = [];
     [7.5, 8.5, 9.5, 10.5, 11.5, 12.5].forEach(l => { const o = 1 - sumIf(pt, i => i <= Math.floor(l)); r.push(R('co' + l, 'Total corners over ' + l, o), R('cu' + l, 'Total corners under ' + l, 1 - o)); });
     [['Home', ch, 'h'], ['Away', ca, 'a']].forEach(t => [3.5, 4.5, 5.5, 6.5].forEach(l => { const o = 1 - sumIf(t[1], i => i <= Math.floor(l)); r.push(R('c' + t[2] + 'o' + l, t[0] + ' corners over ' + l, o)); }));
@@ -903,7 +951,7 @@ function buildMarkets(model, share, mkt, ou, ah){
     groups.push({id:'corners', title:'Corners (we expect ' + cm.exp.toFixed(1) + ')', rows:r});
   }
   if (model.cards){
-    const cd = model.cards, pc = nbPmf(cd.exp, 1.15, 25), r = [];
+    const cd = model.cards, pc = nbPmf(cd.exp, cd.disp || 1, 25), r = [];
     [2.5, 3.5, 4.5, 5.5, 6.5].forEach(l => { const o = 1 - sumIf(pc, i => i <= Math.floor(l)); r.push(R('ko' + l, 'Total cards over ' + l, o), R('ku' + l, 'Total cards under ' + l, 1 - o)); });
     groups.push({id:'cards', title:'Cards (we expect ' + cd.exp.toFixed(1) + ')', rows:r, note:'Cards = yellow + red. "Bookings" points are different: usually 10 per yellow and 25 per red. Check how your bookmaker counts.'});
   }
@@ -1009,7 +1057,8 @@ function autoSetup(fx){
   const m = fx.model;
   if (m){
     s.gpg = m.exp_total; s.gpgLg = avg.g_team ? avg.g_team * 2 : null;
-    prov.push(['Goals we expect', f2(m.exp_total) + ' in this game (league average ' + f2(s.gpgLg) + '). From each team\'s last ' + Math.min(m.n[0], m.n[1]) + '+ games.', 'data']);
+    if (m.basis === 'elo') prov.push(['Goals we expect', f2(m.exp_total) + ' in this game. Worked out from club strength ratings (' + m.elo[0] + ' v ' + m.elo[1] + '), not from recent goals. Treat it as rough.', 'estimate']);
+    else prov.push(['Goals we expect', f2(m.exp_total) + ' in this game (league average ' + f2(s.gpgLg) + '). From each team\'s last ' + Math.min(m.n[0], m.n[1]) + '+ games.', 'data']);
     if (m.corners && avg.tc){ s.corn = m.corners.exp; s.cornLg = avg.tc; prov.push(['Corners we expect', f1(m.corners.exp) + ' (league average ' + f1(avg.tc) + ')', 'data']); }
     if (m.cards && avg.tk){ s.cardsExp = m.cards.exp; s.cardsLg = avg.tk; prov.push(['Cards we expect', f1(m.cards.exp) + ' (league average ' + f1(avg.tk) + ')' + (m.cards.ref_factor ? '. Referee factor ' + f2(m.cards.ref_factor) + '.' : ''), 'data']); }
   }
@@ -1066,7 +1115,7 @@ const BF_FLAGS = [['over','Also show games that are over', null],
   ['live','The game is on right now', f => isLive(f)],
   ['picks','There is a bet that stands out', f => (PKN[f.id] || 0) > 0],
   ['odds','Bookmaker prices were found', f => !!f.mkt],
-  ['model','We have chances for win, goals, corners', f => !!f.model],
+  ['model','We have our own chances (win, draw, goals)', f => !!f.model],
   ['news','Some players are out injured', f => outN(f) > 0],
   ['wx','The weather may matter (rain, heat or wind)', wxFlag]];
 function bfMatch(f, skip){
@@ -1130,6 +1179,7 @@ function renderBoard(){
     if (!f.koKnown) tg(0, '<span class="tag">Time not set</span>');
     if (PKN[f.id]) tg(1, '<span class="tag ok">' + PKN[f.id] + (PKN[f.id] === 1 ? ' bet stands out' : ' bets stand out') + '</span>');
     if (f.mkt) tg(7, '<span class="tag">odds</span>');
+    if (f.model && f.model.basis === 'elo') tg(8, '<span class="tag">rough chances</span>');
     const on = outN(f); if (on) tg(2, '<span class="tag rot">' + on + (on === 1 ? ' player out' : ' players out') + '</span>');
     if (wxFlag(f)) tg(4, '<span class="tag">' + (f.wx.rain >= 1 ? 'rain' : f.wx.t >= 31 ? 'hot' : 'wind') + '</span>');
     const tags = tl.sort((x, y) => x[0] - y[0]).slice(0, 4).map(x => x[1]);
@@ -1166,8 +1216,7 @@ function modelFor(fx, s){
 function modelNow(){ return (FX && S) ? modelFor(FX, S) : null; }
 function liveModel(m){
   const s = (LIVE && LIVE.stats) || {}, rh = (s.home && s.home.red) || 0, ra = (s.away && s.away.red) || 0;
-  if (!rh && !ra) return m;
-  return Object.assign({}, m, {lam:[m.lam[0] * Math.pow(0.72, rh) * Math.pow(1.28, ra), m.lam[1] * Math.pow(0.72, ra) * Math.pow(1.28, rh)]});
+  return m;   // no red-card adjustment: we have no measured effect to use, so none is invented
 }
 function applyNews(){
   const mn = modelNow(); if (mn) S.gpg = mn.exp_total;
@@ -1201,7 +1250,8 @@ function renderQuick(){
 }
 function teamCard(k, side){
   const t = T(k), st = t.stats;
-  if (t.rank == null && !st) return '<div class="tcard"><div class="tn">' + esc(t.name) + '<span>' + side + '</span></div><div class="tl">No table or match numbers for this club yet.</div></div>';
+  const eloLine = t.elo ? '<div class="tl">Club strength rating: <b>' + t.elo + '</b> (a higher number means a stronger club, compared across Europe)</div>' : '';
+  if (t.rank == null && !st) return '<div class="tcard"><div class="tn">' + esc(t.name) + '<span>' + side + '</span></div>' + (eloLine || '<div class="tl">No table or match numbers for this club yet.</div>') + '</div>';
   let h = '<div class="tcard"><div class="tn">' + esc(t.name) + '<span>' + side + '</span></div>';
   if (t.rank != null) h += '<div class="tl"><b>' + t.rank + ' of ' + t.of + '</b> &middot; ' + t.w + 'W ' + t.d + 'D ' + t.l + 'L &middot; ' + t.pts + ' pts &middot; goal difference ' + (t.gf - t.ga >= 0 ? '+' : '') + (t.gf - t.ga) + '</div>';
   if (st){
@@ -1214,13 +1264,17 @@ function teamCard(k, side){
       (st.n_k >= 3 ? '<div class="st"><b>' + f1(st.kf) + '</b><span>cards a game</span></div>' : '') + '</div>';
     h += '<div class="tl">From the last ' + st.n + ' games' + (st.n < 8 ? ' <b>(few games, so be careful)</b>' : '') + (st.n_c && st.n_c < st.n ? '. Corners and cards from ' + st.n_c + ' games' : '') + '.</div>';
   }
-  return h + '</div>';
+  return h + eloLine + '</div>';
 }
 
 /* ---------- odds checker ---------- */
 function allGroups(){
   const gs = [], m = modelNow();
-  if (LIVE && LIVE.live && m) gs.push(buildLive(liveModel(m), LIVE.minute, LIVE.gh, LIVE.ga));
+  if (LIVE && LIVE.live && m){
+    gs.push(buildLive(liveModel(m), LIVE.minute, LIVE.gh, LIVE.ga));
+    const st = LIVE.stats || {}, reds = ((st.home && st.home.red) || 0) + ((st.away && st.away.red) || 0);
+    if (reds) gs[gs.length - 1].title += ' (a red card was shown, and these numbers do not account for it)';
+  }
   if (m){ const share = (DATA.leagues[FX.league].avg || {}).h1share || 0.44; buildMarkets(m, share, FX.mkt, FX.ou, FX.ah).forEach(g => gs.push(g)); }
   else if (FX.mkt){
     const f = FX.mkt.fair, R = (k, name, p) => ({k, name, p, cons: p});
@@ -1235,7 +1289,7 @@ function edgeOf(odds, row){
 function renderMarkets(){
   const gs = allGroups(); ROWS = []; ROWMAP = {}; const q = ($('mkFilter').value || '').trim().toLowerCase();
   const m = FX.model;
-  $('mkSub').textContent = m ? '(our chances come from recent results' + (FX.mkt ? '; bookmaker view shown too)' : ')') : (FX.mkt ? '(bookmaker view only)' : '');
+  $('mkSub').textContent = m ? (m.basis === 'elo' ? '(our chances come from club strength ratings, so they are rough' : '(our chances come from recent results') + (FX.mkt ? '; bookmaker view shown too)' : ')') : (FX.mkt ? '(bookmaker view only)' : '');
   $('mkHint').innerHTML = gs.length ? 'Type the odds you see on Bet9ja, SportyBet, BetKing or any other site in the boxes below, or paste them. We show the <b>expected profit</b>: what you win or lose on average for every 1 you stake, if our chance is right. A plus is good. The <b>fair price</b> is what the bet should pay.' : 'No prices for this match: there are no bookmaker odds and too few past results.';
   $('groups').innerHTML = gs.map((g, gi) => {
     const rows = g.rows.filter(r => !q || (g.title + ' ' + r.name).toLowerCase().includes(q));
@@ -1412,7 +1466,7 @@ function renderContext(){
   $('tagline').innerHTML = '<span>' + fmtDay.format(d) + (FX.koKnown ? ', ' + fmtTime.format(d) + ' WAT' : ', time not confirmed') + '</span>' +
     (FX.ref && FX.ref.name ? '<span>Referee: ' + esc(FX.ref.name) + '</span>' : '') + (FX.league === 'NPFL' ? '<span class="tag rot">Check the match details first</span>' : '');
   $('teams').innerHTML = teamCard(FX.home, 'home') + teamCard(FX.away, 'away');
-  $('confNote').textContent = m ? (m.conf === 'thin' ? '(few games, so be careful)' : '(based on the last ' + Math.min(m.n[0], m.n[1]) + '+ games)') : '';
+  $('confNote').textContent = m ? (m.basis === 'elo' ? '(from club strength ratings only, so be careful)' : m.conf === 'thin' ? '(few games, so be careful)' : '(based on the last ' + Math.min(m.n[0], m.n[1]) + '+ games)') : '';
   let g = '';
   if (m && FX.mkt){
     const mp = FX.mkt.fair, md = m.p1x2, gapv = Math.max(Math.abs(mp[0] - md[0]), Math.abs(mp[2] - md[2]));
@@ -1427,10 +1481,11 @@ function renderProv(){
   const label = {data:'Filled in for you', assumed:'Our guess', estimate:'Rough estimate'};
   $('prov').innerHTML = PROV.map(p => '<li><span class="k">' + esc(p[0]) + '</span><span class="src-t ' + (p[2] === 'data' ? 'data' : '') + '">' + label[p[2]] + '</span><span>' + esc(p[1]) + '</span></li>').join('');
 }
-const strength = n => n >= 40 ? 'Strong' : n >= 25 ? 'Good' : 'Small';
+const isDataWhy = w => /^(Recent games point|Teams and referee point)/.test(w);
+const srcWhy = list => { const d = list.filter(isDataWhy), g = list.filter(w => !isDataWhy(w)); return (d.length ? '<b>From recent results:</b> ' + d.map(esc).join(' &middot; ') : '') + (d.length && g.length ? ' ' : '') + (g.length ? '<b>From your guide (not measured):</b> ' + g.map(esc).join(' &middot; ') : ''); };
 function row(r, neg){
   const w = Math.min(Math.abs(r.score), 70) / 70 * 100;
-  return '<li class="mkr' + (neg ? ' neg' : '') + '"><div class="mk-top"><div class="mk-name">' + esc(r.label) + '</div><span class="chip">' + r.group + '</span><span class="scr">' + (r.score > 0 ? '+' : '') + r.score + '</span></div><div class="bar" aria-hidden="true"><i style="width:' + w.toFixed(0) + '%"></i></div><p class="why"><b>' + (neg ? 'Against:' : strength(r.score) + ' reason:') + '</b> ' + r.reasons.map(esc).join(' &middot; ') + '</p></li>';
+  return '<li class="mkr' + (neg ? ' neg' : '') + '"><div class="mk-top"><div class="mk-name">' + esc(r.label) + '</div><span class="chip">' + r.group + '</span><span class="scr">' + (r.score > 0 ? '+' : '') + r.score + '</span></div><div class="bar" aria-hidden="true"><i style="width:' + w.toFixed(0) + '%"></i></div><p class="why">' + (neg ? '<b>Against.</b> ' : '') + srcWhy(r.reasons) + '</p></li>';
 }
 /* ---------- match-day tips: always filled from what we know about this match ---------- */
 function matchTips(R){
@@ -1462,6 +1517,10 @@ function matchTips(R){
   if (out.home || out.away) tips.push('ESPN lists ' + (out.home ? out.home + ' out for ' + H : '') + (out.home && out.away ? ' and ' : '') + (out.away ? out.away + ' out for ' + A : '') + '. Open the News tab to see the names.');
   else if (!hasWho(S) && !newsOn()) tips.push('No team news found yet. Check the clubs\' pages on social media before you bet.');
   if (S.rotKey) tips.push('The goalkeeper or a key midfielder who protects the defence is out. The favourite may be weaker than the odds say.');
+  if (FX.model && FX.model.basis === 'elo'){
+    const cup = ['FAC', 'EFL', 'CDR', 'DFB', 'CIT', 'CDF'].indexOf(FX.league) >= 0;
+    tips.push('Our chances for this game come only from club strength ratings (' + FX.model.elo[0] + ' v ' + FX.model.elo[1] + '), so treat them as rough. ' + (cup ? 'In cup games big clubs often rest their best players, so check the lineups before you bet.' : 'Many European knockout ties are played over two legs (one home game, one away game). After the first leg, teams may play differently, so check the first result and the lineups.'));
+  }
   if (S.contAhead) tips.push('The favourite has a big European game within 4 days, so it may rest some players.');
   if (S.natDuty) tips.push('Some main players were away with their national teams. They may be tired.');
   if (S.midweek) tips.push('A team played or travelled in midweek. Tired legs can show late in the game.');
@@ -1485,13 +1544,13 @@ function renderResults(){
     .concat(['', 'Bets these conditions help:']).concat(R.pos.length ? R.pos.map(r => '+' + r.score + ' ' + r.label) : ['(nothing stands out)'])
     .concat(['', 'Bets these conditions hurt:']).concat(R.neg.length ? R.neg.map(r => r.score + ' ' + r.label) : ['(nothing)'])
     .concat(full.length ? ['', 'Bet combos ready: ' + full.join(', ')] : [])
-    .concat(['', 'Scores are rough weights, not chances. Data as of ' + $('asof').textContent + '. 18+ only. Bet responsibly.']).join('\n');
+    .concat(['', 'Points are not chances. Data as of ' + $('asof').textContent + '. 18+ only. Bet responsibly.']).join('\n');
 }
 function renderCoverage(){
   const model = !!FX.model, np = FX.league === 'NPFL';
   const L = (c, t) => '<span class="lvl ' + c + '">' + t + '</span>';
   const rows = [
-    ['Win, draw, double chance, draw no bet', model ? L('d', 'We calculate') + 'From recent results' + (FX.mkt ? ', next to the bookmaker view.' : '.') : (FX.mkt ? L('d', 'Bookies only') + 'Bookmaker view only.' : L('r', 'No data') + 'No prices for this match.')],
+    ['Win, draw, double chance, draw no bet', model ? L('d', 'We calculate') + (FX.model.basis === 'elo' ? 'From club strength ratings, not goals data. Rough' : 'From recent results') + (FX.mkt ? ', next to the bookmaker view.' : '.') : (FX.mkt ? L('d', 'Bookies only') + 'Bookmaker view only.' : L('r', 'No data') + 'No prices for this match.')],
     ['Over/under goals, GG/NG, odd/even, multigoal, exact goals, team goals, win to nil, clean sheet, two-in-one bets', model ? L('d', 'We calculate') + 'All from one goals formula, so they agree with each other.' : L('r', 'No data') + 'Needs past results for both teams.'],
     ['First half, second half, highest scoring half, HT/FT', model ? L('d', 'We calculate') + 'Uses how many goals this league scores before half-time.' : L('r', 'No data') + 'Needs our numbers.'],
     ['Correct score, handicap', model ? L('d', 'We calculate') + 'Top scorelines and handicap lines, with money-back handled.' : L('r', 'No data') + 'Needs our numbers.'],
@@ -1790,7 +1849,7 @@ function renderPicks(){
     const f = x.f, H = T(f.home).name, A = T(f.away).name, lg = (DATA.leagues[f.league] || {}).short || f.league;
     const locked = f.koKnown && new Date(f.ko).getTime() <= now;
     return '<div class="pk-m"><div class="pk-h"><div><b>' + esc(H) + ' v ' + esc(A) + '</b><br><span>' + (f.koKnown ? fmtTime.format(new Date(f.ko)) + ' WAT' : 'time not set') + ' &middot; ' + esc(lg) + injTag(f) + (f.wx ? ' &middot; ' + (f.wx.rain >= 1 ? 'rain likely' : f.wx.t >= 31 ? 'hot' : f.wx.gust >= 45 ? 'windy' : '') : '') + '</span></div><button type="button" class="btn small" data-open="' + esc(f.id) + '">Open match</button></div><ul class="pk-l">' +
-      x.picks.map(p => '<li class="pk' + (PKS[p.id] === 'low' ? ' done-low' : '') + '"><div class="pk-b"><b>' + esc(p.label) + '</b><small>' + strength(p.score) + ' reason: ' + esc(p.why) + '</small></div><div class="pk-t">' +
+      x.picks.map(p => '<li class="pk' + (PKS[p.id] === 'low' ? ' done-low' : '') + '"><div class="pk-b"><b>' + esc(p.label) + '</b><small>' + srcWhy([p.why]) + '</small></div><div class="pk-t">' +
         (p.target ? '<small>Only bet if your bookmaker pays</small><big>' + p.target.toFixed(2) + ' or more</big><small>we think it wins ' + pc(p.p) + ' times in 100</small>' : '<small>No price guide for this match yet</small><big>Check the price yourself</big>') +
         '</div><div class="pk-a"><button type="button" data-pick="' + esc(p.id) + '" data-v="ok" aria-pressed="' + (PKS[p.id] === 'ok') + '"' + (locked ? ' disabled' : '') + '>Price is fine</button><button type="button" data-pick="' + esc(p.id) + '" data-v="low" aria-pressed="' + (PKS[p.id] === 'low') + '"' + (locked ? ' disabled' : '') + '>Price too low</button></div>' +
         (PKS[p.id] === 'ok' && !locked ? '<div class="pk-oddsrow"><label for="od-' + esc(p.id) + '">Odds you got (optional)</label><input class="pk-odds" id="od-' + esc(p.id) + '" inputmode="decimal" autocomplete="off" placeholder="e.g. 1.85" data-oddsfor="' + esc(p.id) + '" value="' + esc((TK.e[p.id] && TK.e[p.id].odds) || '') + '"></div>' : '') +
@@ -2257,7 +2316,8 @@ function setTab(tab){
 function syncNav(){
   const v = document.body.dataset.view || VIEW;
   $('navMatch').hidden = !FX || WIDE.matches;
-  $('bnav').querySelectorAll('button').forEach(b => b.setAttribute('aria-current', String(b.dataset.view === v || (WIDE.matches && v === 'matches' && b.dataset.view === 'match'))));
+  if (typeof bbSync === 'function') bbSync();
+  $('bnav').querySelectorAll('button').forEach(b => b.setAttribute('aria-current', String(b.dataset.view === v || (v === 'bball' && b.dataset.view === 'matches') || (WIDE.matches && v === 'matches' && b.dataset.view === 'match'))));
 }
 function setView(v, keepScroll){
   if (ALLMODE){ document.body.dataset.view = 'all'; if (v === 'record') showTab('track'); else if (v === 'picks') showTab('picks'); return; }
@@ -2399,6 +2459,7 @@ function renderMeta(d){
   $('failList').innerHTML = fl ? '<p class="hint"><b>Did not load last time:</b></p><ul>' + fl + '</ul>' : '';
   $('sources').innerHTML = [
     '<li><b>Past results, corners, cards, referees and odds:</b> football-data.co.uk (free). Updated several times a day. Their odds file is uploaded once a week, so some matches have no odds.</li>',
+    '<li><b>Champions League, Europa League and cup games:</b> chances come from free club strength ratings (ClubElo), which compare clubs from different leagues. They are rough, because they do not know about injuries or lineups.</li>',
     '<li><b>Match list and live lineups:</b> ESPN. This is an unofficial feed and can change without notice.</li>',
     '<li><b>Update status:</b> ' + Object.keys(d.status || {}).map(k => esc(k + ': ' + d.status[k])).join('. ') + '</li>',
     '<li><b>Weather:</b> forecast for the stadium city from Open-Meteo (free). Checked at each update and again when you open a match. Forecasts can be wrong.</li>','<li><b>Injury lists:</b> ESPN, up to 2 days before the match. Lineups come about 1 hour before kick-off.</li>','<li><b>Not here:</b> player stats and Nigerian bookmaker odds. Type your own odds in the Odds checker.</li>'].join('');
@@ -2422,6 +2483,106 @@ async function refreshData(force){
 }
 setInterval(() => { if (!document.hidden && Date.now() - RF_AT > 20 * 60e3) refreshData(); }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - RF_AT > 10 * 60e3) refreshData(); });
+
+
+/* ---------- basketball (own screen; numbers come from real scores, see data/basketball.json) ---------- */
+let BBD = null, BB_ERR = '', BB = {day: 'any', lg: 'all'};
+const fmtKey = new Intl.DateTimeFormat('en-CA', {timeZone: 'Africa/Lagos'});
+function erf(x){
+  const sg = x < 0 ? -1 : 1; x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x);
+  return sg * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x));
+}
+const phi = x => 0.5 * (1 + erf(x / Math.SQRT2));
+const bbT = k => (BBD && BBD.teams[k]) || {name: String(k).split(':').slice(1).join(':') || '?', n: 0, w: 0, l: 0, form: []};
+function bbAvail(){ return !!(BBD && BBD.games && BBD.games.length); }
+function bbGames(){
+  if (!BBD) return [];
+  const now = Date.now();
+  return BBD.games.filter(g => (BB.lg === 'all' || g.lg === BB.lg) && (BB.day === 'any' || fmtKey.format(new Date(g.ko)) === BB.day))
+    .sort((a, b) => a.ko < b.ko ? -1 : 1);
+}
+function bbCard(g){
+  const H = bbT(g.home), A = bbT(g.away), p = g.pred, d = new Date(g.ko), lg = BBD.leagues[g.lg] || {};
+  const done = g.state === 'post', live = g.state === 'in';
+  const tags = [];
+  if (done) tags.push('<span class="tag">' + g.score[0] + '-' + g.score[1] + ' final</span>');
+  else if (live) tags.push('<span class="tag live"><b>' + g.score[0] + '-' + g.score[1] + '</b> ' + esc(g.when || 'Live') + '</span>');
+  if (p && (p.n[0] < 8 || p.n[1] < 8)) tags.push('<span class="tag rot">few games so far</span>');
+  const out = (g.inj || []).filter(i => /out/i.test(i.st)).length;
+  if (out) tags.push('<span class="tag rot">' + out + (out === 1 ? ' player out' : ' players out') + '</span>');
+  let h = '<details class="bb-g"><summary><span class="bb-t">' + fmtTime.format(d) + '<small>' + fmtDay.format(d) + '</small></span><span class="bb-m"><b>' + esc(H.name) + '</b><em>v</em><b>' + esc(A.name) + '</b>';
+  if (p) h += '<span class="bb-bar" aria-hidden="true"><i style="width:' + Math.round(p.pw * 100) + '%"></i></span><span class="bb-ch">' + esc(H.abbr || H.name) + ' wins ' + Math.round(p.pw * 100) + ' in 100 &middot; ' + esc(A.abbr || A.name) + ' wins ' + Math.round((1 - p.pw) * 100) + ' in 100</span>';
+  else if (!done && !live) h += '<span class="bb-ch">No numbers yet (not enough finished games for one of the teams)</span>';
+  h += '<span class="bb-tags">' + (lg.short ? '<span class="tag">' + esc(lg.short) + '</span>' : '') + tags.join('') + '</span></span></summary><div class="bb-body">';
+  if (p){
+    const fav = p.margin >= 0 ? H : A, mg = Math.abs(p.margin);
+    h += '<p class="bb-big"><b>' + esc(H.name) + ' ' + Math.round(p.h) + ' - ' + Math.round(p.a) + ' ' + esc(A.name) + '</b><span>expected score</span></p>' +
+      '<ul class="bb-l"><li><b>' + esc(fav.name) + '</b> expected to win by about <b>' + mg.toFixed(1) + '</b> points.</li>' +
+      '<li>Expected total points: <b>' + p.total.toFixed(1) + '</b>.</li>' +
+      '<li>Real games land well away from this. In about 2 games out of 3, the final margin was within <b>' + Math.round(lg.sm) + '</b> points of our guess, and the total within <b>' + Math.round(lg.st) + '</b> points.</li></ul>' +
+      '<div class="bb-line"><div class="bb-lab">Check a bookmaker line (optional)</div>' +
+      '<label>Total points line <input type="text" inputmode="decimal" placeholder="for example 224.5" data-bb="tot" data-g="' + esc(g.id) + '"></label><div class="bb-out" data-bbout="tot"></div>' +
+      '<label>Handicap for ' + esc(H.name) + ' <input type="text" inputmode="decimal" placeholder="for example -5.5 or 3.5" data-bb="spr" data-g="' + esc(g.id) + '"></label><div class="bb-out" data-bbout="spr"></div></div>';
+  }
+  const inj = g.inj || [];
+  if (g.lg === 'nba' || g.lg === 'wnba'){
+    if (g.inj) h += '<div class="bb-lab">Injury list from ESPN <small>(may be incomplete)</small></div>' + (inj.length ? ['home', 'away'].map(sd => { const l = inj.filter(i => i.s === sd); return l.length ? '<p class="bb-inj"><b>' + esc((sd === 'home' ? H : A).name) + ':</b> ' + l.map(i => esc(i.n) + (i.p ? ' (' + esc(i.p) + ')' : '') + ' ' + esc(i.st || '')).join(', ') + '</p>' : ''; }).join('') : '<p class="hint">ESPN lists nobody as injured.</p>') +
+      '<p class="hint">Our numbers do not change for injuries. A missing star can move a basketball game a lot. Check this list, and the lineup before the game.</p>';
+    else h += '<p class="hint">No injury list yet. It is read up to 2 days before the game. Our numbers do not change for injuries, so check the news before you bet.</p>';
+  }
+  h += '<div class="bb-two">' + [H, A].map((t, i) => '<div class="tcard"><div class="tn">' + esc(t.name) + '<span>' + (i ? 'away' : 'home') + '</span></div>' +
+    (t.n ? '<div class="tl"><b>' + t.w + 'W ' + t.l + 'L</b> in ' + t.n + ' games this season</div><div class="form5">' + t.form.map(x => '<span class="pill ' + (x === 'W' ? 'W' : 'L') + '">' + x + '</span>').join('') + '</div>' +
+      '<div class="tl">' + t.ppg + ' points scored, ' + t.oppg + ' let in a game</div>' : '<div class="tl">No finished games found for this team yet.</div>') + '</div>').join('') + '</div>';
+  return h + '</div></details>';
+}
+function bbRender(){
+  const box = $('bbList'); if (!box) return;
+  if (!BBD){ box.innerHTML = '<div class="loading">' + (BB_ERR ? esc(BB_ERR) : 'Loading basketball...') + '</div>'; return; }
+  const lgs = Object.keys(BBD.leagues);
+  $('bbLg').innerHTML = '<option value="all">All basketball leagues</option>' + lgs.map(k => '<option value="' + k + '"' + (BB.lg === k ? ' selected' : '') + '>' + esc(BBD.leagues[k].name) + '</option>').join('');
+  const days = [...new Set(BBD.games.filter(g => BB.lg === 'all' || g.lg === BB.lg).map(g => fmtKey.format(new Date(g.ko))))].sort();
+  const today = fmtKey.format(new Date());
+  $('bbDays').innerHTML = '<button type="button" class="chip-b" data-day="any" aria-pressed="' + (BB.day === 'any') + '">Any day</button>' + days.map(k => {
+    const d = new Date(k + 'T12:00:00Z'), lab = k === today ? 'Today' : fmtDay.format(d);
+    return '<button type="button" class="chip-b" data-day="' + k + '" aria-pressed="' + (BB.day === k) + '">' + lab + '</button>';
+  }).join('');
+  const list = bbGames();
+  box.innerHTML = list.length ? list.map(bbCard).join('') : '<div class="loading">No basketball games found for this choice.' + (BBD.notes && BBD.notes.length ? ' ' + esc(BBD.notes[0]) : '') + '</div>';
+  const t = $('bbTrust');
+  t.innerHTML = lgs.map(k => {
+    const l = BBD.leagues[k], b = l.back;
+    if (!b) return '<li><b>' + esc(l.name) + ':</b> ' + (l.n ? 'only ' + l.n + ' finished games so far, too few to test our numbers. Treat them as a very rough guide.' : 'not enough finished games yet for numbers.') + '</li>';
+    return '<li><b>' + esc(l.name) + ':</b> we tested on the newest ' + b.n + ' finished games, using only the games before each one. We picked the winner in <b>' + Math.round(b.acc * 100) + ' of 100</b>. Always picking the home team would have been right <b>' + Math.round(b.homeAcc * 100) + ' of 100</b>. ' + (b.acc > b.homeAcc ? 'So our numbers did better than that simple rule.' : 'So our numbers did <b>not</b> beat that simple rule. Be careful.') + '</li>';
+  }).join('');
+  $('bbStamp').textContent = 'Basketball numbers updated ' + fmtDay.format(new Date(BBD.asOf)) + ' ' + fmtTime.format(new Date(BBD.asOf)) + ' WAT';
+}
+async function bbLoad(){
+  try {
+    const r = await fetch('data/basketball.json?t=' + Date.now(), {cache: 'no-store'});
+    if (!r.ok) throw new Error(r.status === 404 ? 'Basketball is not loaded yet. It appears after the next "Daily update" run on GitHub.' : 'status ' + r.status);
+    BBD = await r.json(); BB_ERR = '';
+  } catch (e) { if (!BBD) BB_ERR = String(e.message || e).replace(/^Error: /, ''); }
+  bbRender();
+}
+function bbLineOut(inp){
+  const g = BBD.games.find(x => x.id === inp.dataset.g), out = inp.parentElement.nextElementSibling; if (!g || !g.pred) return;
+  const v = parseFloat(String(inp.value).replace(',', '.')), l = BBD.leagues[g.lg], p = g.pred;
+  if (isNaN(v)){ out.textContent = ''; return; }
+  const H = bbT(g.home), A = bbT(g.away), pct = x => Math.round(x * 100);
+  let a, b, na, nb;
+  if (inp.dataset.bb === 'tot'){ a = 1 - phi((v - p.total) / l.st); b = 1 - a; na = 'Over ' + v; nb = 'Under ' + v; }
+  else { a = phi((p.margin + v) / l.sm); b = 1 - a; na = H.name + ' ' + (v > 0 ? '+' : '') + v; nb = A.name + ' ' + (v > 0 ? '-' : '+') + Math.abs(v); }
+  const need = x => x > 0.02 && 1.05 / x < 60 ? ' Only bet if your bookmaker pays ' + (1.05 / x).toFixed(2) + ' or more.' : '';
+  out.innerHTML = '<b>' + esc(na) + ':</b> we think ' + pct(a) + ' in 100.' + need(a) + '<br><b>' + esc(nb) + ':</b> we think ' + pct(b) + ' in 100.' + need(b);
+}
+document.addEventListener('input', e => { const i = e.target.closest('[data-bb]'); if (i && BBD) bbLineOut(i); });
+document.addEventListener('click', e => {
+  const sp = e.target.closest('[data-sport]'); if (sp){ setView(sp.dataset.sport === 'bb' ? 'bball' : 'matches'); return; }
+  const d = e.target.closest('#bbDays [data-day]'); if (d){ BB.day = d.dataset.day; bbRender(); }
+});
+$('bbLg').addEventListener('change', () => { BB.lg = $('bbLg').value; BB.day = 'any'; bbRender(); });
+function bbSync(){ document.querySelectorAll('[data-sport]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.sport === 'bb') === (VIEW === 'bball')))); }
+bbLoad(); setInterval(bbLoad, 20 * 60 * 1000);
 
 fetch('data/fixtures.json', {cache:'no-store'}).then(r => { if (!r.ok) throw new Error('status ' + r.status); return r.json(); }).then(d => {
   DATA = d;

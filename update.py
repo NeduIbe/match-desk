@@ -109,6 +109,7 @@ def log(*a):
 def fetch(url, headers=None, tries=3, timeout=45):
     if LOCAL:
         m = re.search(r'/(\d{4})/(\w+)\.csv$', url)
+        bb_ = re.search(r'/basketball/([\w-]+)/(scoreboard|summary)', url)
         e = re.search(r'/soccer/([\w.]+)/(scoreboard|summary)', url)
         name = '%s_%s.csv' % (m.group(1), m.group(2)) if m else url.rsplit('/', 1)[-1].split('?')[0]
         if e:
@@ -119,6 +120,11 @@ def fetch(url, headers=None, tries=3, timeout=45):
             dd_ = re.search(r'dates=(\d{8})-(\d{8})', url)
             if e.group(2) == 'scoreboard' and dd_ and (datetime.strptime(dd_.group(2), '%Y%m%d').date() - datetime.strptime(dd_.group(1), '%Y%m%d').date()).days > 20:
                 name = 'espn_%s_scoreboard_past.json' % e.group(1)
+        if 'clubelo.com' in url:
+            name = 'clubelo.csv'
+        if bb_:
+            ev2_ = re.search(r'event=(\w+)', url)
+            name = 'bb_%s_summary_%s.json' % (bb_.group(1), ev2_.group(1)) if (bb_.group(2) == 'summary' and ev2_) else 'bb_%s.json' % bb_.group(1)
         if 'open-meteo.com/v1/forecast' in url:
             name = 'openmeteo_forecast.json'
         if 'geocoding-api.open-meteo.com' in url:
@@ -220,6 +226,7 @@ def league_avgs(ms):
     ht = [(m['hhg'] + m['hag'], m['hg'] + m['ag']) for m in ms if m['hhg'] is not None and m['hag'] is not None]
     share = (sum(a for a, _ in ht) / max(1, sum(b for _, b in ht))) if ht else 0.44
     return {'n': n, 'gh': gh, 'ga': ga, 'g_team': (gh + ga) / 2, 'h1share': share,
+            'hw': sum(1 for m in ms if m['hg'] > m['ag']) / n, 'dw': sum(1 for m in ms if m['hg'] == m['ag']) / n,
             'tc': mean([total_corners(m) for m in ms]), 'tk': mean([total_cards(m) for m in ms]),
             'o25': mean([1.0 if m['hg'] + m['ag'] >= 3 else 0.0 for m in ms]),
             'btts': mean([1.0 if m['hg'] > 0 and m['ag'] > 0 else 0.0 for m in ms])}
@@ -291,14 +298,36 @@ def shrink(v, n, prior, k=5.0):
     return (v * n + prior * k) / (n + k)
 
 
+def est_k(groups, min_teams=8, min_n=4):
+    """How many games of evidence a team's own record is worth against the league average, measured from the data itself.
+    k = (noise in one game) / (real spread between teams). groups: name -> list of per-game numbers. Returns None if too little data."""
+    g = {t: v for t, v in groups.items() if len(v) >= min_n}
+    if len(g) < min_teams:
+        return None
+    means = {t: sum(v) / len(v) for t, v in g.items()}
+    ss = sum(sum((x - means[t]) ** 2 for x in v) for t, v in g.items())
+    df = sum(len(v) - 1 for v in g.values())
+    s2 = ss / df if df else 0.0
+    mm = sum(means.values()) / len(means)
+    var_means = sum((m - mm) ** 2 for m in means.values()) / (len(means) - 1)
+    tau2 = var_means - sum(s2 / len(v) for v in g.values()) / len(g)
+    if s2 <= 0:
+        return None
+    if tau2 <= 1e-9:
+        return 50.0
+    return max(1.0, min(50.0, s2 / tau2))
+
+
 def predict(H, A, lg, ref=None):
     """Simple, transparent model: Poisson goals from attack and defence rates pulled toward the league mean."""
     if not H or not A or lg.get('n', 0) < 20:
         return None
     gt = lg['g_team']
     hf = max(1.0, min(1.7, lg['gh'] / lg['ga']))
-    att_h, def_h = shrink(H['gf'], H['n'], gt) / gt, shrink(H['ga'], H['n'], gt) / gt
-    att_a, def_a = shrink(A['gf'], A['n'], gt) / gt, shrink(A['ga'], A['n'], gt) / gt
+    kk = lg.get('k') or {}
+    kg_ = kk.get('g', 5.0)
+    att_h, def_h = shrink(H['gf'], H['n'], gt, kg_) / gt, shrink(H['ga'], H['n'], gt, kg_) / gt
+    att_a, def_a = shrink(A['gf'], A['n'], gt, kg_) / gt, shrink(A['ga'], A['n'], gt, kg_) / gt
     lh = gt * math.sqrt(hf) * att_h * def_a
     la = gt / math.sqrt(hf) * att_a * def_h
     ph_, pa_ = pois_pmf(lh), pois_pmf(la)
@@ -326,25 +355,27 @@ def predict(H, A, lg, ref=None):
            'corners': None, 'cards': None, 'n': [H['n'], A['n']],
            'conf': 'ok' if min(H['n'], A['n']) >= 8 else 'thin'}
     if H.get('n_c', 0) >= 4 and A.get('n_c', 0) >= 4 and lg.get('tc'):
-        rh = shrink(H['tc'], H['n_c'], lg['tc']) / lg['tc']
-        ra = shrink(A['tc'], A['n_c'], lg['tc']) / lg['tc']
+        rh = shrink(H['tc'], H['n_c'], lg['tc'], kk.get('tc', 5.0)) / lg['tc']
+        ra = shrink(A['tc'], A['n_c'], lg['tc'], kk.get('tc', 5.0)) / lg['tc']
         exp = lg['tc'] * math.sqrt(rh * ra)
-        pmf = nb_pmf(exp, 1.15)
+        dsp = lg.get('tc_disp') or 1.0
+        pmf = nb_pmf(exp, dsp)
         den = (H['cf'] or 0) + (A['ca'] or 0) + (A['cf'] or 0) + (H['ca'] or 0)
         share = ((H['cf'] or 0) + (A['ca'] or 0)) / den if den else 0.5
-        out['corners'] = {'exp': round(exp, 2), 'home': round(exp * share, 2), 'away': round(exp * (1 - share), 2),
+        out['corners'] = {'exp': round(exp, 2), 'home': round(exp * share, 2), 'away': round(exp * (1 - share), 2), 'disp': round(dsp, 3),
                           'over': {str(l): round(p_over(pmf, l), 4) for l in (7.5, 8.5, 9.5, 10.5, 11.5, 12.5)}}
     if H.get('n_k', 0) >= 4 and A.get('n_k', 0) >= 4 and lg.get('tk'):
-        rh = shrink(H['tk'], H['n_k'], lg['tk']) / lg['tk']
-        ra = shrink(A['tk'], A['n_k'], lg['tk']) / lg['tk']
+        rh = shrink(H['tk'], H['n_k'], lg['tk'], kk.get('tk', 5.0)) / lg['tk']
+        ra = shrink(A['tk'], A['n_k'], lg['tk'], kk.get('tk', 5.0)) / lg['tk']
         exp = lg['tk'] * math.sqrt(rh * ra)
         refx = None
         if ref and ref.get('n', 0) >= 3:
-            rr = shrink(ref['avg'], ref['n'], lg['tk'], 4.0) / lg['tk']
+            rr = shrink(ref['avg'], ref['n'], lg['tk'], kk.get('ref', 4.0)) / lg['tk']
             exp *= rr
             refx = round(rr, 3)
-        pmf = nb_pmf(exp, 1.15)
-        out['cards'] = {'exp': round(exp, 2), 'ref_factor': refx,
+        dsp = lg.get('tk_disp') or 1.0
+        pmf = nb_pmf(exp, dsp)
+        out['cards'] = {'exp': round(exp, 2), 'ref_factor': refx, 'disp': round(dsp, 3),
                         'over': {str(l): round(p_over(pmf, l), 4) for l in (2.5, 3.5, 4.5, 5.5, 6.5)}}
     return out
 
@@ -452,6 +483,40 @@ def build_league(code):
         if m['ref'] and k is not None:
             refs.setdefault(m['ref'], []).append(k)
     refstats = {r: {'n': len(v), 'avg': sum(v) / len(v)} for r, v in refs.items()}
+    # measured from the data (not typed in): how much to trust a team's own record, and how spread out corners and cards are
+    gvals = {}
+    for t, ms_ in by_team.items():
+        gvals[t] = [(m['hg'] if m['h'] == t else m['ag']) for m in ms_]
+    avals = {t: [(m['ag'] if m['h'] == t else m['hg']) for m in ms_] for t, ms_ in by_team.items()}
+    kc = {}
+    ks_g = [x for x in (est_k(gvals), est_k(avals)) if x]
+    if ks_g:
+        kc['g'] = round(sum(ks_g) / len(ks_g), 2)
+    kt = est_k({t: [total_corners(m) for m in ms_ if total_corners(m) is not None] for t, ms_ in by_team.items()})
+    if kt:
+        kc['tc'] = round(kt, 2)
+    kk_ = est_k({t: [total_cards(m) for m in ms_ if total_cards(m) is not None] for t, ms_ in by_team.items()})
+    if kk_:
+        kc['tk'] = round(kk_, 2)
+    kr = est_k({r: v for r, v in refs.items()}, min_teams=5, min_n=3)
+    if kr:
+        kc['ref'] = round(kr, 2)
+    lg['k'] = kc
+    for key, tot_fn, lgk, nk in (('tc_disp', total_corners, 'tc', 'n_c'), ('tk_disp', total_cards, 'tk', 'n_k')):
+        if not lg.get(lgk):
+            continue
+        kshr = kc.get('tc' if lgk == 'tc' else 'tk', 5.0)
+        acc, cnt_ = 0.0, 0
+        for m in cur:
+            x = tot_fn(m)
+            H_, A_ = profiles.get(m['h']), profiles.get(m['a'])
+            if x is None or not H_ or not A_ or H_.get(nk, 0) < 4 or A_.get(nk, 0) < 4:
+                continue
+            e = lg[lgk] * math.sqrt((shrink(H_[lgk], H_[nk], lg[lgk], kshr) / lg[lgk]) * (shrink(A_[lgk], A_[nk], lg[lgk], kshr) / lg[lgk]))
+            acc += (x - e) ** 2 / e
+            cnt_ += 1
+        if cnt_ >= 40:
+            lg[key] = max(1.0, round(acc / cnt_, 3))
     recent = [m for m in cur if m['d'] >= NOW - timedelta(days=21)]
     return {'code': code, 'lg': lg, 'profiles': profiles, 'table': table, 'refs': refstats, 'names': names,
             'cur_n': len(cur), 'recent': recent}
@@ -711,6 +776,202 @@ def espn_other(built, teams, leagues, fixtures):
         if added:
             leagues[code] = {'name': name, 'short': short, 'comp': 'europe' if kind == 'europe' else 'other', 'avg': {}}
     return n, ok, bad
+
+
+# ---------------------------------------------------------------- club strength ratings (ClubElo, free) for Europe and cup games
+ELO_URLS = ['http://api.clubelo.com/%s', 'https://api.clubelo.com/%s']
+ELO_COUNTRY = {'E0': 'ENG', 'E1': 'ENG', 'E2': 'ENG', 'E3': 'ENG', 'SC0': 'SCO', 'SP1': 'ESP', 'SP2': 'ESP', 'I1': 'ITA', 'I2': 'ITA',
+               'D1': 'GER', 'D2': 'GER', 'F1': 'FRA', 'F2': 'FRA', 'N1': 'NED', 'B1': 'BEL', 'P1': 'POR', 'T1': 'TUR', 'G1': 'GRE',
+               'FAC': 'ENG', 'EFL': 'ENG', 'CDR': 'ESP', 'DFB': 'GER', 'CIT': 'ITA', 'CDF': 'FRA'}
+# our best guess at how ClubElo spells some clubs (the matcher also tries the plain name and a close match)
+ELO_ALIASES = {
+    'manchester city': 'Man City', 'manchester united': 'Man United', 'tottenham hotspur': 'Tottenham', 'newcastle united': 'Newcastle',
+    'wolverhampton wanderers': 'Wolves', 'nottingham forest': 'Forest', "nott'm forest": 'Forest', 'brighton hove albion': 'Brighton',
+    'west ham united': 'West Ham', 'leeds united': 'Leeds', 'bayern munich': 'Bayern', 'bayer leverkusen': 'Leverkusen',
+    'borussia dortmund': 'Dortmund', 'borussia monchengladbach': 'Gladbach', "m'gladbach": 'Gladbach', 'eintracht frankfurt': 'Frankfurt',
+    'rb leipzig': 'RB Leipzig', 'paris saint germain': 'Paris SG', 'paris sg': 'Paris SG', 'olympique marseille': 'Marseille',
+    'olympique lyonnais': 'Lyon', 'internazionale': 'Inter', 'inter milan': 'Inter', 'ac milan': 'Milan', 'atletico madrid': 'Atletico',
+    'ath madrid': 'Atletico', 'athletic club': 'Bilbao', 'ath bilbao': 'Bilbao', 'real sociedad': 'Sociedad', 'celta vigo': 'Celta',
+    'real betis': 'Betis', 'sporting cp': 'Sporting', 'sporting lisbon': 'Sporting', 'sp lisbon': 'Sporting', 'fc porto': 'Porto',
+    'sl benfica': 'Benfica', 'club brugge': 'Brugge', 'red bull salzburg': 'Salzburg', 'shakhtar donetsk': 'Shakhtar',
+    'dynamo kyiv': 'Dynamo Kyiv', 'red star belgrade': 'Crvena Zvezda', 'crvena zvezda': 'Crvena Zvezda', 'psv eindhoven': 'PSV',
+    'young boys': 'Young Boys', 'slavia prague': 'Slavia Praha', 'sparta prague': 'Sparta Praha', 'viktoria plzen': 'Plzen',
+    'ferencvaros': 'Ferencvaros', 'dinamo zagreb': 'Dinamo Zagreb', 'maccabi tel aviv': 'Maccabi Tel Aviv', 'qarabag': 'Qarabag',
+    'olympiacos': 'Olympiacos', 'panathinaikos': 'Panathinaikos', 'galatasaray': 'Galatasaray', 'fenerbahce': 'Fenerbahce',
+    'besiktas': 'Besiktas', 'celtic': 'Celtic', 'rangers': 'Rangers', 'ajax': 'Ajax', 'feyenoord': 'Feyenoord', 'union saint gilloise': 'St Gillis',
+    'royale union saint gilloise': 'St Gillis',
+    'stade rennais': 'Rennes', 'malmo ff': 'Malmoe', 'az alkmaar': 'AZ', 'heart of midlothian': 'Hearts', 'bodo glimt': 'Bodoe Glimt', 'bodo/glimt': 'Bodoe Glimt', 'fk bodo glimt': 'Bodoe Glimt',
+}
+ELO_ALIASES_N = {norm(k): v for k, v in ELO_ALIASES.items()}
+
+
+def clubelo_load():
+    """Reads today's ClubElo ratings (every European club on one scale). Falls back to the last saved copy."""
+    cpath = os.path.join(DATA_DIR, 'elo.json')
+    day = NOW.strftime('%Y-%m-%d')
+    err = None
+    for u in ELO_URLS:
+        try:
+            txt = fetch(u % day).decode('utf-8', 'replace')
+            rows = list(csv.DictReader(io.StringIO(txt)))
+            clubs = {}
+            for r in rows:
+                nm = (r.get('Club') or '').strip()
+                try:
+                    clubs[nm] = [round(float(r.get('Elo')), 1), (r.get('Country') or '').strip(), int(float(r.get('Level') or 0))]
+                except (TypeError, ValueError):
+                    continue
+            if len(clubs) < 100:
+                raise RuntimeError('only %d clubs in the file' % len(clubs))
+            os.makedirs(DATA_DIR, exist_ok=True)
+            with open(cpath, 'w') as fh:
+                json.dump({'asOf': day, 'clubs': clubs}, fh, separators=(',', ':'))
+            return clubs, day, False
+        except Exception as e:
+            err = e
+    if os.path.exists(cpath):
+        with open(cpath) as fh:
+            j = json.load(fh)
+        return j.get('clubs', {}), j.get('asOf', '?'), True
+    raise RuntimeError('could not read ClubElo (%s)' % err)
+
+
+def elo_find(name, country, index, by_compact):
+    """Finds a club in the ClubElo list from a name spelled some other way. Returns the ClubElo name or None."""
+    n = norm(name)
+    if not n:
+        return None
+    if n in index:
+        return index[n][0]
+    al = ELO_ALIASES_N.get(n)
+    if al and norm(al) in index:
+        return index[norm(al)][0]
+    c = n.replace(' ', '')
+    if c in by_compact:
+        return by_compact[c]
+    toks = set(n.split())
+    cands = []
+    for k, (orig, ctry) in index.items():
+        kt = set(k.split())
+        if k and len(k) >= 4 and (kt <= toks or toks <= kt) and min(len(kt), len(toks)) >= 1:
+            cands.append((k, orig, ctry))
+    if country:
+        same = [x for x in cands if x[2] == country]
+        if same:
+            cands = same
+    if len(cands) == 1:
+        return cands[0][1]
+    pool = [k for k, (orig, ctry) in index.items() if not country or ctry == country] or list(index)
+    best = difflib.get_close_matches(n, pool, n=1, cutoff=0.84)
+    if best:
+        return index[best[0]][0]
+    return None
+
+
+def elo_model(eh, ea, base_total, home_pts, h1share=0.44):
+    """Turns two club ratings into win, draw and goal chances. Simple and open: Elo gap -> expected result -> goals."""
+    dr = eh + home_pts - ea
+    we = 1.0 / (1.0 + 10 ** (-dr / 400.0))
+    total = base_total          # real league average goals, no extra adjustment
+
+    def split(x):
+        lh, la = total * x, total * (1 - x)
+        ph_, pa_ = pois_pmf(lh), pois_pmf(la)
+        w = d = 0.0
+        for i, p1 in enumerate(ph_):
+            for j, p2 in enumerate(pa_):
+                if i > j:
+                    w += p1 * p2
+                elif i == j:
+                    d += p1 * p2
+        return w + 0.5 * d, lh, la, ph_, pa_
+    lo, hi = 0.03, 0.97
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        if split(mid)[0] < we:
+            lo = mid
+        else:
+            hi = mid
+    _, lh, la, ph_, pa_ = split((lo + hi) / 2)
+    ph = pd = pa = 0.0
+    tot = [0.0] * 30
+    for i, x in enumerate(ph_):
+        for j, y in enumerate(pa_):
+            p = x * y
+            tot[i + j] += p
+            if i > j:
+                ph += p
+            elif i == j:
+                pd += p
+            else:
+                pa += p
+    s = ph + pd + pa
+    ph, pd, pa = ph / s, pd / s, pa / s
+    h1 = (lh + la) * h1share
+    return {'lam': [round(lh, 3), round(la, 3)], 'p1x2': [round(ph, 4), round(pd, 4), round(pa, 4)], 'exp_total': round(lh + la, 2),
+            'goals': {'o15': round(p_over(tot, 1.5), 4), 'o25': round(p_over(tot, 2.5), 4), 'o35': round(p_over(tot, 3.5), 4),
+                      'btts': round((1 - ph_[0]) * (1 - pa_[0]), 4), 'h1o05': round(1 - math.exp(-h1), 4),
+                      'h1o15': round(1 - math.exp(-h1) * (1 + h1), 4)},
+            'corners': None, 'cards': None, 'n': [0, 0], 'conf': 'thin', 'basis': 'elo', 'elo': [round(eh), round(ea)]}
+
+
+def add_elo_models(fixtures, teams, leagues, built):
+    """Gives Europe and cup games chances from club strength ratings when the free stats files cannot (they only cover league games)."""
+    clubs, asof, old = clubelo_load()
+    index, by_compact = {}, {}
+    for nm, (elo, ctry, lvl) in clubs.items():
+        index[norm(nm)] = (nm, ctry)
+        by_compact[norm(nm).replace(' ', '')] = nm
+    cache, missing = {}, []
+
+    def rating(key):
+        if key in cache:
+            return cache[key]
+        t = teams.get(key) or {}
+        code = key.split(':', 1)[0]
+        ctry = ELO_COUNTRY.get(code, '')
+        r = None
+        for nm in (t.get('raw'), t.get('name'), key.split(':', 1)[-1]):
+            if not nm:
+                continue
+            hit = elo_find(nm, ctry, index, by_compact)
+            if hit:
+                r = clubs[hit][0]
+                break
+        if r is None:
+            missing.append(t.get('name') or key)
+        else:
+            t['elo'] = round(r)
+        cache[key] = r
+        return r
+    # home advantage measured from real results: share of points the home team takes over all the leagues we read
+    hw = [b['lg']['hw'] + 0.5 * b['lg']['dw'] for b in built.values() if b.get('lg', {}).get('hw') is not None]
+    hdd = [b['lg'] for b in built.values() if b.get('lg', {}).get('hw') is not None]
+    if not hw:
+        raise RuntimeError('no league results to measure home advantage from')
+    we_ = sum(hw) / len(hw)
+    home_pts = 400.0 * math.log10(we_ / (1 - we_))
+    h1 = sum(b['h1share'] for b in hdd) / len(hdd)
+    done = tried = 0
+    for f in fixtures:
+        lg = leagues.get(f['league']) or {}
+        if f.get('model') or lg.get('comp') != 'europe':
+            continue
+        tried += 1
+        eh, ea = rating(f['home']), rating(f['away'])
+        if eh is None or ea is None:
+            continue
+        gts = [built[k.split(':', 1)[0]]['lg']['g_team'] * 2 for k in (f['home'], f['away'])
+               if k.split(':', 1)[0] in built and built[k.split(':', 1)[0]].get('lg', {}).get('g_team')]
+        if not gts:
+            gts = [b_['lg']['g_team'] * 2 for b_ in built.values() if b_.get('lg', {}).get('g_team')]
+        if not gts:
+            continue        # no real goals average to use: leave the game without chances
+        base = sum(gts) / len(gts)
+        f['model'] = elo_model(eh, ea, base, home_pts, h1)
+        f['modelNote'] = 'elo'
+        done += 1
+    return done, tried, sorted(set(missing)), asof, old
 
 
 def espn_npfl(fixtures, teams, leagues):
@@ -1453,6 +1714,258 @@ def build_profiles(cache):
     return teams, meta
 
 
+
+# ---------------------------------------------------------------- basketball: real scores from ESPN, our own ratings worked out from them
+# slug, name, short name, days per request, extra request options, days of past results to read
+BB_LEAGUES = {
+    'nba': ('nba', 'NBA', 'NBA', 7, {'limit': 300}, 120),
+    'wnba': ('wnba', 'WNBA', 'WNBA', 7, {'limit': 300}, 120),
+    'mcb': ('mens-college-basketball', "Men's college basketball", 'College men', 1, {'groups': '50', 'limit': 400}, 45),
+    'wcb': ('womens-college-basketball', "Women's college basketball", 'College women', 1, {'groups': '50', 'limit': 400}, 45),
+}
+
+
+def bb_events(slug, d0, d1, step, extra):
+    """All ESPN basketball games between two dates, read in small chunks so nothing is cut off."""
+    base = 'https://site.api.espn.com/apis/site/v2/sports/basketball/%s/scoreboard' % slug
+    a0 = datetime.strptime(d0, '%Y%m%d')
+    span = (datetime.strptime(d1, '%Y%m%d') - a0).days
+    seen, out, k = set(), [], 0
+    while k <= span:
+        c0 = a0 + timedelta(days=k)
+        c1 = a0 + timedelta(days=min(span, k + step - 1))
+        dd = c0.strftime('%Y%m%d') if step == 1 else '%s-%s' % (c0.strftime('%Y%m%d'), c1.strftime('%Y%m%d'))
+        q = dict(extra)
+        q['dates'] = dd
+        j = json.loads(fetch(base + '?' + urlencode(q), tries=2, timeout=30))
+        for ev in j.get('events', []):
+            if ev.get('id') not in seen:
+                seen.add(ev.get('id'))
+                out.append(ev)
+        k += step
+    return out
+
+
+def bb_parse(ev):
+    comp = (ev.get('competitions') or [{}])[0]
+    cs = comp.get('competitors') or []
+    home = next((c for c in cs if c.get('homeAway') == 'home'), None)
+    away = next((c for c in cs if c.get('homeAway') == 'away'), None)
+    if not home or not away:
+        return None
+    st = (ev.get('status') or {}).get('type') or {}
+
+    def tm(c):
+        t = c.get('team') or {}
+        return {'id': str(t.get('id') or ''), 'name': t.get('displayName') or t.get('name') or '?', 'abbr': t.get('abbreviation') or ''}
+
+    def sc(c):
+        try:
+            return int(float(c.get('score')))
+        except (TypeError, ValueError):
+            return None
+    try:
+        ko = datetime.fromisoformat(ev['date'].replace('Z', '+00:00'))
+    except Exception:
+        return None
+    if ko.tzinfo is None:
+        ko = ko.replace(tzinfo=timezone.utc)
+    ven = comp.get('venue') or {}
+    h, a = tm(home), tm(away)
+    if not h['id'] or not a['id']:
+        return None
+    return {'id': str(ev.get('id')), 'ko': ko.astimezone(timezone.utc), 'state': st.get('state'), 'h': h, 'a': a,
+            'sh': sc(home), 'sa': sc(away), 'neutral': bool(comp.get('neutralSite')), 'when': st.get('shortDetail') or '',
+            'venue': {'n': ven.get('fullName'), 'c': (ven.get('address') or {}).get('city')}}
+
+
+def bb_fit(games, lam, iters=60):
+    """Ratings from real scores. Points scored = league average + home edge + the team's attack + the other team's weakness at defence.
+    Each rating is pulled toward zero by lam games' worth, so a team with few games does not swing wildly."""
+    teams = set()
+    for g in games:
+        teams.add(g[0]); teams.add(g[1])
+    n = float(len(games))
+    mu = sum(g[2] + g[3] for g in games) / (2 * n)
+    non = [g for g in games if not g[4]]
+    hca = sum(g[2] - g[3] for g in non) / len(non) if non else 0.0
+    off = {t: 0.0 for t in teams}
+    dfn = {t: 0.0 for t in teams}
+    for _ in range(iters):
+        num, cnt = {t: 0.0 for t in teams}, {t: 0 for t in teams}
+        for H, A, sh, sa, neu in games:
+            h = 0.0 if neu else hca
+            num[H] += sh - (mu + h / 2 + dfn[A]); cnt[H] += 1
+            num[A] += sa - (mu - h / 2 + dfn[H]); cnt[A] += 1
+        off = {t: num[t] / (cnt[t] + lam) for t in teams}
+        num, cnt = {t: 0.0 for t in teams}, {t: 0 for t in teams}
+        for H, A, sh, sa, neu in games:
+            h = 0.0 if neu else hca
+            num[A] += sh - (mu + h / 2 + off[H]); cnt[A] += 1
+            num[H] += sa - (mu - h / 2 + off[A]); cnt[H] += 1
+        dfn = {t: num[t] / (cnt[t] + lam) for t in teams}
+        if non:
+            hca = sum((g[2] - g[3]) - (off[g[0]] + dfn[g[1]] - off[g[1]] - dfn[g[0]]) for g in non) / len(non)
+    return {'mu': mu, 'hca': hca, 'off': off, 'dfn': dfn, 'lam': lam}
+
+
+def bb_pred(fit, H, A, neutral=False):
+    off, dfn, mu = fit['off'], fit['dfn'], fit['mu']
+    h = 0.0 if neutral else fit['hca']
+    ph = mu + h / 2 + off.get(H, 0.0) + dfn.get(A, 0.0)
+    pa = mu - h / 2 + off.get(A, 0.0) + dfn.get(H, 0.0)
+    return ph, pa
+
+
+def bb_norm_cdf(x):
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+
+
+def bb_league_model(games):
+    """Picks the rating strength by testing on the newest quarter of games, and measures how far real results land from our guesses."""
+    games = sorted(games, key=lambda g: g[5])
+    G = [g[:5] for g in games]
+    N = len(G)
+    margins = [g[2] - g[3] for g in G]
+    totals = [g[2] + g[3] for g in G]
+
+    def sd(v):
+        m = sum(v) / len(v)
+        return math.sqrt(sum((x - m) ** 2 for x in v) / max(1, len(v) - 1))
+    info = {'n': N, 'lam': 8.0, 'lamChosen': False, 'back': None}
+    sm, st = sd(margins), sd(totals)             # raw spread of real results (used when there are too few games to test)
+    if N >= 120:
+        cut = int(N * 0.75)
+        train, test = G[:cut], G[cut:]
+        best = None
+        for lam in (2.0, 4.0, 8.0, 16.0, 32.0):
+            f = bb_fit(train, lam)
+            err = 0.0
+            for H, A, sh, sa, neu in test:
+                ph, pa = bb_pred(f, H, A, neu)
+                err += ((sh - sa) - (ph - pa)) ** 2
+            err /= len(test)
+            if best is None or err < best[0]:
+                best = (err, lam, f)
+        _, lam, f = best
+        info['lam'], info['lamChosen'] = lam, True
+        res_m, res_t, right, brier, homew = [], [], 0, 0.0, 0
+        for H, A, sh, sa, neu in test:
+            ph, pa = bb_pred(f, H, A, neu)
+            res_m.append((sh - sa) - (ph - pa)); res_t.append((sh + sa) - (ph + pa))
+        sm, st = math.sqrt(sum(x * x for x in res_m) / len(res_m)), math.sqrt(sum(x * x for x in res_t) / len(res_t))
+        for H, A, sh, sa, neu in test:
+            ph, pa = bb_pred(f, H, A, neu)
+            p = bb_norm_cdf((ph - pa) / sm)
+            won = 1.0 if sh > sa else 0.0
+            if (p >= 0.5) == (sh > sa):
+                right += 1
+            brier += (p - won) ** 2
+            if not neu and sh > sa:
+                homew += 1
+        info['back'] = {'n': len(test), 'right': right, 'acc': round(right / len(test), 3), 'brier': round(brier / len(test), 4),
+                        'homeAcc': round(homew / max(1, len([g for g in test if not g[4]])), 3)}
+    info['sm'], info['st'] = round(sm, 2), round(st, 2)
+    fit = bb_fit(G, info['lam'])
+    info['mu'], info['hca'] = round(fit['mu'], 2), round(fit['hca'], 2)
+    return fit, info
+
+
+def bb_injuries(slug, gid):
+    j = json.loads(fetch('https://site.api.espn.com/apis/site/v2/sports/basketball/%s/summary?event=%s' % (slug, gid), tries=2, timeout=25))
+    comp = ((j.get('header') or {}).get('competitions') or [{}])[0]
+    names = {str(((c.get('team') or {}).get('id')) or ''): c.get('homeAway') for c in comp.get('competitors') or []}
+    inj = []
+    for t in j.get('injuries') or []:
+        sd = names.get(str(((t.get('team') or {}).get('id')) or ''))
+        if sd not in ('home', 'away'):
+            continue
+        for i in (t.get('injuries') or [])[:12]:
+            a = i.get('athlete') or {}
+            stt = i.get('status')
+            stt = stt if isinstance(stt, str) else ((stt or {}).get('name') or (i.get('type') or {}).get('description') or '')
+            inj.append({'s': sd, 'n': a.get('displayName') or a.get('shortName') or '?', 'p': (a.get('position') or {}).get('abbreviation') or '', 'st': stt})
+    return inj
+
+
+def basketball_update():
+    """Basketball games and our own numbers for them. Everything comes from real ESPN scores; nothing is typed in by hand."""
+    d1 = (NOW + timedelta(days=7)).strftime('%Y%m%d')
+    leagues, teams, games, notes = {}, {}, [], []
+    inj_budget = 40
+    for key, (slug, name, short, step, extra, back_days) in BB_LEAGUES.items():
+        try:
+            d0 = (NOW - timedelta(days=back_days)).strftime('%Y%m%d')
+            evs = [x for x in (bb_parse(e) for e in bb_events(slug, d0, d1, step, extra)) if x]
+        except Exception as e:
+            notes.append('%s: could not read ESPN (%s)' % (short, e))
+            continue
+        done = [x for x in evs if x['state'] == 'post' and x['sh'] is not None and x['sa'] is not None and x['sh'] + x['sa'] > 0]
+        soon = [x for x in evs if x['state'] in ('pre', 'in') and x['ko'] <= NOW + timedelta(days=7)]
+        recent_done = [x for x in done if x['ko'] >= NOW - timedelta(days=1)]
+        if len(done) < 20:
+            notes.append('%s: only %d finished games found, so no numbers yet' % (short, len(done)))
+            if not soon and not recent_done:
+                continue
+            fit, info = None, {'n': len(done)}
+        else:
+            fit, info = bb_league_model([(x['h']['id'], x['a']['id'], x['sh'], x['sa'], x['neutral'], x['ko']) for x in done])
+        rec = {}
+        for x in sorted(done, key=lambda x: x['ko']):
+            for side, tmx, own, opp in (('h', x['h'], x['sh'], x['sa']), ('a', x['a'], x['sa'], x['sh'])):
+                r = rec.setdefault(tmx['id'], {'name': tmx['name'], 'abbr': tmx['abbr'], 'n': 0, 'w': 0, 'l': 0, 'pf': 0, 'pa': 0, 'form': []})
+                r['n'] += 1; r['pf'] += own; r['pa'] += opp
+                if own > opp:
+                    r['w'] += 1
+                else:
+                    r['l'] += 1
+                r['form'].append('W' if own > opp else 'L')
+        for x in soon + recent_done:
+            for tmx in (x['h'], x['a']):
+                rec.setdefault(tmx['id'], {'name': tmx['name'], 'abbr': tmx['abbr'], 'n': 0, 'w': 0, 'l': 0, 'pf': 0, 'pa': 0, 'form': []})
+        for tid, r in rec.items():
+            t = {'name': r['name'], 'abbr': r['abbr'], 'n': r['n'], 'w': r['w'], 'l': r['l'], 'form': r['form'][-5:]}
+            if r['n']:
+                t['ppg'], t['oppg'] = round(r['pf'] / r['n'], 1), round(r['pa'] / r['n'], 1)
+            if fit and r['n']:
+                t['att'], t['def'] = round(fit['off'].get(tid, 0.0), 2), round(fit['dfn'].get(tid, 0.0), 2)
+            teams['%s:%s' % (key, tid)] = t
+        leagues[key] = dict(info, name=name, short=short, slug=slug)
+        for x in sorted(soon + recent_done, key=lambda x: x['ko']):
+            g = {'id': '%s-%s' % (key, x['id']), 'lg': key, 'ko': x['ko'].strftime('%Y-%m-%dT%H:%M:00Z'), 'home': '%s:%s' % (key, x['h']['id']),
+                 'away': '%s:%s' % (key, x['a']['id']), 'state': x['state'], 'neutral': x['neutral'], 'venue': x['venue'], 'espn': {'slug': slug, 'id': x['id']}}
+            if x['state'] in ('in', 'post'):
+                g['score'] = [x['sh'], x['sa']]
+                g['when'] = x['when']
+            if fit and x['state'] == 'pre':
+                nh, na = rec.get(x['h']['id'], {}).get('n', 0), rec.get(x['a']['id'], {}).get('n', 0)
+                if nh >= 1 and na >= 1:
+                    ph, pa = bb_pred(fit, x['h']['id'], x['a']['id'], x['neutral'])
+                    g['pred'] = {'h': round(ph, 1), 'a': round(pa, 1), 'margin': round(ph - pa, 1), 'total': round(ph + pa, 1),
+                                 'pw': round(bb_norm_cdf((ph - pa) / info['sm']), 4), 'n': [nh, na]}
+            if key in ('nba', 'wnba') and x['state'] == 'pre' and x['ko'] <= NOW + timedelta(hours=48) and inj_budget > 0:
+                inj_budget -= 1
+                try:
+                    g['inj'] = bb_injuries(slug, x['id'])
+                    g['injAt'] = NOW.strftime('%Y-%m-%dT%H:%M:00Z')
+                except Exception as e:
+                    notes.append('injuries %s: %s' % (g['id'], e))
+            games.append(g)
+    if not games and not leagues:
+        raise RuntimeError('no basketball data could be read' + ('; ' + notes[0] if notes else ''))
+    return {'version': 1, 'asOf': NOW.strftime('%Y-%m-%dT%H:%M:00Z'), 'leagues': leagues, 'teams': teams, 'games': games, 'notes': notes[:12]}
+
+
+def write_basketball(prev_path):
+    try:
+        out = basketball_update()
+        with open(prev_path, 'w') as fh:
+            json.dump(out, fh, separators=(',', ':'))
+        STATUS['basketball (ESPN scores)'] = 'ok: %d games in %d leagues%s' % (len(out['games']), len(out['leagues']), (' (' + '; '.join(out['notes'][:3]) + ')') if out['notes'] else '')
+    except Exception as e:
+        STATUS['basketball (ESPN scores)'] = 'FAILED: %s (the football part still works)' % e
+
+
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     out_path = os.path.join(DATA_DIR, 'fixtures.json')
@@ -1555,6 +2068,13 @@ def main():
     except Exception as e:
         STATUS['ESPN (other competitions)'] = 'FAILED: %s' % e
 
+    try:
+        d_, t_, miss_, asof_, old_ = add_elo_models(fixtures, teams, leagues, built)
+        STATUS['club strength ratings (ClubElo)'] = 'ok: %d of %d Europe and cup games now have chances (ratings from %s%s)' % (d_, t_, asof_, ', saved copy' if old_ else '')
+        if miss_:
+            STATUS['club strength ratings (ClubElo)'] += '. No rating found for: ' + ', '.join(miss_[:12]) + (' and %d more' % (len(miss_) - 12) if len(miss_) > 12 else '')
+    except Exception as e:
+        STATUS['club strength ratings (ClubElo)'] = 'FAILED: %s (Europe and cup games stay without chances)' % e
     if not fixtures and not teams:
         log('Nothing could be fetched. The old data file is left untouched.')
         for k_, v in STATUS.items():
@@ -1574,6 +2094,7 @@ def main():
             STATUS[label] = 'ok: %d matches filled, %d without' % (a_, b_) if fn is add_weather else 'ok: %d matches, %d failed' % (a_, b_)
         except Exception as e:
             STATUS[label] = 'FAILED: %s (the app still works without it)' % e
+    write_basketball(os.path.join(DATA_DIR, 'basketball.json'))
     out = {'version': 3, 'asOf': NOW.strftime('%Y-%m-%dT%H:%M:00Z'), 'season': CUR, 'status': STATUS, 'notes': NOTES[:20],
            'leagues': leagues, 'teams': teams, 'fixtures': fixtures}
     with open(out_path, 'w') as f:
