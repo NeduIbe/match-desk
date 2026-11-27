@@ -31,6 +31,8 @@ On a computer: `python3 -m unittest discover -s tests -v`
 
 ## Known limits
 - Tested here only on made-up data. The first live run is the real test; look at **Actions** for errors.
-- The opponent adjustment in squad numbers still uses whole-season totals (a small leak in the squad back-test).
+- Squad numbers: the opponent and league adjustment is now worked out "as known on that day" (only earlier days). Tests were checked on made-up data only.
+- Every back-test is split in three: choose, confirm, and a last part never used for any choice. Games that kick off at the same moment cannot see each other's results.
+- The bookmaker odds in the results files are an average taken before kick-off, not always the closing price.
 - Corners and cards use the same recent-games number as goals but it was not tested on its own.
 - Picks are saved on the phone only when the app is opened before kick-off.

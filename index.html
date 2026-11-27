@@ -577,6 +577,7 @@ body[data-view="bball"] .view:not([data-v~="bball"]){display:none}
       <footer class="foot paper">
     <p><b>Our numbers are estimates.</b> They come from recent results and a simple goals formula. They are not bookmaker prices, and they do not know about injuries or lineups. If our number is very different from the bookmaker's, we are probably missing news.</p>
     <p><b>Checklist points are not chances.</b> The reasons marked "From recent results" come from real numbers. The reasons marked "From your guide (not measured)" are rules from your match-day guide. Their point sizes were set by the guide and have not been tested on results here, so treat them as ideas to check, not facts.</p>
+    <p><b>How the tests are kept fair.</b> Every test goes through the season game by game. A game is predicted using only games played before it. Games that kick off at the same time are all predicted before any of their results are added. The shrinkage strength is not taken from the whole season. Each test is split: part to choose a setting, part to confirm it, and a last part that is never used for any choice. The Record screen also compares our chances with the bookmakers' own.</p>
     <p><b>The checklist points are guesses, and we say so.</b> Most of them (weather, pitch, travel, rules, referee moods) cannot be measured with free data, because no free source has the history of those things for each game. So the app does not pretend to weigh them. Instead, the Record screen checks your own finished picks: did the picks the checklist liked most win more than our chances alone expected? It gives a verdict only after 30 picks in a group.</p>\n    <p><b>How many recent games.</b> The app starts with each team's last 16 games. Each night it tests 5, 8, 12, 16, 24 and all games on matches it had not yet seen. It changes the number for a league only when another number is clearly better. The test looks at goals and results. Corners and cards use the same number but were not tested on their own.</p>
     <p><b>Home and away form.</b> Each night the app tests, on games it had not yet seen, whether keeping a team\'s home and away records apart predicts better than one record. It uses the split for a league only when the test clearly says it is better. If the test is not clear, one record is used. The match page says when the split is in use.</p>
     <p><b>NPFL rules are guesses.</b> The ideas about NPFL games (home teams win 55 to 64 in 100, long road trips, no VAR, high ground in Jos, club money) come from your guide. This app has not checked them against NPFL results. They add checklist points only, never chances. Treat them as ideas to test, not facts. The travel choice is what you pick or type; the app does not work it out.</p>
@@ -1989,6 +1990,19 @@ function tkResBtns(e){
 }
 const lockTag = e => e.at ? ' &middot; saved ' + fmtDay.format(new Date(e.at)) + ' ' + fmtTime.format(new Date(e.at)) + (e.frozen ? ', locked' : '') : '';
 /* does the checklist add anything beyond our chances? measured from the user's own finished picks */
+/* football: do our chances beat the bookmakers' own, on past games each predicted from earlier games only? (numbers made by update.py) */
+function mkCompare(){
+  const L = DATA && DATA.leagues ? Object.keys(DATA.leagues).filter(k => DATA.leagues[k].avg && DATA.leagues[k].avg.market_test) : [];
+  let h = '<div class="tr-t"><h3>Us against the bookmakers</h3>';
+  if (!L.length) return h + '<p class="hint">Not enough past games with bookmaker odds yet to compare.</p></div>';
+  h += '<p class="hint">Past league games, each predicted from earlier games only. Score is how surprised the chances were by the real result (lower is better). The bookmaker figure uses their average odds with their margin removed. Those odds were taken before kick-off but are not always the closing price.</p><ul class="tr-l">';
+  let wm = 0, wb = 0, ws = 0, nn = 0, bets = 0, prof = 0;
+  L.forEach(k => { const t = DATA.leagues[k].avg.market_test; wm += t.model_ll * t.n; wb += t.market_ll * t.n; ws += t.shares_ll * t.n; nn += t.n; if (t.bets && t.profit_per_bet != null){ bets += t.bets; prof += t.profit_per_bet * t.bets; }
+    h += '<li class="tr-i"><div class="top"><b>' + esc((DATA.leagues[k].name || k)) + '</b><span class="mono">' + t.n + ' games</span></div><div class="sub">us ' + t.model_ll.toFixed(3) + ' &middot; bookmakers ' + t.market_ll.toFixed(3) + ' &middot; plain result shares ' + t.shares_ll.toFixed(3) + '</div></li>'; });
+  h += '</ul><p class="hint"><b>All leagues together:</b> us ' + (wm / nn).toFixed(3) + ', bookmakers ' + (wb / nn).toFixed(3) + ', plain result shares ' + (ws / nn).toFixed(3) + '. ' + (wm < wb ? 'We did better than the bookmakers. Be suspicious of that and keep testing.' : 'The bookmakers did better than us. So their price is usually the better guess, and a bet needs a strong reason to disagree with it.') + '</p>';
+  if (bets >= 30) h += '<p class="hint">If you had backed every result where our chance beat their price by 5% or more, at the odds shown: ' + bets + ' bets, ' + (prof / bets >= 0 ? 'a profit' : 'a loss') + ' of about <b>' + Math.abs(prof / bets * 100).toFixed(0) + '</b> for every 100 staked. This is on past games only, with no guarantee for the future.</p>';
+  return h + '</div>';
+}
 function tkCheck(all){
   const fin = all.filter(e => e.res && e.res !== 'void' && e.p && e.score);
   const tiers = [['12 to 19 points', e => e.score < 20], ['20 to 29 points', e => e.score >= 20 && e.score < 30], ['30 points or more', e => e.score >= 30]];
@@ -2019,7 +2033,7 @@ function renderTrack(){
     const rows = Object.keys(st.by).filter(k => st.by[k].n).sort((a, b) => st.by[b].n - st.by[a].n);
     if (rows.length) h += '<div class="tr-t"><h3>By type of bet</h3><ul class="tr-l">' + rows.map(k => { const b = st.by[k]; return '<li class="tr-i"><div class="top"><b>' + esc(k) + '</b><span class="mono">' + u2(b.profit) + ' units</span></div><div class="sub">' + b.won + ' won out of ' + b.n + '</div></li>'; }).join('') + '</ul></div>';
   }
-  h += tkCheck(all);
+  h += tkCheck(all) + mkCompare();
   const open = all.filter(e => !e.res).sort((a, b) => new Date(a.ko) - new Date(b.ko));
   if (open.length){
     h += '<div class="tr-t"><h3>Waiting for the score (' + open.length + ')</h3><ul class="tr-l">' + open.map(e => {
@@ -2643,7 +2657,7 @@ function bbRender(){
   t.innerHTML = lgs.map(k => {
     const l = BBD.leagues[k], b = l.back;
     if (!b) return '<li><b>' + esc(l.name) + ':</b> ' + (l.n ? 'only ' + l.n + ' finished games so far, too few to test our numbers. Treat them as a very rough guide.' : 'not enough finished games yet for numbers.') + '</li>';
-    return '<li><b>' + esc(l.name) + ':</b> we tested on the newest ' + b.n + ' finished games. Nothing in the test was used to set up our numbers. We picked the winner in <b>' + Math.round(b.acc * 100) + ' of 100</b>. Always picking the home team would have been right <b>' + Math.round(b.homeAcc * 100) + ' of 100</b>. ' + (b.acc > b.homeAcc ? 'So our numbers did better than that simple rule.' : 'So our numbers did <b>not</b> beat that simple rule. Be careful.') + '</li>';
+    return '<li><b>' + esc(l.name) + ':</b> we tested on the newest ' + b.n + ' finished games. Nothing in the test was used to set up our numbers. We picked the winner in <b>' + Math.round(b.acc * 100) + ' of 100</b>. Always picking the home team would have been right <b>' + Math.round(b.homeAcc * 100) + ' of 100</b>. ' + (b.acc > b.homeAcc ? 'So our numbers did better than that simple rule.' : 'So our numbers did <b>not</b> beat that simple rule. Be careful.') + (b.brier != null ? ' Score for the chances themselves (Brier, lower is better): <b>' + b.brier.toFixed(3) + '</b>, against <b>' + (b.homeAcc * (1 - b.homeAcc)).toFixed(3) + '</b> for a flat guess of the home win rate. ' + (b.brier < b.homeAcc * (1 - b.homeAcc) ? 'Our chances were more useful than the flat guess.' : 'Our chances were <b>not</b> better than the flat guess.') : '') + '</li>';
   }).join('');
   $('bbStamp').textContent = 'Basketball numbers updated ' + fmtDay.format(new Date(BBD.asOf)) + ' ' + fmtTime.format(new Date(BBD.asOf)) + ' WAT';
 }

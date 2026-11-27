@@ -195,7 +195,8 @@ def to_match(r):
             'hhg': whole(r.get('HTHG')), 'hag': whole(r.get('HTAG')),
             'hc': whole(r.get('HC')), 'ac': whole(r.get('AC')),
             'hy': whole(r.get('HY')), 'ay': whole(r.get('AY')), 'hr': whole(r.get('HR')), 'ar': whole(r.get('AR')),
-            'hst': whole(r.get('HST')), 'ast': whole(r.get('AST')), 'ref': r.get('Referee') or None}
+            'hst': whole(r.get('HST')), 'ast': whole(r.get('AST')), 'ref': r.get('Referee') or None,
+            'mk': (consensus(r)[0] or None)}
 
 
 # ---------------------------------------------------------------- statistics
@@ -330,104 +331,151 @@ def _ll(p, o):
 
 
 WIN_GRID = [5, 8, 12, 16, 24, 1000]   # 1000 = every game we have for the team
+SPLIT_GRID = [4.0, 8.0, 16.0, 32.0]
 
 
-def window_backtest(allm, start=100):
-    """How many recent games per team predict best? Walk forward through the season, predict each game from only earlier games,
-    and score each window length. The first half of the test games picks the best length; the second half is the honest score
-    against the length we use now. A different length is adopted only if it is clearly better, not just lucky."""
+def _walk(allm, start, score):
+    """Walk through the season one kick-off time at a time. Every game that kicks off at the same moment is predicted
+    BEFORE any of their results are added, and league averages come only from strictly earlier games.
+    score(m, H_games, A_games, lg_avgs) returns a row (or None to skip the game)."""
     ms = sorted(allm, key=lambda m: m['d'])
     if len(ms) < start + 80:
         return None
-    rows, hist = [], {}
-    for i, m in enumerate(ms):
+    rows, hist, i = [], {}, 0
+    while i < len(ms):
+        j = i
+        while j < len(ms) and ms[j]['d'] == ms[i]['d']:
+            j += 1
+        group = ms[i:j]
         if i >= start:
             prior = ms[:i]
             n = len(prior)
             gh, ga = sum(x['hg'] for x in prior) / n, sum(x['ag'] for x in prior) / n
             lgx = {'n': n, 'gh': gh, 'ga': ga, 'g_team': (gh + ga) / 2, 'h1share': 0.44, 'k': {}}
-            o = 0 if m['hg'] > m['ag'] else (1 if m['hg'] == m['ag'] else 2)
-            hh = sorted(hist.get(m['h'], []), key=lambda x: x['d'], reverse=True)
-            aa = sorted(hist.get(m['a'], []), key=lambda x: x['d'], reverse=True)
-            r, ok = {}, True
-            for w in WIN_GRID:
-                H, A = profile(hh[:w], m['h']), profile(aa[:w], m['a'])
-                if not H or not A or min(len(hh), len(aa)) < 5:
-                    ok = False
-                    break
-                q = predict(H, A, lgx)
-                if not q:
-                    ok = False
-                    break
-                r[w] = _ll(q['p1x2'], o)
-            if ok:
-                rows.append(r)
-        hist.setdefault(m['h'], []).append(m)
-        hist.setdefault(m['a'], []).append(m)
-    if len(rows) < 80:
-        return None
-    mid = len(rows) // 2
-    first, second = rows[:mid], rows[mid:]
-    best = min(WIN_GRID, key=lambda w: sum(r[w] for r in first))
-    cur = WINDOW
-    diffs = [r[best] - r[cur] for r in second]
-    md = sum(diffs) / len(diffs)
-    sd = math.sqrt(sum((x - md) ** 2 for x in diffs) / (len(diffs) - 1)) or 1e-9
-    z = md / (sd / math.sqrt(len(diffs)))
-    use = best != cur and md < 0 and z < -2.0
-    return {'n': len(second), 'best': best, 'now_ll': round(sum(r[cur] for r in second) / len(second), 4),
-            'best_ll': round(sum(r[best] for r in second) / len(second), 4), 'z': round(z, 2), 'used': bool(use),
-            'all': {str(w): round(sum(r[w] for r in rows) / len(rows), 4) for w in WIN_GRID}}
-
-
-def split_backtest(allm, kc, start=100, win=None):
-    win = win or WINDOW
-    """Walk forward through the season. Each game is predicted using only games played before it.
-    Compares: one record per team (current model) against separate home and away records, for a few strengths of pull toward the team's overall record.
-    The first half of the test games chooses the strength; the second half is the honest score. Returns None if too little data."""
-    ms = sorted(allm, key=lambda m: m['d'])
-    if len(ms) < start + 80:
-        return None
-    grid = [4.0, 8.0, 16.0, 32.0]
-    rows = []  # per test game: baseline loss, loss per kv, over-2.5 brier base, brier per kv
-    hist = {}
-    for i, m in enumerate(ms):
-        if i >= start:
-            prior = ms[:i]
-            n = len(prior)
-            gh, ga = sum(x['hg'] for x in prior) / n, sum(x['ag'] for x in prior) / n
-            lgx = {'n': n, 'gh': gh, 'ga': ga, 'g_team': (gh + ga) / 2, 'h1share': 0.44, 'k': kc}
-            H = profile(sorted(hist.get(m['h'], []), key=lambda x: x['d'], reverse=True)[:win], m['h'])
-            A = profile(sorted(hist.get(m['a'], []), key=lambda x: x['d'], reverse=True)[:win], m['a'])
-            if H and A and H['n'] >= 5 and A['n'] >= 5:
-                o = 0 if m['hg'] > m['ag'] else (1 if m['hg'] == m['ag'] else 2)
-                ov = 1.0 if m['hg'] + m['ag'] >= 3 else 0.0
-                b = predict(H, A, lgx)
-                if b:
-                    r = {'b': (_ll(b['p1x2'], o), (b['goals']['o25'] - ov) ** 2), 'v': {}}
-                    for kv in grid:
-                        lgx['kv'] = kv
-                        q = predict(H, A, lgx)
-                        r['v'][kv] = (_ll(q['p1x2'], o), (q['goals']['o25'] - ov) ** 2)
-                    lgx.pop('kv', None)
+            for m in group:
+                hh = sorted(hist.get(m['h'], []), key=lambda x: x['d'], reverse=True)
+                aa = sorted(hist.get(m['a'], []), key=lambda x: x['d'], reverse=True)
+                if min(len(hh), len(aa)) < 5:
+                    continue
+                r = score(m, hh, aa, lgx)
+                if r is not None:
                     rows.append(r)
-        hist.setdefault(m['h'], []).append(m)
-        hist.setdefault(m['a'], []).append(m)
-    if len(rows) < 80:
-        return None
-    mid = len(rows) // 2
-    first, second = rows[:mid], rows[mid:]
-    best = min(grid, key=lambda kv: sum(r['v'][kv][0] for r in first))
-    tb = sum(r['b'][0] for r in second) / len(second)
-    ts = sum(r['v'][best][0] for r in second) / len(second)
-    bb = sum(r['b'][1] for r in second) / len(second)
-    bs = sum(r['v'][best][1] for r in second) / len(second)
-    diffs = [r['v'][best][0] - r['b'][0] for r in second]
+        for m in group:
+            hist.setdefault(m['h'], []).append(m)
+            hist.setdefault(m['a'], []).append(m)
+        i = j
+    return rows if len(rows) >= 100 else None
+
+
+def _three(rows):
+    """40% to choose, 30% to confirm, last 30% never touched until everything is fixed."""
+    a, b = int(len(rows) * 0.4), int(len(rows) * 0.7)
+    return rows[:a], rows[a:b], rows[b:]
+
+
+def _z(diffs):
     md = sum(diffs) / len(diffs)
     sd = math.sqrt(sum((x - md) ** 2 for x in diffs) / (len(diffs) - 1)) or 1e-9
-    z = md / (sd / math.sqrt(len(diffs)))
-    use = ts < tb and bs <= bb and z < -2.0  # clearly better (not luck) on games it never chose from, and not worse on over 2.5
-    return {'n': len(second), 'kv': best, 'base_ll': round(tb, 4), 'split_ll': round(ts, 4), 'base_o25': round(bb, 4), 'split_o25': round(bs, 4), 'z': round(z, 2), 'used': bool(use)}
+    return md, md / (sd / math.sqrt(len(diffs)))
+
+
+def window_backtest(allm, start=100):
+    """How many recent games per team predict best? Each game is predicted from only earlier games.
+    Part 1 picks the best length, part 2 confirms it against the length we use now (it must be clearly better, not lucky),
+    part 3 is never used for any choice and only reports the final score."""
+    def score(m, hh, aa, lgx):
+        o = 0 if m['hg'] > m['ag'] else (1 if m['hg'] == m['ag'] else 2)
+        r = {}
+        for w in WIN_GRID:
+            H, A = profile(hh[:w], m['h']), profile(aa[:w], m['a'])
+            q = H and A and predict(H, A, lgx)
+            if not q:
+                return None
+            r[w] = _ll(q['p1x2'], o)
+        return r
+    rows = _walk(allm, start, score)
+    if not rows:
+        return None
+    sel, conf, fin = _three(rows)
+    best = min(WIN_GRID, key=lambda w: sum(r[w] for r in sel))
+    cur = WINDOW
+    md, z = _z([r[best] - r[cur] for r in conf])
+    use = best != cur and md < 0 and z < -2.0
+    chosen = best if use else cur
+    mean = lambda L, w: round(sum(r[w] for r in L) / len(L), 4)
+    return {'n': len(conf), 'best': best, 'now_ll': mean(conf, cur), 'best_ll': mean(conf, best), 'z': round(z, 2), 'used': bool(use),
+            'final_n': len(fin), 'final_now': mean(fin, cur), 'final_chosen': mean(fin, chosen),
+            'all': {str(w): mean(rows, w) for w in WIN_GRID}}
+
+
+def market_benchmark(allm, win=None, kv=None, start=100):
+    """Do our chances carry information the bookmakers have not already priced in?
+    Every game is predicted from earlier games only. We compare, on the same games: always guessing the league's home-win share,
+    our chances, and the bookmakers' own chances (their average odds in the results file, with their margin removed).
+    Also: if you had backed every result where our chance beat the bookmaker's price by 5% or more, at the odds shown, how would it have gone.
+    The odds in the file are an average taken before kick-off, not necessarily the closing price."""
+    win = win or WINDOW
+
+    def score(m, hh, aa, lgx):
+        mk = m.get('mk')
+        if not mk or not mk.get('fair') or not mk.get('odds'):
+            return None
+        H, A = profile(hh[:win], m['h']), profile(aa[:win], m['a'])
+        q = H and A and predict(H, A, dict(lgx, kv=kv) if kv else lgx)
+        if not q:
+            return None
+        o = 0 if m['hg'] > m['ag'] else (1 if m['hg'] == m['ag'] else 2)
+        bets = [(mk['odds'][k] * q['p1x2'][k] - 1, mk['odds'][k], 1 if k == o else 0) for k in range(3)]
+        e, od, won = max(bets)
+        return {'m': _ll(q['p1x2'], o), 'b': _ll(mk['fair'], o), 'bet': (od, won) if e >= 0.05 else None, 'hs': lgx['gh'], 'o': o}
+    rows = _walk(allm, start, score)
+    if not rows:
+        return None
+    seen, base, model, market, stake, back = [0, 0, 0], 0.0, 0.0, 0.0, 0, 0.0
+    for t, r in enumerate(rows):
+        base += -math.log((seen[r['o']] + 1) / (t + 3.0))   # result shares of earlier games only
+        seen[r['o']] += 1
+        model += r['m']
+        market += r['b']
+        if r['bet']:
+            stake += 1
+            back += (r['bet'][0] - 1) if r['bet'][1] else -1
+    n = float(len(rows))
+    return {'n': len(rows), 'shares_ll': round(base / n, 4), 'model_ll': round(model / n, 4), 'market_ll': round(market / n, 4),
+            'bets': stake, 'profit_per_bet': round(back / stake, 3) if stake else None}
+
+
+def split_backtest(allm, kc=None, start=100, win=None):
+    """Same idea for keeping home and away records apart. Uses default shrinkage for both versions (never a figure measured on the full season).
+    Part 1 picks the pull strength, part 2 confirms it is clearly better and not worse on over 2.5, part 3 is the untouched final score."""
+    win = win or WINDOW
+
+    def score(m, hh, aa, lgx):
+        o = 0 if m['hg'] > m['ag'] else (1 if m['hg'] == m['ag'] else 2)
+        ov = 1.0 if m['hg'] + m['ag'] >= 3 else 0.0
+        H, A = profile(hh[:win], m['h']), profile(aa[:win], m['a'])
+        b = H and A and predict(H, A, lgx)
+        if not b:
+            return None
+        r = {'b': (_ll(b['p1x2'], o), (b['goals']['o25'] - ov) ** 2), 'v': {}}
+        for kv in SPLIT_GRID:
+            q = predict(H, A, dict(lgx, kv=kv))
+            r['v'][kv] = (_ll(q['p1x2'], o), (q['goals']['o25'] - ov) ** 2)
+        return r
+    rows = _walk(allm, start, score)
+    if not rows:
+        return None
+    sel, conf, fin = _three(rows)
+    best = min(SPLIT_GRID, key=lambda kv: sum(r['v'][kv][0] for r in sel))
+    mean = lambda L, f, i: sum(f(r)[i] for r in L) / len(L)
+    base = lambda r: r['b']
+    spl = lambda r: r['v'][best]
+    tb, ts, bb, bs = mean(conf, base, 0), mean(conf, spl, 0), mean(conf, base, 1), mean(conf, spl, 1)
+    md, z = _z([spl(r)[0] - base(r)[0] for r in conf])
+    use = ts < tb and bs <= bb and z < -2.0
+    f = spl if use else base
+    return {'n': len(conf), 'kv': best, 'base_ll': round(tb, 4), 'split_ll': round(ts, 4), 'base_o25': round(bb, 4), 'split_o25': round(bs, 4),
+            'z': round(z, 2), 'used': bool(use), 'final_n': len(fin), 'final_base': round(mean(fin, base, 0), 4), 'final_chosen': round(mean(fin, f, 0), 4)}
 
 
 def predict(H, A, lg, ref=None):
@@ -635,10 +683,17 @@ def build_league(code):
         kc['ref'] = round(kr, 2)
     lg['k'] = kc
     try:
-        sb = split_backtest(allm, kc, win=win)
+        sb = split_backtest(allm, win=win)
     except Exception as e:
         sb = None
         NOTES.append('%s: home/away test skipped (%s)' % (code, e))
+    try:
+        mt = market_benchmark(allm, win=win)
+    except Exception as e:
+        mt = None
+        NOTES.append('%s: bookmaker comparison skipped (%s)' % (code, e))
+    if mt:
+        lg['market_test'] = mt
     if sb:
         lg['split_test'] = sb
         if sb['used']:
@@ -1667,43 +1722,51 @@ def build_profiles(cache):
     allm = []
     for v in cache.values():
         allm.append(v)
-    lg_n, lg_h, lg_a = {}, {}, {}
-    tgf, tga, tn = {}, {}, {}
-    for v in allm:
-        lg = v['h'].split(':', 1)[0]
-        lg_n[lg] = lg_n.get(lg, 0) + 1
-        lg_h[lg] = lg_h.get(lg, 0) + v['hg']
-        lg_a[lg] = lg_a.get(lg, 0) + v['ag']
-        for key, gf, ga in ((v['h'], v['hg'], v['ag']), (v['a'], v['ag'], v['hg'])):
-            tgf[key] = tgf.get(key, 0) + gf
-            tga[key] = tga.get(key, 0) + ga
-            tn[key] = tn.get(key, 0) + 1
-    LG = {}
-    for lg, n in lg_n.items():
-        if n >= 10 and lg_h[lg] + lg_a[lg] > 0:
-            L = (lg_h[lg] + lg_a[lg]) / (2.0 * n)
-            LG[lg] = (L, (lg_h[lg] / n) / L if lg_h[lg] else 1.0, (lg_a[lg] / n) / L if lg_a[lg] else 1.0)
-
     def clampr(x):
         return min(1.8, max(0.55, x))
 
-    def adj(key, sd, gf, ga, opp):
-        lg = key.split(':', 1)[0]
-        if lg not in LG:
-            return float(gf), float(ga)
-        L, hm, am = LG[lg]
-        ogs = (tga.get(opp, 0) + 5 * L) / (tn.get(opp, 0) + 5)
-        ofs = (tgf.get(opp, 0) + 5 * L) / (tn.get(opp, 0) + 5)
-        if sd == 'home':
-            return gf / (hm * clampr(ogs / L)), ga / (am * clampr(ofs / L))
-        return gf / (am * clampr(ogs / L)), ga / (hm * clampr(ofs / L))
+    # Opponent and league adjustment, "as known on that day": walk through the games in date order.
+    # All games on one day are adjusted first, and only then added to the running totals,
+    # so a game is never adjusted with its own result or with anything played later.
+    lg_n, lg_h, lg_a = {}, {}, {}
+    tgf, tga, tn = {}, {}, {}
+    adjv = {}   # (game id, 'home' or 'away') -> (goals for, goals against), adjusted
+    byday = {}
+    for eid, v in cache.items():
+        byday.setdefault(str(v['d'])[:10], []).append((eid, v))
+    for day in sorted(byday):
+        group = sorted(byday[day], key=lambda x: x[0])
+        for eid, v in group:
+            for sd, key, gf, ga, opp in (('home', v['h'], v['hg'], v['ag'], v['a']), ('away', v['a'], v['ag'], v['hg'], v['h'])):
+                lg = key.split(':', 1)[0]
+                n = lg_n.get(lg, 0)
+                if n < 10 or lg_h[lg] + lg_a[lg] <= 0:
+                    adjv[(eid, sd)] = (float(gf), float(ga))
+                    continue
+                L = (lg_h[lg] + lg_a[lg]) / (2.0 * n)
+                hm, am = (lg_h[lg] / n) / L if lg_h[lg] else 1.0, (lg_a[lg] / n) / L if lg_a[lg] else 1.0
+                ogs = (tga.get(opp, 0) + 5 * L) / (tn.get(opp, 0) + 5)
+                ofs = (tgf.get(opp, 0) + 5 * L) / (tn.get(opp, 0) + 5)
+                if sd == 'home':
+                    adjv[(eid, sd)] = (gf / (hm * clampr(ogs / L)), ga / (am * clampr(ofs / L)))
+                else:
+                    adjv[(eid, sd)] = (gf / (am * clampr(ogs / L)), ga / (hm * clampr(ofs / L)))
+        for eid, v in group:
+            lg = v['h'].split(':', 1)[0]
+            lg_n[lg] = lg_n.get(lg, 0) + 1
+            lg_h[lg] = lg_h.get(lg, 0) + v['hg']
+            lg_a[lg] = lg_a.get(lg, 0) + v['ag']
+            for key, gf, ga in ((v['h'], v['hg'], v['ag']), (v['a'], v['ag'], v['hg'])):
+                tgf[key] = tgf.get(key, 0) + gf
+                tga[key] = tga.get(key, 0) + ga
+                tn[key] = tn.get(key, 0) + 1
 
     per = {}
     for eid, v in cache.items():
         for sd, key, gf, ga, lu, opp in (('home', v['h'], v['hg'], v['ag'], v.get('H'), v['a']), ('away', v['a'], v['ag'], v['hg'], v.get('A'), v['h'])):
             if not lu:
                 continue
-            agf, aga = adj(key, sd, gf, ga, opp)
+            agf, aga = adjv[(eid, sd)]
             per.setdefault(key, []).append({'d': v['d'], 'eid': eid, 'gf': gf, 'ga': ga, 'agf': agf, 'aga': aga,
                                             'xi': {n: p for n, p in lu['xi']}, 'on': [n for n, p in lu['on']],
                                             'goals': [(g[1], g[2]) for g in (v.get('g') or []) if g[0] == sd]})
