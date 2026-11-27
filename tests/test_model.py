@@ -81,7 +81,7 @@ class HonestTests(unittest.TestCase):
         self.assertTrue(r is None or r['used'] is False)
 
     def test_home_away_split_adopted_when_real_difference(self):
-        r = U.split_backtest(fake_games(0.5, 11, 20, 3), {})
+        r = U.split_backtest(fake_games(0.6, 5, 20, 3), {})
         self.assertTrue(r is not None and r['used'] is True)
 
     def test_window_test_returns_a_known_length(self):
@@ -91,6 +91,27 @@ class HonestTests(unittest.TestCase):
     def test_too_little_data_means_no_test(self):
         self.assertIsNone(U.split_backtest(fake_games(0.0, 2)[:60], {}))
         self.assertIsNone(U.window_backtest(fake_games(0.0, 2)[:60]))
+
+
+class Fairness(unittest.TestCase):
+    def test_same_kickoff_games_do_not_see_each_other(self):
+        ms = fake_games(0.0, 7, 12, 3)
+        t0 = ms[150]['d']
+        for m in ms[150:160]:
+            m['d'] = t0                     # ten games at exactly the same moment
+        seen = {}
+
+        def score(m, hh, aa, lgx):
+            seen[(m['h'], m['a'], m['d'])] = (sum(x['d'] == t0 for x in hh), sum(x['d'] == t0 for x in aa), lgx['n'])
+            return 1.0
+        U._walk(ms, 100, score)
+        for (h, a, d), (nh, na, n) in seen.items():
+            if d == t0:
+                self.assertEqual((nh, na), (0, 0))   # no result from the same moment is visible
+        self.assertEqual(len({v[2] for k, v in seen.items() if k[2] == t0}), 1)  # same league averages for all of them
+
+    def test_market_comparison_needs_odds(self):
+        self.assertIsNone(U.market_benchmark(fake_games(0.0, 3)))   # no bookmaker odds in made-up games: nothing to compare
 
 
 class Page(unittest.TestCase):
