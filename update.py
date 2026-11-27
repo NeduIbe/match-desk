@@ -1593,7 +1593,7 @@ def build_profiles(cache):
             bg = sum(m['agf'] for m in w) / len(w)
             ba = sum(m['aga'] for m in w) / len(w)
             if absent and bg > 0 and ba > 0:
-                events.append({'key': key, 'i': i, 'absent': absent, 'pos_of': pos_of, 'agf': ms[i]['agf'], 'aga': ms[i]['aga'], 'bg': bg, 'ba': ba})
+                events.append({'key': key, 'i': i, 'd': ms[i]['d'], 'absent': absent, 'pos_of': pos_of, 'agf': ms[i]['agf'], 'aga': ms[i]['aga'], 'bg': bg, 'ba': ba})
 
     def pool_of(group):
         n = len(group)
@@ -1606,6 +1606,7 @@ def build_profiles(cache):
     for role in ('gk', 'df', 'dm', 'cm', 'cr', 'st'):
         pool1[role] = pool_of([e for e in events if len(e['absent']) == 1 and role_of(e['pos_of'][e['absent'][0]]) == role])
     poolK = {'2': pool_of([e for e in events if len(e['absent']) == 2]), '3': pool_of([e for e in events if len(e['absent']) >= 3])}
+    # (pool1 and poolK above use every game: they are for today's predictions. The tests below never use them.)
 
     def own(ms, i, name, K, pa, pd):
         w = window(ms, i)
@@ -1622,19 +1623,52 @@ def build_profiles(cache):
         dfn = (sum(m['aga'] for m in oi) / wga + K * pd) / (n + K) if wga > 0 else pd
         return min(1.8, max(0.4, att)), min(1.8, max(0.4, dfn)), 0
 
-    # back-test: for each past game with exactly one regular missing, predict goals from data BEFORE that game
-    bt = {}
-    singles = [e for e in events if len(e['absent']) == 1]
-    for K in SQ_K_CHOICES + (None,):
+    def run_pool(sums):
+        if sums['n'] < SQ_POOL_MIN or sums['bg'] <= 0 or sums['ba'] <= 0:
+            return 1.0, 1.0
+        return sums['agf'] / sums['bg'], sums['aga'] / sums['ba']
+
+    # Honest back-test, game by game in date order. Every game is predicted using ONLY games played on earlier dates
+    # (league-wide pattern and the team's own record). The first 60% of games choose the settings (K, and whether to use
+    # the attack and defence parts); the last 40% is a test no setting was chosen on.
+    ordered = sorted(events, key=lambda e: (e['d'], e['key']))
+    sums = {}                                   # running league-wide totals: role / 'k2' / 'k3'
+    per_event = []                              # (event, group, pool att, pool def) known before that game
+    k = 0
+    while k < len(ordered):
+        day = str(ordered[k]['d'])[:10]
+        batch = []
+        while k < len(ordered) and str(ordered[k]['d'])[:10] == day:
+            batch.append(ordered[k]); k += 1
+        for e in batch:                          # predict first (only earlier days are in sums) ...
+            n_abs = len(e['absent'])
+            grp = None
+            if n_abs == 1:
+                r = role_of(e['pos_of'][e['absent'][0]])
+                grp = r
+            elif n_abs == 2:
+                grp = 'k2'
+            elif n_abs >= 3:
+                grp = 'k3'
+            if grp:
+                pa_, pd_ = run_pool(sums.get(grp, {'n': 0, 'agf': 0, 'bg': 0, 'aga': 0, 'ba': 0}))
+                per_event.append((e, grp, pa_, pd_))
+        for e in batch:                          # ... then add these games to what is known
+            n_abs = len(e['absent'])
+            grp = role_of(e['pos_of'][e['absent'][0]]) if n_abs == 1 else ('k2' if n_abs == 2 else 'k3')
+            if grp:
+                t = sums.setdefault(grp, {'n': 0, 'agf': 0.0, 'bg': 0.0, 'aga': 0.0, 'ba': 0.0})
+                t['n'] += 1; t['agf'] += e['agf']; t['bg'] += e['bg']; t['aga'] += e['aga']; t['ba'] += e['ba']
+    single_ev = [x for x in per_event if x[1] not in ('k2', 'k3')]
+    cut = int(len(single_ev) * 0.6)
+    parts = {'val': single_ev[:cut], 'test': single_ev[cut:]}
+
+    def score(items, K):
         ea = eb = da = db = 0.0
         n = 0
-        for e in singles:
+        for e, grp, pa_, pd_ in items:
             nm = e['absent'][0]
-            r = role_of(e['pos_of'][nm])
-            if not r:
-                continue
-            p = pool1[r]
-            f = (p['att'], p['def'], 1) if K is None else own(per[e['key']], e['i'], nm, K, p['att'], p['def'])
+            f = (pa_, pd_, 1) if K is None else own(per[e['key']], e['i'], nm, K, pa_, pd_)
             if not f:
                 continue
             n += 1
@@ -1642,32 +1676,33 @@ def build_profiles(cache):
             eb += (e['agf'] - e['bg']) ** 2
             da += (e['aga'] - e['ba'] * f[1]) ** 2
             db += (e['aga'] - e['ba']) ** 2
-        if n:
-            bt[K] = {'n': n, 'impAtt': 1 - ea / eb if eb else 0.0, 'impDef': 1 - da / db if db else 0.0}
+        return {'n': n, 'impAtt': 1 - ea / eb if (n and eb) else 0.0, 'impDef': 1 - da / db if (n and db) else 0.0}
+    bt = {K_: score(parts['val'], K_) for K_ in SQ_K_CHOICES + (None,)}
     best = None
-    for K in SQ_K_CHOICES:
-        if K in bt and (best is None or bt[K]['impAtt'] + bt[K]['impDef'] > bt[best]['impAtt'] + bt[best]['impDef']):
-            best = K
+    for K_ in SQ_K_CHOICES:
+        if bt[K_]['n'] and (best is None or bt[K_]['impAtt'] + bt[K_]['impDef'] > bt[best]['impAtt'] + bt[best]['impDef']):
+            best = K_
     K = best if best is not None else 3
-    cur = bt.get(best) or {'n': 0, 'impAtt': 0.0, 'impDef': 0.0}
-    enough = cur['n'] >= SQ_BT_MIN
-    use_att = (cur['impAtt'] > 0) if enough else True
-    use_def = (cur['impDef'] > 0) if enough else True
-    # back-test for games with two or more regulars missing, using the league-wide pattern for that many
-    mm = [e for e in events if len(e['absent']) >= 2]
+    val = bt.get(best) or {'n': 0, 'impAtt': 0.0, 'impDef': 0.0}
+    enough = val['n'] >= SQ_BT_MIN
+    use_att = (val['impAtt'] > 0) if enough else True
+    use_def = (val['impDef'] > 0) if enough else True
+    cur = score(parts['test'], best) if best is not None else {'n': 0, 'impAtt': 0.0, 'impDef': 0.0}
+    cur_pool = score(parts['test'], None)
+    mm = [x for x in per_event if x[1] in ('k2', 'k3')]
+    mm = mm[int(len(mm) * 0.6):]
     ma = mb = md = mc = 0.0
-    for e in mm:
-        p = poolK['2' if len(e['absent']) == 2 else '3']
-        ma += (e['agf'] - e['bg'] * p['att']) ** 2
+    for e, grp, pa_, pd_ in mm:
+        ma += (e['agf'] - e['bg'] * pa_) ** 2
         mb += (e['agf'] - e['bg']) ** 2
-        md += (e['aga'] - e['ba'] * p['def']) ** 2
+        md += (e['aga'] - e['ba'] * pd_) ** 2
         mc += (e['aga'] - e['ba']) ** 2
     meta = {'window': W, 'K': K, 'pool1': pool1, 'poolK': poolK,
-            'bt': {'n': cur['n'], 'impAtt': round(cur['impAtt'], 4), 'impDef': round(cur['impDef'], 4), 'enough': enough,
+            'bt': {'n': cur['n'], 'impAtt': round(cur['impAtt'], 4), 'impDef': round(cur['impDef'], 4), 'enough': enough, 'valN': val['n'],
                    'useAtt': use_att, 'useDef': use_def,
-                   'poolOnly': {'impAtt': round(bt[None]['impAtt'], 4), 'impDef': round(bt[None]['impDef'], 4)} if None in bt else None,
+                   'poolOnly': {'impAtt': round(cur_pool['impAtt'], 4), 'impDef': round(cur_pool['impDef'], 4)} if cur_pool['n'] else None,
                    'multi': {'n': len(mm), 'impAtt': round(1 - ma / mb, 4) if mb else 0.0, 'impDef': round(1 - md / mc, 4) if mc else 0.0},
-                   'byK': {str(k): [bt[k]['n'], round(bt[k]['impAtt'], 4), round(bt[k]['impDef'], 4)] for k in SQ_K_CHOICES if k in bt}}}
+                   'byK': {str(k_): [bt[k_]['n'], round(bt[k_]['impAtt'], 4), round(bt[k_]['impDef'], 4)] for k_ in SQ_K_CHOICES if bt[k_]['n']}}}
     # current profiles
     teams = {}
     for key, ms in per.items():
@@ -1713,6 +1748,144 @@ def build_profiles(cache):
         teams[key] = {'n': n, 'gf': sum(m['gf'] for m in w), 'ga': sum(m['ga'] for m in w), 'f': usual, 'p': rows[:26]}
     return teams, meta
 
+
+
+
+# ---------------------------------------------------------------- our own saved season of results (for competitions with no free stats file)
+ARCH_FILE = 'archive.dat'      # not .json on purpose: it stays in the repository but is not published on the website
+ARCH_BACK_DAYS = 330           # how far back we keep and use games
+ARCH_STEP_DAYS = 60            # how far back we read per run until the whole season is saved
+ARCH_MAX_REQUESTS = 400
+
+
+def arch_slugs():
+    out = {c: v[0] for c, v in ESPN_LIST.items()}
+    out['CL'] = ESPN_CL
+    return out
+
+
+def arch_range(slug, d0, d1):
+    """Finished games between two dates, read 7 days at a time so nothing is cut off. Returns (games, requests made)."""
+    base = ESPN_BASE % slug
+    a0 = datetime.strptime(d0, '%Y%m%d')
+    span = (datetime.strptime(d1, '%Y%m%d') - a0).days
+    games, k, reqs = [], 0, 0
+    while k <= span:
+        c0 = a0 + timedelta(days=k)
+        c1 = a0 + timedelta(days=min(span, k + 6))
+        j = json.loads(fetch(base + '?' + urlencode({'dates': '%s-%s' % (c0.strftime('%Y%m%d'), c1.strftime('%Y%m%d'))}), tries=2, timeout=30))
+        reqs += 1
+        for ev in j.get('events', []):
+            comp = (ev.get('competitions') or [{}])[0]
+            cs = comp.get('competitors') or []
+            home = next((c for c in cs if c.get('homeAway') == 'home'), None)
+            away = next((c for c in cs if c.get('homeAway') == 'away'), None)
+            if not home or not away or ((ev.get('status') or {}).get('type') or {}).get('state') != 'post':
+                continue
+            try:
+                hg, ag = int(home.get('score')), int(away.get('score'))
+                ko = datetime.fromisoformat(ev['date'].replace('Z', '+00:00'))
+            except (TypeError, ValueError, KeyError):
+                continue
+
+            def first_half(c):
+                ls = c.get('linescores') or []
+                try:
+                    return int(float(ls[0].get('value'))) if len(ls) >= 2 else None
+                except (TypeError, ValueError, AttributeError):
+                    return None
+            th, ta = home.get('team') or {}, away.get('team') or {}
+            games.append([str(ev['id']), ko.strftime('%Y-%m-%d'), th.get('displayName') or th.get('name') or '?', ta.get('displayName') or ta.get('name') or '?',
+                          hg, ag, first_half(home), first_half(away)])
+        k += 7
+    return games, reqs
+
+
+def archive_update():
+    path = os.path.join(DATA_DIR, ARCH_FILE)
+    arch = {'v': 1, 'games': {}, 'from': {}}
+    if os.path.exists(path):
+        try:
+            with open(path) as fh:
+                arch = json.load(fh)
+        except Exception:
+            pass
+    today = NOW.strftime('%Y%m%d')
+    target = (NOW - timedelta(days=ARCH_BACK_DAYS)).strftime('%Y%m%d')
+    reqs, errs, added = 0, 0, 0
+    for code, slug in arch_slugs().items():
+        try:
+            gs, r1 = arch_range(slug, (NOW - timedelta(days=4)).strftime('%Y%m%d'), today)       # newest games again (late corrections)
+            reqs += r1
+            frm = arch['from'].get(slug, today)
+            if frm > target and reqs < ARCH_MAX_REQUESTS:
+                start = max(datetime.strptime(target, '%Y%m%d'), datetime.strptime(frm, '%Y%m%d') - timedelta(days=ARCH_STEP_DAYS))
+                g2, r2 = arch_range(slug, start.strftime('%Y%m%d'), frm)
+                reqs += r2
+                gs += g2
+                arch['from'][slug] = start.strftime('%Y%m%d')
+            elif slug not in arch['from']:
+                arch['from'][slug] = today
+            for g in gs:
+                key = '%s|%s' % (slug, g[0])
+                if key not in arch['games']:
+                    added += 1
+                arch['games'][key] = [code] + g[1:]
+        except Exception as e:
+            errs += 1
+            NOTES.append('saved results %s: %s' % (slug, e))
+    cut = (NOW - timedelta(days=ARCH_BACK_DAYS + 70)).strftime('%Y-%m-%d')
+    arch['games'] = {k: v for k, v in arch['games'].items() if v[1] >= cut}
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(path, 'w') as fh:
+        json.dump(arch, fh, separators=(',', ':'))
+    full = sum(1 for s_, f_ in arch['from'].items() if f_ <= target)
+    return arch, added, errs, full, len(arch['from'])
+
+
+def archive_models(arch, fixtures, teams, leagues):
+    """Chances for games in competitions with no free stats file, from the results we saved ourselves (goals only)."""
+    by = {}
+    cut = (NOW - timedelta(days=ARCH_BACK_DAYS)).strftime('%Y-%m-%d')
+    for v in arch['games'].values():
+        if v[1] >= cut:
+            by.setdefault(v[0], []).append({'d': datetime.strptime(v[1], '%Y-%m-%d').replace(tzinfo=timezone.utc), 'h': v[2], 'a': v[3], 'hg': v[4], 'ag': v[5],
+                                            'hhg': v[6], 'hag': v[7], 'hc': None, 'ac': None, 'hy': None, 'ay': None, 'hr': None, 'ar': None, 'hst': None, 'ast': None, 'ref': None})
+    made, leagues_used = 0, set()
+    for code, ms in by.items():
+        lg_meta = leagues.get(code) or {}
+        if lg_meta.get('comp') == 'europe':
+            continue                    # Europe and cup games use the club strength ratings, which compare clubs across leagues
+        if len(ms) < 40:
+            continue
+        lg = league_avgs(ms)
+        by_team = {}
+        for m in ms:
+            by_team.setdefault(m['h'], []).append(m)
+            by_team.setdefault(m['a'], []).append(m)
+        gv = {t: [(m['hg'] if m['h'] == t else m['ag']) for m in l] for t, l in by_team.items()}
+        av = {t: [(m['ag'] if m['h'] == t else m['hg']) for m in l] for t, l in by_team.items()}
+        ks = [x for x in (est_k(gv), est_k(av)) if x]
+        lg['k'] = {'g': round(sum(ks) / len(ks), 2)} if ks else {}
+        prof = {t: profile(sorted(l, key=lambda m: m['d'], reverse=True)[:WINDOW], t) for t, l in by_team.items()}
+        for f in fixtures:
+            if f['league'] != code or f.get('model'):
+                continue
+            hn, an = (teams.get(f['home']) or {}).get('raw'), (teams.get(f['away']) or {}).get('raw')
+            H, A = prof.get(hn), prof.get(an)
+            if not H or not A or H['n'] < 4 or A['n'] < 4:
+                continue
+            f['model'] = predict(H, A, lg, None)
+            f['model']['basis'] = 'archive'
+            f['modelNote'] = 'archive'
+            for key, P in ((f['home'], H), (f['away'], A)):
+                if teams.get(key) is not None and not teams[key].get('stats'):
+                    teams[key]['stats'] = P
+            made += 1
+            leagues_used.add(code)
+            if lg_meta.get('avg') == {} or not lg_meta.get('avg'):
+                lg_meta['avg'] = {k: (round(v, 4) if isinstance(v, float) else v) for k, v in lg.items() if k != 'k' and v is not None}
+    return made, len(leagues_used)
 
 
 # ---------------------------------------------------------------- basketball: real scores from ESPN, our own ratings worked out from them
@@ -1834,37 +2007,38 @@ def bb_league_model(games):
         return math.sqrt(sum((x - m) ** 2 for x in v) / max(1, len(v) - 1))
     info = {'n': N, 'lam': 8.0, 'lamChosen': False, 'back': None}
     sm, st = sd(margins), sd(totals)             # raw spread of real results (used when there are too few games to test)
-    if N >= 120:
-        cut = int(N * 0.75)
-        train, test = G[:cut], G[cut:]
+    if N >= 150:
+        c1, c2 = int(N * 0.6), int(N * 0.8)
+        train, val, test = G[:c1], G[c1:c2], G[c2:]
         best = None
-        for lam in (2.0, 4.0, 8.0, 16.0, 32.0):
+        for lam in (2.0, 4.0, 8.0, 16.0, 32.0):          # the rating strength is chosen on the validation games only
             f = bb_fit(train, lam)
-            err = 0.0
-            for H, A, sh, sa, neu in test:
-                ph, pa = bb_pred(f, H, A, neu)
-                err += ((sh - sa) - (ph - pa)) ** 2
-            err /= len(test)
+            err = sum(((sh - sa) - (bb_pred(f, H, A, neu)[0] - bb_pred(f, H, A, neu)[1])) ** 2 for H, A, sh, sa, neu in val) / len(val)
             if best is None or err < best[0]:
                 best = (err, lam, f)
         _, lam, f = best
         info['lam'], info['lamChosen'] = lam, True
-        res_m, res_t, right, brier, homew = [], [], 0, 0.0, 0
-        for H, A, sh, sa, neu in test:
+        res_m, res_t = [], []
+        for H, A, sh, sa, neu in val:                    # how far real results land from our guesses, measured on validation games
             ph, pa = bb_pred(f, H, A, neu)
             res_m.append((sh - sa) - (ph - pa)); res_t.append((sh + sa) - (ph + pa))
         sm, st = math.sqrt(sum(x * x for x in res_m) / len(res_m)), math.sqrt(sum(x * x for x in res_t) / len(res_t))
+        f2 = bb_fit(train + val, lam)                    # the test games were not used for anything above
+        right = homew = inm = int_ = 0
+        brier = 0.0
         for H, A, sh, sa, neu in test:
-            ph, pa = bb_pred(f, H, A, neu)
+            ph, pa = bb_pred(f2, H, A, neu)
             p = bb_norm_cdf((ph - pa) / sm)
             won = 1.0 if sh > sa else 0.0
-            if (p >= 0.5) == (sh > sa):
-                right += 1
+            right += 1 if (p >= 0.5) == (sh > sa) else 0
             brier += (p - won) ** 2
             if not neu and sh > sa:
                 homew += 1
+            inm += 1 if abs((sh - sa) - (ph - pa)) <= sm else 0
+            int_ += 1 if abs((sh + sa) - (ph + pa)) <= st else 0
         info['back'] = {'n': len(test), 'right': right, 'acc': round(right / len(test), 3), 'brier': round(brier / len(test), 4),
-                        'homeAcc': round(homew / max(1, len([g for g in test if not g[4]])), 3)}
+                        'homeAcc': round(homew / max(1, len([g for g in test if not g[4]])), 3),
+                        'covM': round(inm / len(test), 3), 'covT': round(int_ / len(test), 3)}
     info['sm'], info['st'] = round(sm, 2), round(st, 2)
     fit = bb_fit(G, info['lam'])
     info['mu'], info['hca'] = round(fit['mu'], 2), round(fit['hca'], 2)
@@ -2068,6 +2242,13 @@ def main():
     except Exception as e:
         STATUS['ESPN (other competitions)'] = 'FAILED: %s' % e
 
+    try:
+        arch_, add_, err_, full_, nsl_ = archive_update()
+        mk_, nl_ = archive_models(arch_, fixtures, teams, leagues)
+        STATUS['saved season results'] = 'ok: %d games saved (%d new this run). Whole season saved for %d of %d competitions. %d upcoming games got chances from them in %d competitions.%s' % (
+            len(arch_['games']), add_, full_, len(arch_slugs()), mk_, nl_, (' %d competitions could not be read this time.' % err_) if err_ else '')
+    except Exception as e:
+        STATUS['saved season results'] = 'FAILED: %s' % e
     try:
         d_, t_, miss_, asof_, old_ = add_elo_models(fixtures, teams, leagues, built)
         STATUS['club strength ratings (ClubElo)'] = 'ok: %d of %d Europe and cup games now have chances (ratings from %s%s)' % (d_, t_, asof_, ', saved copy' if old_ else '')

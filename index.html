@@ -886,7 +886,7 @@ function buildMarkets(model, share, mkt, ou, ah){
   groups.push({id:'result', title:'Who wins (1X2)', rows:[
     R('1', 'Home win (1)', W, {cons: fair && fair[0]}), R('X', 'Draw (X)', D, {cons: fair && fair[1]}), R('2', 'Away win (2)', A, {cons: fair && fair[2]}),
     R('1X', 'Double chance 1X', W + D, {cons: fair && fair[0] + fair[1]}), R('12', 'Double chance 12', W + A, {cons: fair && fair[0] + fair[2]}), R('X2', 'Double chance X2', D + A, {cons: fair && fair[1] + fair[2]}),
-    R('dnb1', 'Draw no bet: home', W / (W + A), {cons: fair && fair[0] / (fair[0] + fair[2])}), R('dnb2', 'Draw no bet: away', A / (W + A), {cons: fair && fair[2] / (fair[0] + fair[2])})]});
+    R('dnb1', 'Draw no bet: home', W, {push: D, cons: fair && fair[0], consPush: fair && fair[1]}), R('dnb2', 'Draw no bet: away', A, {push: D, cons: fair && fair[2], consPush: fair && fair[1]})]});
   const g = [];
   [0.5, 1.5, 2.5, 3.5, 4.5].forEach(l => {
     const o = 1 - sumIf(tot, i => i <= Math.floor(l));
@@ -1283,13 +1283,13 @@ function allGroups(){
   return gs;
 }
 function edgeOf(odds, row){
-  const p = (CMP === 'market' && row.cons != null) ? row.cons : row.p, push = row.push || 0;
+  const p = (CMP === 'market' && row.cons != null) ? row.cons : row.p, push = (CMP === 'market' && row.cons != null && row.consPush != null) ? row.consPush : (row.push || 0);
   return odds * p + push - 1;
 }
 function renderMarkets(){
   const gs = allGroups(); ROWS = []; ROWMAP = {}; const q = ($('mkFilter').value || '').trim().toLowerCase();
   const m = FX.model;
-  $('mkSub').textContent = m ? (m.basis === 'elo' ? '(our chances come from club strength ratings, so they are rough' : '(our chances come from recent results') + (FX.mkt ? '; bookmaker view shown too)' : ')') : (FX.mkt ? '(bookmaker view only)' : '');
+  $('mkSub').textContent = m ? (m.basis === 'elo' ? '(our chances come from club strength ratings, so they are rough' : m.basis === 'archive' ? '(our chances come from goals in games this app saved from ESPN, so they are rough' : '(our chances come from recent results') + (FX.mkt ? '; bookmaker view shown too)' : ')') : (FX.mkt ? '(bookmaker view only)' : '');
   $('mkHint').innerHTML = gs.length ? 'Type the odds you see on Bet9ja, SportyBet, BetKing or any other site in the boxes below, or paste them. We show the <b>expected profit</b>: what you win or lose on average for every 1 you stake, if our chance is right. A plus is good. The <b>fair price</b> is what the bet should pay.' : 'No prices for this match: there are no bookmaker odds and too few past results.';
   $('groups').innerHTML = gs.map((g, gi) => {
     const rows = g.rows.filter(r => !q || (g.title + ' ' + r.name).toLowerCase().includes(q));
@@ -1466,7 +1466,7 @@ function renderContext(){
   $('tagline').innerHTML = '<span>' + fmtDay.format(d) + (FX.koKnown ? ', ' + fmtTime.format(d) + ' WAT' : ', time not confirmed') + '</span>' +
     (FX.ref && FX.ref.name ? '<span>Referee: ' + esc(FX.ref.name) + '</span>' : '') + (FX.league === 'NPFL' ? '<span class="tag rot">Check the match details first</span>' : '');
   $('teams').innerHTML = teamCard(FX.home, 'home') + teamCard(FX.away, 'away');
-  $('confNote').textContent = m ? (m.basis === 'elo' ? '(from club strength ratings only, so be careful)' : m.conf === 'thin' ? '(few games, so be careful)' : '(based on the last ' + Math.min(m.n[0], m.n[1]) + '+ games)') : '';
+  $('confNote').textContent = m ? (m.basis === 'elo' ? '(from club strength ratings only, so be careful)' : m.basis === 'archive' ? '(from goals only, in games this app saved, so be careful)' : m.conf === 'thin' ? '(few games, so be careful)' : '(based on the last ' + Math.min(m.n[0], m.n[1]) + '+ games)') : '';
   let g = '';
   if (m && FX.mkt){
     const mp = FX.mkt.fair, md = m.p1x2, gapv = Math.max(Math.abs(mp[0] - md[0]), Math.abs(mp[2] - md[2]));
@@ -1517,6 +1517,7 @@ function matchTips(R){
   if (out.home || out.away) tips.push('ESPN lists ' + (out.home ? out.home + ' out for ' + H : '') + (out.home && out.away ? ' and ' : '') + (out.away ? out.away + ' out for ' + A : '') + '. Open the News tab to see the names.');
   else if (!hasWho(S) && !newsOn()) tips.push('No team news found yet. Check the clubs\' pages on social media before you bet.');
   if (S.rotKey) tips.push('The goalkeeper or a key midfielder who protects the defence is out. The favourite may be weaker than the odds say.');
+  if (FX.model && FX.model.basis === 'archive') tips.push('Our chances for this game come only from goals in finished games this app saved from ESPN this season. There are no corners or cards numbers for this competition, and no injury or lineup effect, so treat the chances as rough.');
   if (FX.model && FX.model.basis === 'elo'){
     const cup = ['FAC', 'EFL', 'CDR', 'DFB', 'CIT', 'CDF'].indexOf(FX.league) >= 0;
     tips.push('Our chances for this game come only from club strength ratings (' + FX.model.elo[0] + ' v ' + FX.model.elo[1] + '), so treat them as rough. ' + (cup ? 'In cup games big clubs often rest their best players, so check the lineups before you bet.' : 'Many European knockout ties are played over two legs (one home game, one away game). After the first leg, teams may play differently, so check the first result and the lineups.'));
@@ -1550,7 +1551,7 @@ function renderCoverage(){
   const model = !!FX.model, np = FX.league === 'NPFL';
   const L = (c, t) => '<span class="lvl ' + c + '">' + t + '</span>';
   const rows = [
-    ['Win, draw, double chance, draw no bet', model ? L('d', 'We calculate') + (FX.model.basis === 'elo' ? 'From club strength ratings, not goals data. Rough' : 'From recent results') + (FX.mkt ? ', next to the bookmaker view.' : '.') : (FX.mkt ? L('d', 'Bookies only') + 'Bookmaker view only.' : L('r', 'No data') + 'No prices for this match.')],
+    ['Win, draw, double chance, draw no bet', model ? L('d', 'We calculate') + (FX.model.basis === 'elo' ? 'From club strength ratings, not goals data. Rough' : FX.model.basis === 'archive' ? 'From goals in games we saved. Rough' : 'From recent results') + (FX.mkt ? ', next to the bookmaker view.' : '.') : (FX.mkt ? L('d', 'Bookies only') + 'Bookmaker view only.' : L('r', 'No data') + 'No prices for this match.')],
     ['Over/under goals, GG/NG, odd/even, multigoal, exact goals, team goals, win to nil, clean sheet, two-in-one bets', model ? L('d', 'We calculate') + 'All from one goals formula, so they agree with each other.' : L('r', 'No data') + 'Needs past results for both teams.'],
     ['First half, second half, highest scoring half, HT/FT', model ? L('d', 'We calculate') + 'Uses how many goals this league scores before half-time.' : L('r', 'No data') + 'Needs our numbers.'],
     ['Correct score, handicap', model ? L('d', 'We calculate') + 'Top scorelines and handicap lines, with money-back handled.' : L('r', 'No data') + 'Needs our numbers.'],
@@ -1822,7 +1823,7 @@ function computePicks(){
     const hits = R.pos.filter(r => r.score >= 12 && PICKMAP[r.key]).slice(0, 4); if (!hits.length) return;
     const map = {};
     if (st.m){ const share = ((DATA.leagues[f.league] || {}).avg || {}).h1share || 0.44; buildMarkets(st.m, share, f.mkt, f.ou, f.ah).forEach(g => g.rows.forEach(r => { map[g.id + ':' + r.k] = r; })); }
-    out.push({f, picks: hits.map(h => { const row = map[PICKMAP[h.key]], p = row ? row.p : null; return {id: f.id + '|' + h.key, label: h.label, score: h.score, why: h.reasons[0], p, target: (p && p > 0.02 && 1.05 / p < 60) ? 1.05 / p : null}; })});
+    out.push({f, picks: hits.map(h => { const row = map[PICKMAP[h.key]], p = row ? row.p : null; return {id: f.id + '|' + h.key, label: h.label, score: h.score, why: h.reasons[0], p, push: row && row.push ? row.push : 0, target: (p && p > 0.02 && 1.05 * (1 - (row.push || 0)) / p < 60) ? 1.05 * (1 - (row.push || 0)) / p : null}; })});
   });
   return out;
 }
@@ -2459,6 +2460,7 @@ function renderMeta(d){
   $('failList').innerHTML = fl ? '<p class="hint"><b>Did not load last time:</b></p><ul>' + fl + '</ul>' : '';
   $('sources').innerHTML = [
     '<li><b>Past results, corners, cards, referees and odds:</b> football-data.co.uk (free). Updated several times a day. Their odds file is uploaded once a week, so some matches have no odds.</li>',
+    '<li><b>Leagues with no free stats file (MLS, Brazil, Saudi and others):</b> the app saves finished games from ESPN as it goes, up to a season, and works out chances from the goals in them. Goals only: no corners or cards.</li>',
     '<li><b>Champions League, Europa League and cup games:</b> chances come from free club strength ratings (ClubElo), which compare clubs from different leagues. They are rough, because they do not know about injuries or lineups.</li>',
     '<li><b>Match list and live lineups:</b> ESPN. This is an unofficial feed and can change without notice.</li>',
     '<li><b>Update status:</b> ' + Object.keys(d.status || {}).map(k => esc(k + ': ' + d.status[k])).join('. ') + '</li>',
@@ -2519,7 +2521,7 @@ function bbCard(g){
     h += '<p class="bb-big"><b>' + esc(H.name) + ' ' + Math.round(p.h) + ' - ' + Math.round(p.a) + ' ' + esc(A.name) + '</b><span>expected score</span></p>' +
       '<ul class="bb-l"><li><b>' + esc(fav.name) + '</b> expected to win by about <b>' + mg.toFixed(1) + '</b> points.</li>' +
       '<li>Expected total points: <b>' + p.total.toFixed(1) + '</b>.</li>' +
-      '<li>Real games land well away from this. In about 2 games out of 3, the final margin was within <b>' + Math.round(lg.sm) + '</b> points of our guess, and the total within <b>' + Math.round(lg.st) + '</b> points.</li></ul>' +
+      '<li>Real games land well away from this. ' + (lg.back ? 'In our test on games we had not used, the final margin landed within <b>' + Math.round(lg.sm) + '</b> points of our guess in <b>' + Math.round(lg.back.covM * 100) + ' of 100</b> games, and the total within <b>' + Math.round(lg.st) + '</b> points in <b>' + Math.round(lg.back.covT * 100) + ' of 100</b>.' : 'Real games can land far from this guess. We have too few finished games to measure by how much.') + '</li></ul>' +
       '<div class="bb-line"><div class="bb-lab">Check a bookmaker line (optional)</div>' +
       '<label>Total points line <input type="text" inputmode="decimal" placeholder="for example 224.5" data-bb="tot" data-g="' + esc(g.id) + '"></label><div class="bb-out" data-bbout="tot"></div>' +
       '<label>Handicap for ' + esc(H.name) + ' <input type="text" inputmode="decimal" placeholder="for example -5.5 or 3.5" data-bb="spr" data-g="' + esc(g.id) + '"></label><div class="bb-out" data-bbout="spr"></div></div>';
@@ -2552,7 +2554,7 @@ function bbRender(){
   t.innerHTML = lgs.map(k => {
     const l = BBD.leagues[k], b = l.back;
     if (!b) return '<li><b>' + esc(l.name) + ':</b> ' + (l.n ? 'only ' + l.n + ' finished games so far, too few to test our numbers. Treat them as a very rough guide.' : 'not enough finished games yet for numbers.') + '</li>';
-    return '<li><b>' + esc(l.name) + ':</b> we tested on the newest ' + b.n + ' finished games, using only the games before each one. We picked the winner in <b>' + Math.round(b.acc * 100) + ' of 100</b>. Always picking the home team would have been right <b>' + Math.round(b.homeAcc * 100) + ' of 100</b>. ' + (b.acc > b.homeAcc ? 'So our numbers did better than that simple rule.' : 'So our numbers did <b>not</b> beat that simple rule. Be careful.') + '</li>';
+    return '<li><b>' + esc(l.name) + ':</b> we tested on the newest ' + b.n + ' finished games. Nothing in the test was used to set up our numbers. We picked the winner in <b>' + Math.round(b.acc * 100) + ' of 100</b>. Always picking the home team would have been right <b>' + Math.round(b.homeAcc * 100) + ' of 100</b>. ' + (b.acc > b.homeAcc ? 'So our numbers did better than that simple rule.' : 'So our numbers did <b>not</b> beat that simple rule. Be careful.') + '</li>';
   }).join('');
   $('bbStamp').textContent = 'Basketball numbers updated ' + fmtDay.format(new Date(BBD.asOf)) + ' ' + fmtTime.format(new Date(BBD.asOf)) + ' WAT';
 }
