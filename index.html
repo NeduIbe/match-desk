@@ -503,6 +503,14 @@ body[data-view="bball"] .view:not([data-v~="bball"]){display:none}
 @media (min-width:640px){.bb-two{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .bb-trust{margin:8px 0;padding-left:18px;display:grid;gap:8px;font-size:14px}
 #bbSec{max-width:860px;width:100%;margin-inline:auto}
+
+.bk-text{width:100%;box-sizing:border-box;font:13px/1.4 var(--f-mono,monospace);padding:10px;border:1px solid var(--line,#ccc);border-radius:10px;background:var(--paper,#fff);color:inherit;margin:8px 0}
+
+.pk-c{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
+.pk-chip{display:inline-flex;gap:6px;align-items:baseline;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:700;background:var(--surface)}
+.pk-chip i{font-style:normal;font-weight:600;color:var(--muted)}
+.pk-chip.val{border-color:var(--accent)}
+.pk-v{font-weight:700;color:var(--ink)!important}
 </style></head><body>
 <nav id="bnav" aria-label="Main sections">
   <button type="button" data-view="picks" aria-current="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6z"/></svg><span>Picks</span></button>
@@ -534,7 +542,7 @@ body[data-view="bball"] .view:not([data-v~="bball"]){display:none}
   <section class="paper sec view" data-v="picks record" id="picks">
     <h2 id="picksH">Picks</h2><span class="seg tabsrc" role="group" aria-label="Choose a view"><button type="button" id="tabPicks" aria-pressed="true">Today's picks</button><button type="button" id="tabTrack" aria-pressed="false">Track record</button></span>
     <div id="pickPane">
-      <details class="how"><summary>How to use these picks</summary><p class="hint">Next to each bet is the <b>lowest odds worth taking</b>. Open your bookmaker and look at the price. If it pays less than the number shown, skip it. Every pick you see here is saved in the Record before kick-off, so you can check later if the picks really paid.</p></details>
+      <details class="how"><summary>How to use these picks</summary><p class="hint">Each bet shows three separate things. <b>Chance</b> is how likely it is to win. <b>Checklist</b> is how many of your guide points agree; it is not a chance. <b>Value</b> is the lowest odds worth taking. A likely bet at low odds is not good value, and a long shot at big odds can be. Next to each bet is the <b>lowest odds worth taking</b>. Open your bookmaker and look at the price. If it pays less than the number shown, skip it. Every pick you see here is saved in the Record before kick-off, so you can check later if the picks really paid.</p></details>
       <p class="hint" id="pickNext" aria-live="polite"></p>
       <div class="chips" id="pickDays" role="group" aria-label="Pick a day"></div>
       <div id="slip"></div>
@@ -569,6 +577,9 @@ body[data-view="bball"] .view:not([data-v~="bball"]){display:none}
       <footer class="foot paper">
     <p><b>Our numbers are estimates.</b> They come from recent results and a simple goals formula. They are not bookmaker prices, and they do not know about injuries or lineups. If our number is very different from the bookmaker's, we are probably missing news.</p>
     <p><b>Checklist points are not chances.</b> The reasons marked "From recent results" come from real numbers. The reasons marked "From your guide (not measured)" are rules from your match-day guide. Their point sizes were set by the guide and have not been tested on results here, so treat them as ideas to check, not facts.</p>
+    <p><b>The checklist points are guesses, and we say so.</b> Most of them (weather, pitch, travel, rules, referee moods) cannot be measured with free data, because no free source has the history of those things for each game. So the app does not pretend to weigh them. Instead, the Record screen checks your own finished picks: did the picks the checklist liked most win more than our chances alone expected? It gives a verdict only after 30 picks in a group.</p>\n    <p><b>How many recent games.</b> The app starts with each team's last 16 games. Each night it tests 5, 8, 12, 16, 24 and all games on matches it had not yet seen. It changes the number for a league only when another number is clearly better. The test looks at goals and results. Corners and cards use the same number but were not tested on their own.</p>
+    <p><b>Home and away form.</b> Each night the app tests, on games it had not yet seen, whether keeping a team\'s home and away records apart predicts better than one record. It uses the split for a league only when the test clearly says it is better. If the test is not clear, one record is used. The match page says when the split is in use.</p>
+    <p><b>NPFL rules are guesses.</b> The ideas about NPFL games (home teams win 55 to 64 in 100, long road trips, no VAR, high ground in Jos, club money) come from your guide. This app has not checked them against NPFL results. They add checklist points only, never chances. Treat them as ideas to test, not facts. The travel choice is what you pick or type; the app does not work it out.</p>
     <p><b>What is measured and what is chosen.</b> Measured from real results: league goals, corners and cards averages, home advantage, how much to trust a team's own record, and how spread out corners and cards are. Chosen by us: the "only bet if the price is at least" line adds a 5% cushion to the fair price, because our numbers are not perfect. Nothing else in our chances is typed in by hand.</p>
     <p><b>Bet responsibly.</b> 18+ only. You can lose money. Never stake what you cannot afford to lose.</p>
   </footer>
@@ -804,10 +815,10 @@ function analyze(s){
   }
   if (s.wind) add('over_corners', 10, 'Strong wind: balls get deflected and cleared');
   if (np){
-    add('home_win', 10, 'NPFL home teams win about 55 to 64 out of 100 games');
+    add('home_win', 10, 'NPFL home teams win about 55 to 64 out of 100 games (your guide says so)');
     if (s.travel === 'long'){
       const w = 'Away team on a 10+ hour road trip';
-      add('home_win', 25, w + ': the biggest home advantage in world football'); add('home_win_u35', 20, w); add('away_u05', 20, w);
+      add('home_win', 25, w + ': your guide says this is a very big home advantage'); add('home_win_u35', 20, w); add('away_u05', 20, w);
     } else if (s.travel === 'mid'){
       const w = 'Away team on a 3 to 9 hour road trip';
       add('home_win', 10, w); add('home_win_u35', 8, w); add('away_u05', 8, w);
@@ -830,7 +841,7 @@ function analyze(s){
     }
   }
   const stacks = [
-    {id:'fortress', name:'NPFL Fortress',
+    {id:'fortress', name:'NPFL Fortress (guess)',
       conds:[['It is an NPFL game', np],['Away team on a 10+ hour road trip', np && s.travel === 'long'],['Bad pitch (worn or bumpy)', roughPitch],['Hot, humid or wet', heat || rain],['Home team is strong and rough', !!s.physical]],
       markets:['home_win_u25','ht_draw_ft_home']},
     {id:'storm', name:'European Storm',
@@ -993,7 +1004,7 @@ const GROUPS = [
     {t:'seg', key:'pitch', label:'Pitch', opts:[['unknown','Not known'],['smooth','Smooth, good grass'],['worn','Worn artificial'],['bumpy','Bumpy grass']]},
     {t:'seg', key:'weather', label:'Weather at kick-off', opts:[['clear','Clear or mild'],['rain','Heavy rain'],['heat','Very hot and humid']], hint:'Filled in from the forecast for the stadium city when we have it. Afternoon games (3 or 4 PM) in Lagos, Port Harcourt or Uyo are the hot case.'},
     {t:'checks', items:[{key:'wind', label:'Strong wind'}]}]},
-  {id:'npfl', only:'npfl', title:'NPFL only: travel and club money', fields:[
+  {id:'npfl', only:'npfl', title:'NPFL only: travel and club money (guesses, not measured)', fields:[
     {t:'seg', key:'travel', label:'Away team travel', opts:[['short','Under 3 hours'],['mid','3 to 9 hours'],['long','10+ hours by road']]},
     {t:'seg', key:'welfare', label:'Players not paid on time? (bonuses or salary)', opts:[['none','Nothing heard'],['away','Away club'],['home','Home club']], hint:'This often shows on X and WhatsApp before the odds move.'},
     {t:'checks', items:[{key:'altitude', label:'Away team comes from sea level to Jos (high ground)', hint:'Plateau United home games'}, {key:'novar', label:'No VAR, packed and closed ground'}]}]},
@@ -1466,7 +1477,7 @@ function renderContext(){
   $('tagline').innerHTML = '<span>' + fmtDay.format(d) + (FX.koKnown ? ', ' + fmtTime.format(d) + ' WAT' : ', time not confirmed') + '</span>' +
     (FX.ref && FX.ref.name ? '<span>Referee: ' + esc(FX.ref.name) + '</span>' : '') + (FX.league === 'NPFL' ? '<span class="tag rot">Check the match details first</span>' : '');
   $('teams').innerHTML = teamCard(FX.home, 'home') + teamCard(FX.away, 'away');
-  $('confNote').textContent = m ? (m.basis === 'elo' ? '(from club strength ratings only, so be careful)' : m.basis === 'archive' ? '(from goals only, in games this app saved, so be careful)' : m.conf === 'thin' ? '(few games, so be careful)' : '(based on the last ' + Math.min(m.n[0], m.n[1]) + '+ games)') : '';
+  $('confNote').textContent = m ? (m.basis === 'elo' ? '(from club strength ratings only, so be careful)' : m.basis === 'archive' ? '(from goals only, in games this app saved, so be careful)' : m.conf === 'thin' ? '(few games, so be careful)' : '(based on the last ' + Math.min(m.n[0], m.n[1]) + '+ games' + (((DATA.leagues[FX.league] || {}).avg || {}).kv && !m.basis ? '; home and away games counted separately' : '') + ')') : '';
   let g = '';
   if (m && FX.mkt){
     const mp = FX.mkt.fair, md = m.p1x2, gapv = Math.max(Math.abs(mp[0] - md[0]), Math.abs(mp[2] - md[2]));
@@ -1482,7 +1493,8 @@ function renderProv(){
   $('prov').innerHTML = PROV.map(p => '<li><span class="k">' + esc(p[0]) + '</span><span class="src-t ' + (p[2] === 'data' ? 'data' : '') + '">' + label[p[2]] + '</span><span>' + esc(p[1]) + '</span></li>').join('');
 }
 const isDataWhy = w => /^(Recent games point|Teams and referee point)/.test(w);
-const srcWhy = list => { const d = list.filter(isDataWhy), g = list.filter(w => !isDataWhy(w)); return (d.length ? '<b>From recent results:</b> ' + d.map(esc).join(' &middot; ') : '') + (d.length && g.length ? ' ' : '') + (g.length ? '<b>From your guide (not measured):</b> ' + g.map(esc).join(' &middot; ') : ''); };
+const isGuessWhy = w => /NPFL|road trip|no VAR|No VAR|high ground|sea level|Away team comes|packed, closed ground/.test(w) && !isDataWhy(w);
+const srcWhy = list => { const d = list.filter(isDataWhy), q = list.filter(isGuessWhy), g = list.filter(w => !isDataWhy(w) && !isGuessWhy(w)); const J = a => a.map(esc).join(' &middot; '); return [d.length ? '<b>From recent results:</b> ' + J(d) : '', g.length ? '<b>From your guide (not measured):</b> ' + J(g) : '', q.length ? '<b>Guess about Nigerian football (never checked against results):</b> ' + J(q) : ''].filter(Boolean).join(' '); };
 function row(r, neg){
   const w = Math.min(Math.abs(r.score), 70) / 70 * 100;
   return '<li class="mkr' + (neg ? ' neg' : '') + '"><div class="mk-top"><div class="mk-name">' + esc(r.label) + '</div><span class="chip">' + r.group + '</span><span class="scr">' + (r.score > 0 ? '+' : '') + r.score + '</span></div><div class="bar" aria-hidden="true"><i style="width:' + w.toFixed(0) + '%"></i></div><p class="why">' + (neg ? '<b>Against.</b> ' : '') + srcWhy(r.reasons) + '</p></li>';
@@ -1823,7 +1835,7 @@ function computePicks(){
     const hits = R.pos.filter(r => r.score >= 12 && PICKMAP[r.key]).slice(0, 4); if (!hits.length) return;
     const map = {};
     if (st.m){ const share = ((DATA.leagues[f.league] || {}).avg || {}).h1share || 0.44; buildMarkets(st.m, share, f.mkt, f.ou, f.ah).forEach(g => g.rows.forEach(r => { map[g.id + ':' + r.k] = r; })); }
-    out.push({f, picks: hits.map(h => { const row = map[PICKMAP[h.key]], p = row ? row.p : null; return {id: f.id + '|' + h.key, label: h.label, score: h.score, why: h.reasons[0], p, push: row && row.push ? row.push : 0, target: (p && p > 0.02 && 1.05 * (1 - (row.push || 0)) / p < 60) ? 1.05 * (1 - (row.push || 0)) / p : null}; })});
+    out.push({f, picks: hits.map(h => { const row = map[PICKMAP[h.key]], p = row ? row.p : null; return {id: f.id + '|' + h.key, label: h.label, score: h.score, why: h.reasons[0], p, rough: !!(st.m && (st.m.conf === 'thin' || st.m.basis === 'elo' || st.m.basis === 'archive')), push: row && row.push ? row.push : 0, target: (p && p > 0.02 && 1.05 * (1 - (row.push || 0)) / p < 60) ? 1.05 * (1 - (row.push || 0)) / p : null}; })});
   });
   return out;
 }
@@ -1850,7 +1862,7 @@ function renderPicks(){
     const f = x.f, H = T(f.home).name, A = T(f.away).name, lg = (DATA.leagues[f.league] || {}).short || f.league;
     const locked = f.koKnown && new Date(f.ko).getTime() <= now;
     return '<div class="pk-m"><div class="pk-h"><div><b>' + esc(H) + ' v ' + esc(A) + '</b><br><span>' + (f.koKnown ? fmtTime.format(new Date(f.ko)) + ' WAT' : 'time not set') + ' &middot; ' + esc(lg) + injTag(f) + (f.wx ? ' &middot; ' + (f.wx.rain >= 1 ? 'rain likely' : f.wx.t >= 31 ? 'hot' : f.wx.gust >= 45 ? 'windy' : '') : '') + '</span></div><button type="button" class="btn small" data-open="' + esc(f.id) + '">Open match</button></div><ul class="pk-l">' +
-      x.picks.map(p => '<li class="pk' + (PKS[p.id] === 'low' ? ' done-low' : '') + '"><div class="pk-b"><b>' + esc(p.label) + '</b><small>' + srcWhy([p.why]) + '</small></div><div class="pk-t">' +
+      x.picks.map(p => '<li class="pk' + (PKS[p.id] === 'low' ? ' done-low' : '') + '"><div class="pk-b"><b>' + esc(p.label) + '</b><div class="pk-c"><span class="pk-chip" title="How likely the bet is to win, from our numbers"><i>Chance</i>' + (p.p ? (p.p >= 0.6 ? 'Likely' : p.p >= 0.4 ? 'Possible' : 'Long shot') + ' (' + pc(p.p) + '%)' : 'not known') + '</span><span class="pk-chip" title="How many of your guide points agree. This is not a chance."><i>Checklist</i>' + Math.round(p.score) + ' points</span><span class="pk-chip' + (p.target ? ' val' : '') + '" title="A bet is good value only when the bookmaker pays more than our fair price"><i>Value</i>' + (p.target ? 'only at ' + p.target.toFixed(2) + '+' : 'cannot tell') + '</span></div><small class="pk-v">' + (!p.p ? 'Checklist only. We have no chances for this match, so check the price yourself.' : p.rough ? 'Rough chances for this match. Be careful, and ask for a bigger price.' : p.p < 0.4 ? 'Long shot. Worth it only at a big price.' : 'Take it only if your bookmaker pays the price shown.') + '</small><small>' + srcWhy([p.why]) + '</small></div><div class="pk-t">' +
         (p.target ? '<small>Only bet if your bookmaker pays</small><big>' + p.target.toFixed(2) + ' or more</big><small>we think it wins ' + pc(p.p) + ' times in 100</small>' : '<small>No price guide for this match yet</small><big>Check the price yourself</big>') +
         '</div><div class="pk-a"><button type="button" data-pick="' + esc(p.id) + '" data-v="ok" aria-pressed="' + (PKS[p.id] === 'ok') + '"' + (locked ? ' disabled' : '') + '>Price is fine</button><button type="button" data-pick="' + esc(p.id) + '" data-v="low" aria-pressed="' + (PKS[p.id] === 'low') + '"' + (locked ? ' disabled' : '') + '>Price too low</button></div>' +
         (PKS[p.id] === 'ok' && !locked ? '<div class="pk-oddsrow"><label for="od-' + esc(p.id) + '">Odds you got (optional)</label><input class="pk-odds" id="od-' + esc(p.id) + '" inputmode="decimal" autocomplete="off" placeholder="e.g. 1.85" data-oddsfor="' + esc(p.id) + '" value="' + esc((TK.e[p.id] && TK.e[p.id].odds) || '') + '"></div>' : '') +
@@ -1890,9 +1902,14 @@ function logPicks(){
       seen[p.id] = 1;
       const key = p.id.split('|')[1], rowKey = PICKMAP[key]; if (!rowKey) return;
       const old = TK.e[p.id] || {};
-      TK.e[p.id] = Object.assign(old, {id:p.id, fid:f.id, key, rowKey, label:p.label, home:T(f.home).name, away:T(f.away).name, hk:f.home, ak:f.away, lg:(DATA.leagues[f.league] || {}).short || f.league, ko:f.ko, p:p.p, target:p.target, taken:PKS[p.id] === 'ok', skipped:PKS[p.id] === 'low', res:old.res || null});
+      if (old.frozen) return; // kick-off passed once before: never touch the saved prediction
+      if (!old.first) old.first = {p:p.p, target:p.target, at:now};
+      old.at = now; // time of the last look before kick-off
+      TK.e[p.id] = Object.assign(old, {id:p.id, fid:f.id, key, rowKey, label:p.label, score:Math.round(p.score), home:T(f.home).name, away:T(f.away).name, hk:f.home, ak:f.away, lg:(DATA.leagues[f.league] || {}).short || f.league, ko:f.ko, p:p.p, target:p.target, taken:PKS[p.id] === 'ok', skipped:PKS[p.id] === 'low', res:old.res || null});
     });
   });
+  // lock every saved pick whose game has started: the number we gave can no longer change
+  Object.values(TK.e).forEach(e => { if (!e.frozen && new Date(e.ko).getTime() <= now) e.frozen = true; });
   // a pick that disappeared before kick-off, and was not taken, was not part of the final list
   Object.keys(TK.e).forEach(id => { const e = TK.e[id]; if (!seen[id] && new Date(e.ko).getTime() > now && !e.taken) delete TK.e[id]; });
   tkWrite(TK);
@@ -1970,10 +1987,24 @@ const u2 = n => (n >= 0 ? '+' : '') + n.toFixed(2);
 function tkResBtns(e){
   return '<div class="acts"><button type="button" class="btn small" data-trk="won" data-id="' + esc(e.id) + '">Won</button><button type="button" class="btn small" data-trk="lost" data-id="' + esc(e.id) + '">Lost</button><button type="button" class="btn small" data-trk="void" data-id="' + esc(e.id) + '">Money back</button></div>';
 }
+const lockTag = e => e.at ? ' &middot; saved ' + fmtDay.format(new Date(e.at)) + ' ' + fmtTime.format(new Date(e.at)) + (e.frozen ? ', locked' : '') : '';
+/* does the checklist add anything beyond our chances? measured from the user's own finished picks */
+function tkCheck(all){
+  const fin = all.filter(e => e.res && e.res !== 'void' && e.p && e.score);
+  const tiers = [['12 to 19 points', e => e.score < 20], ['20 to 29 points', e => e.score >= 20 && e.score < 30], ['30 points or more', e => e.score >= 30]];
+  let h = '<div class="tr-t"><h3>Does the checklist help?</h3>';
+  if (fin.length < 10) return h + '<p class="hint">Too few finished picks to tell (' + fin.length + ' so far, with a score saved). This panel compares the picks the checklist liked most against our chances alone. It needs at least 30 picks in a group before it says anything.</p></div>';
+  const rows = tiers.map(t => { const l = fin.filter(t[1]), won = l.filter(e => e.res === 'won').length, exp = l.reduce((a, e) => a + e.p, 0); return {name:t[0], n:l.length, won, exp}; }).filter(r => r.n);
+  h += '<ul class="tr-l">' + rows.map(r => '<li class="tr-i"><div class="top"><b>' + r.name + '</b><span class="mono">' + r.n + ' picks</span></div><div class="sub">won ' + r.won + ', our chances alone expected about ' + r.exp.toFixed(1) + '</div></li>').join('') + '</ul>';
+  const big = rows.filter(r => r.n >= 30);
+  if (big.length < 2) h += '<p class="hint">No group has 30 picks yet, so there is no verdict. If high-point groups win more than we expected, the checklist is adding something. If they win about as often or less, it is not, and you should lean on the chances and the price instead.</p>';
+  else { const top = big[big.length - 1], sc = r => (r.won - r.exp) / Math.sqrt(Math.max(1, r.exp)); h += '<p class="hint">' + (sc(top) > 2 ? 'The highest-point group won clearly more than our chances expected. The checklist may be adding something.' : sc(top) < -2 ? 'The highest-point group won clearly less than our chances expected. The checklist is not helping, so do not trust the points.' : 'The highest-point group won about as often as our chances expected. So far the checklist adds nothing we can measure.') + '</p>'; }
+  return h + '</div>';
+}
 function renderTrack(){
   const all = Object.values(TK.e), now = Date.now();
   const st = tkStats(TKVIEW), settled = all.filter(e => e.res).length;
-  let h = '<p class="hint">This page keeps score. Every pick you saw before kick-off is written down here. When the game is over, the app checks the final score and marks it Won or Lost. It shows if the picks really paid, with plain numbers. <b>1 unit</b> means you bet the same amount on every pick. If 1 unit is 1,000 naira, then +5 units is +5,000 naira.</p>';
+  let h = '<p class="hint">This page keeps score. Every pick you saw before kick-off is written down here, with the time. After kick-off it is locked and cannot change. When the game is over, the app checks the final score and marks it Won or Lost. It shows if the picks really paid, with plain numbers. <b>1 unit</b> means you bet the same amount on every pick. If 1 unit is 1,000 naira, then +5 units is +5,000 naira.</p>';
   h += '<div class="seg" role="group" aria-label="Which bets to count"><button type="button" data-tview="all" aria-pressed="' + (TKVIEW === 'all') + '">All picks</button><button type="button" data-tview="mine" aria-pressed="' + (TKVIEW === 'mine') + '">Bets I took</button></div>';
   h += '<p class="hint">' + (TKVIEW === 'all' ? '<b>All picks</b> counts every pick at the lowest price we told you to take. That is the best case, because a bookmaker may pay less.' : '<b>Bets I took</b> counts only the picks where you tapped "Price OK". It uses the odds you typed, or our lowest price if you typed nothing.') + '</p>';
   if (!st.n && !st.voids && !st.noPrice){
@@ -1988,21 +2019,58 @@ function renderTrack(){
     const rows = Object.keys(st.by).filter(k => st.by[k].n).sort((a, b) => st.by[b].n - st.by[a].n);
     if (rows.length) h += '<div class="tr-t"><h3>By type of bet</h3><ul class="tr-l">' + rows.map(k => { const b = st.by[k]; return '<li class="tr-i"><div class="top"><b>' + esc(k) + '</b><span class="mono">' + u2(b.profit) + ' units</span></div><div class="sub">' + b.won + ' won out of ' + b.n + '</div></li>'; }).join('') + '</ul></div>';
   }
+  h += tkCheck(all);
   const open = all.filter(e => !e.res).sort((a, b) => new Date(a.ko) - new Date(b.ko));
   if (open.length){
     h += '<div class="tr-t"><h3>Waiting for the score (' + open.length + ')</h3><ul class="tr-l">' + open.map(e => {
       const ko = new Date(e.ko).getTime(), over = ko + AFTER <= now;
-      return '<li class="tr-i"><div class="top"><b>' + esc(e.label) + '</b><span class="res void">' + (over ? 'score not in yet' : ko <= now ? 'playing' : 'not started') + '</span></div><div class="sub">' + esc(e.home) + ' v ' + esc(e.away) + ' &middot; ' + fmtDay.format(new Date(e.ko)) + ' ' + fmtTime.format(new Date(e.ko)) + (e.taken ? ' &middot; you took it' + (parseFloat(e.odds) > 1 ? ' at ' + parseFloat(e.odds).toFixed(2) : '') : '') + '</div>' + (over ? '<div class="sub">The app could not find this score by itself. Check the score and tap the result:</div>' + tkResBtns(e) : '') + '</li>';
+      return '<li class="tr-i"><div class="top"><b>' + esc(e.label) + '</b><span class="res void">' + (over ? 'score not in yet' : ko <= now ? 'playing' : 'not started') + '</span></div><div class="sub">' + esc(e.home) + ' v ' + esc(e.away) + lockTag(e) + ' &middot; ' + fmtDay.format(new Date(e.ko)) + ' ' + fmtTime.format(new Date(e.ko)) + (e.taken ? ' &middot; you took it' + (parseFloat(e.odds) > 1 ? ' at ' + parseFloat(e.odds).toFixed(2) : '') : '') + '</div>' + (over ? '<div class="sub">The app could not find this score by itself. Check the score and tap the result:</div>' + tkResBtns(e) : '') + '</li>';
     }).join('') + '</ul></div>';
   }
   const done = all.filter(e => e.res).sort((a, b) => new Date(b.ko) - new Date(a.ko)).slice(0, 30);
   if (done.length) h += '<div class="tr-t"><h3>Latest finished bets</h3><ul class="tr-l">' + done.map(e => {
     const o = tkOdds(e, TKVIEW === 'mine' && e.taken ? 'mine' : 'all');
-    return '<li class="tr-i"><div class="top"><b>' + esc(e.label) + '</b><span class="res ' + e.res + '">' + (e.res === 'won' ? 'WON' : e.res === 'lost' ? 'LOST' : 'MONEY BACK') + '</span></div><div class="sub">' + esc(e.home) + ' v ' + esc(e.away) + ' &middot; ' + fmtDay.format(new Date(e.ko)) + (o > 1 ? ' &middot; at ' + o.toFixed(2) : '') + (e.src === 'manual' ? ' &middot; marked by you' : '') + '</div>' + (TKFIX[e.id] ? tkResBtns(e) : '<div class="acts"><button type="button" class="btn small" data-trkfix="' + esc(e.id) + '">Wrong? Fix it</button></div>') + '</li>';
+    return '<li class="tr-i"><div class="top"><b>' + esc(e.label) + '</b><span class="res ' + e.res + '">' + (e.res === 'won' ? 'WON' : e.res === 'lost' ? 'LOST' : 'MONEY BACK') + '</span></div><div class="sub">' + esc(e.home) + ' v ' + esc(e.away) + lockTag(e) + ' &middot; ' + fmtDay.format(new Date(e.ko)) + (o > 1 ? ' &middot; at ' + o.toFixed(2) : '') + (e.src === 'manual' ? ' &middot; marked by you' : '') + '</div>' + (TKFIX[e.id] ? tkResBtns(e) : '<div class="acts"><button type="button" class="btn small" data-trkfix="' + esc(e.id) + '">Wrong? Fix it</button></div>') + '</li>';
   }).join('') + '</ul></div>';
   h += '<div class="actions"><button type="button" class="btn primary" id="tkCopy"' + (all.length ? '' : ' disabled') + '>Copy my record</button><button type="button" class="btn" id="tkClear"' + (all.length ? '' : ' disabled') + '>' + (tkClearArm ? 'Tap again to erase everything' : 'Erase record') + '</button><span class="status" id="tkSt"></span></div>';
-  h += '<p class="hint">Saved on this phone only. If you clear your browser data or change phone, it is gone. Use "Copy my record" to keep a copy in your notes. ' + (RES ? 'Final scores were last updated ' + fmtDay.format(new Date(RES.asOf)) + ', ' + fmtTime.format(new Date(RES.asOf)) + ' WAT.' : 'The score file has not loaded, so use the Won / Lost buttons for finished games.') + ' Corner and card bets are only checked by the app for the big five leagues. Elsewhere, tap the result yourself.</p>';
+  h += '<div class="tr-t"><h3>Back up everything</h3><p class="hint">Your record, your marked picks and your match notes live on this phone only. Save a backup file now and then. To move to a new phone, restore it there.</p><div class="actions"><button type="button" class="btn primary" id="bkSave">Save backup file</button><button type="button" class="btn" id="bkPick">Restore from file</button><input type="file" id="bkFile" accept=".json,application/json" hidden><span class="status" id="bkSt" aria-live="polite"></span></div><details class="how"><summary>File will not save? Copy or paste instead</summary><textarea id="bkText" rows="4" class="bk-text" aria-label="Backup text" placeholder="Paste a backup here, then tap Restore pasted text"></textarea><div class="actions"><button type="button" class="btn small" id="bkCopyT">Copy backup text</button><button type="button" class="btn small" id="bkPaste">Restore pasted text</button></div></details></div>';
+  h += '<p class="hint">Saved on this phone only. If you clear your browser data or change phone, it is gone. Use "Save backup file" below to keep a copy. ' + (RES ? 'Final scores were last updated ' + fmtDay.format(new Date(RES.asOf)) + ', ' + fmtTime.format(new Date(RES.asOf)) + ' WAT.' : 'The score file has not loaded, so use the Won / Lost buttons for finished games.') + ' Corner and card bets are only checked by the app for the big five leagues. Elsewhere, tap the result yourself.</p>';
   $('trackPane').innerHTML = h;
+}
+/* ---------- backup and restore (everything kept on this phone) ---------- */
+const BK_TAG = 'naija-match-desk-backup';
+function bkMake(){ return JSON.stringify({tag:BK_TAG, v:1, at:new Date().toISOString(), setups:lsRead(), picks:pkRead(), track:tkRead()}); }
+function bkClean(o){ // keep only what the app itself writes; drop anything odd
+  const isStr = x => typeof x === 'string' && x.length < 400, isNum = x => typeof x === 'number' && isFinite(x);
+  const out = {setups:{}, picks:{}, track:{}};
+  if (o.setups && typeof o.setups === 'object') Object.keys(o.setups).slice(0, 3000).forEach(k => { if (o.setups[k] && typeof o.setups[k] === 'object') out.setups[k] = o.setups[k]; });
+  if (o.picks && typeof o.picks === 'object') Object.keys(o.picks).slice(0, 20000).forEach(k => { if (o.picks[k] === 'ok' || o.picks[k] === 'low') out.picks[k] = o.picks[k]; });
+  const te = o.track && o.track.e; if (te && typeof te === 'object') Object.keys(te).slice(0, 20000).forEach(k => {
+    const e = te[k]; if (!e || typeof e !== 'object' || !isStr(e.id) || !isStr(e.label) || !isStr(e.home) || !isStr(e.away) || !isStr(e.rowKey) || isNaN(new Date(e.ko).getTime())) return;
+    const c = {id:e.id, fid:isStr(e.fid) ? e.fid : '', key:isStr(e.key) ? e.key : '', rowKey:e.rowKey, label:e.label, home:e.home, away:e.away, hk:isStr(e.hk) ? e.hk : '', ak:isStr(e.ak) ? e.ak : '', lg:isStr(e.lg) ? e.lg : '', ko:e.ko,
+      p:isNum(e.p) ? e.p : null, score:isNum(e.score) ? e.score : undefined, target:isNum(e.target) ? e.target : null, taken:!!e.taken, skipped:!!e.skipped, res:['won','lost','void'].indexOf(e.res) >= 0 ? e.res : null, src:e.src === 'manual' ? 'manual' : e.src === 'auto' ? 'auto' : undefined, frozen:!!e.frozen, at:isNum(e.at) ? e.at : undefined};
+    if (e.odds != null && isStr(String(e.odds))) c.odds = String(e.odds);
+    if (e.first && isNum(e.first.at)) c.first = {p:isNum(e.first.p) ? e.first.p : null, target:isNum(e.first.target) ? e.first.target : null, at:e.first.at};
+    out.track[k] = c;
+  });
+  return out;
+}
+function bkRestore(txt){
+  let o; try { o = JSON.parse(txt); } catch (err) { return {ok:false, msg:'That is not a backup from this app. Nothing was changed.'}; }
+  if (!o || o.tag !== BK_TAG) return {ok:false, msg:'That is not a backup from this app. Nothing was changed.'};
+  const c = bkClean(o); let added = 0, kept = 0, updated = 0;
+  const S = lsRead(); Object.keys(c.setups).forEach(k => { if (!(k in S)) S[k] = c.setups[k]; }); lsWrite(S);
+  Object.keys(c.picks).forEach(k => { if (!(k in PKS)) PKS[k] = c.picks[k]; }); pkWrite(PKS);
+  Object.keys(c.track).forEach(k => {
+    const n = c.track[k], cur = TK.e[k];
+    if (!cur){ TK.e[k] = n; added++; return; }
+    kept++; // what this phone already saved wins: a prediction is never replaced by an older or different one
+    if (!cur.res && n.res){ cur.res = n.res; cur.src = n.src; updated++; }
+    if (!cur.odds && n.odds) cur.odds = n.odds;
+    if (!cur.first && n.first) cur.first = n.first;
+  });
+  tkWrite(TK);
+  return {ok:true, msg:'Restored. ' + added + ' new ' + (added === 1 ? 'pick' : 'picks') + ' added, ' + kept + ' already here (kept as they were), ' + updated + ' result' + (updated === 1 ? '' : 's') + ' filled in.'};
 }
 function loadResults(force){
   if (!force && Date.now() - resLoadedAt < 600e3) return Promise.resolve();
@@ -2030,12 +2098,33 @@ $('trackPane').addEventListener('click', e => {
     else { tkClearArm = false; TK = {e:{}}; tkWrite(TK); renderTrack(); logPicks(); }
     return;
   }
+  if (e.target.id === 'bkSave'){
+    const st = $('bkSt'); try {
+      const blob = new Blob([bkMake()], {type:'application/json'}), a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'match-desk-backup-' + new Date().toISOString().slice(0, 10) + '.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      st.textContent = 'Saving. Check your Downloads.';
+    } catch (err) { st.textContent = 'Could not save a file. Use the copy option below.'; }
+    return;
+  }
+  if (e.target.id === 'bkPick'){ $('bkFile').click(); return; }
+  if (e.target.id === 'bkCopyT'){ const t = $('bkText'); t.value = bkMake(); t.select(); try { navigator.clipboard.writeText(t.value).then(() => { $('bkSt').textContent = 'Copied. Paste it in your notes.'; }, () => { $('bkSt').textContent = 'Select the text and copy it.'; }); } catch (err) { $('bkSt').textContent = 'Select the text and copy it.'; } return; }
+  if (e.target.id === 'bkPaste'){ const r = bkRestore($('bkText').value.trim()); renderTrack(); $('bkSt').textContent = r.msg; return; }
   if (e.target.id === 'tkCopy'){
     const st = tkStats(TKVIEW), lines = ['Naija Match Desk record (' + (TKVIEW === 'all' ? 'all picks' : 'bets I took') + ')', st.n + ' finished bets, ' + st.won + ' won, ' + u2(st.profit) + ' units', ''];
     Object.values(TK.e).sort((a, b) => new Date(a.ko) - new Date(b.ko)).forEach(en => { const o = tkOdds(en, TKVIEW); lines.push(fmtDay.format(new Date(en.ko)) + ' | ' + en.home + ' v ' + en.away + ' | ' + en.label + ' | ' + (o > 1 ? o.toFixed(2) : '-') + ' | ' + (en.res ? en.res : 'waiting') + (en.taken ? ' | taken' : '')); });
     const txt = lines.join('\n'), s = $('tkSt');
     try { navigator.clipboard.writeText(txt).then(() => { s.textContent = 'Copied.'; }, () => { s.textContent = 'Could not copy.'; }); } catch (err) { s.textContent = 'Could not copy.'; }
   }
+});
+
+$('trackPane').addEventListener('change', e => {
+  if (e.target.id !== 'bkFile' || !e.target.files || !e.target.files[0]) return;
+  const f = e.target.files[0];
+  if (f.size > 8e6){ $('bkSt').textContent = 'That file is too big to be a backup. Nothing was changed.'; return; }
+  const rd = new FileReader();
+  rd.onload = () => { const r = bkRestore(String(rd.result)); renderTrack(); $('bkSt').textContent = r.msg; };
+  rd.onerror = () => { $('bkSt').textContent = 'Could not read that file. Nothing was changed.'; };
+  rd.readAsText(f);
 });
 
 /* ---------- type what you found: keyword reading (not AI) ---------- */
