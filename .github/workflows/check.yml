@@ -1,0 +1,18 @@
+name: Self-check
+
+# Runs the self-checks by hand or whenever you change a file. It never touches your live site.
+on:
+  workflow_dispatch:
+  push:
+    paths: ["update.py", "index.html", "tests/**"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 -m unittest discover -s tests -v
